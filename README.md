@@ -39,11 +39,43 @@ The bootstrap compiler itself remains native to the development host. The
 Windows x86 target triple is applied only when compiling the smoke-test object;
 do not propagate i386 flags into host CMake, Ninja, or LLVM's own build.
 
-## Driver format boundary
+## Windows 95 VxD linking: NOT YET ENABLED
 
-Windows 95 RTM VxDs require historical VMM/VxD interfaces and a valid LE
-(Linear Executable) driver. Compiling a COFF object with Clang does not
-produce a loadable `.VXD`; LLD's PE/COFF linker must not be assumed to
-emit LE. Before driver linking, validate an LE-capable linker and appropriate
-historical DDK definitions independently. Native NT `.SYS`, WDM, and
-Win9x VxD driver contracts are separate.
+Windows 95 RTM VxDs need a **genuine LE (Linear Executable)** image, historical
+VMM/VxD interfaces, appropriate LE relocations, and the driver descriptor
+block (DDB) as export ordinal 1. Clang can generate x86 COFF objects, but
+`lld-link` emits PE/COFF images, not LE VxDs. Never rename a PE file `.VXD`
+or pass a successful COFF compilation off as an LE linker test.
+
+Microsoft's Windows 95 DDK documents a historical `LINK.EXE /VXD` route.
+Open Watcom's documented `FORMAT WINDOWS VXD` path has an outstanding
+reported failure to emit proper LE images (open-watcom-v2 issue #310).
+Do **not** silently select either linker without its own verified test.
+
+The deliberately separate format preflight runs on an **existing** file:
+
+```sh
+./build test-format
+./build verify-vxd /path/to/known-driver.vxd
+```
+
+`test-format` runs synthetic structural regression tests (no driver binaries
+are produced). `verify-vxd` rejects PE/NE/LX, missing ordinal-1 exports,
+out-of-range object/page tables, and malformed or unsupported internal fixups.
+It currently supports direct-header dynamically-loadable LE VxDs; embedded
+LE resources and static-VxD variants are not yet covered.
+
+**Passing format preflight is not permission to ship or install a driver.**
+Before enabling VxD builds, prove that an actual linker emits an LE image with
+the correct VxD control/DDB references, test it in a disposable Windows 95
+RTM VM, and independently validate relocations and initialization. The LLVM
+fork's own LE writer is a separate, still-open implementation task.
+NT `.SYS`, WDM, and Win9x VxD contracts remain distinct.
+
+Sources:
+- Windows 95 DDK, *Building a Virtual Device*:
+  https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2305.HTM
+- Geoff Chappell, *Dynamic VxD Loading* (WfW 3.11 loader analysis;
+  version-specific and not a universal Windows 95 loader specification):
+  https://geoffchappell.com/notes/windows/archive/vxdldr.htm
+- Open Watcom VxD output problem: https://github.com/open-watcom/open-watcom-v2/issues/310

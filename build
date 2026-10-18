@@ -58,7 +58,6 @@ bootstrap() {
     cmake --build "$build_dir" --parallel "$jobs" --target \
         clang lld llvm-ar llvm-nm llvm-ranlib llvm-objcopy \
         llvm-objdump llvm-readobj llvm-strip
-    # Always check the suite just built, even if an external bin dir is configured.
     bin_dir="$build_dir/bin"
     check_tools
 }
@@ -81,5 +80,16 @@ case "${1:-}" in
     bootstrap) bootstrap ;;
     check) check_tools ;;
     smoke) smoke ;;
-    *) printf 'Usage: %s {bootstrap|check|smoke}\n' "$0" >&2; exit 2 ;;
+    verify-vxd)
+        [ "$#" -eq 2 ] || die "usage: ./build verify-vxd <file.vxd>"
+        need python3
+        exec python3 "$root/tools/verify_vxd.py" --dynamic "$2"
+        ;;
+    test-format)
+        [ "$#" -eq 1 ] || die "usage: ./build test-format"
+        need python3
+        cd "$root"
+        exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
+        ;;
+    *) printf 'Usage: %s {bootstrap|check|smoke|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
