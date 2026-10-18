@@ -79,3 +79,26 @@ Sources:
   version-specific and not a universal Windows 95 loader specification):
   https://geoffchappell.com/notes/windows/archive/vxdldr.htm
 - Open Watcom VxD output problem: https://github.com/open-watcom/open-watcom-v2/issues/310
+
+## Experimental WHP LE writer (format smoke only)
+
+The pinned LLVM fork now contains a first-stage **standalone Python**
+i386 COFF-to-LE writer under lld/utils/whp-le-link.py. This is **not**
+native LLD PE/COFF output and is not yet proved to load in Windows 95.
+
+After bootstrapping the compiler from the pinned WHP LLVM fork:
+
+    ./build test-le
+    ./build smoke-vxd
+
+The first runs writer regression tests (no native compiler needed); the second
+uses our Clang to compile an 80-byte-DDB structural probe, invokes the
+experimental LE writer, and runs the independent WHP-Drivers LE verifier.
+The result is saved under .build/llvm-native/whp-tests/WHPTEST.VXD.
+
+The probe deliberately lacks a production-ready VMM driver contract. A
+successful structural test is not permission to load on real hardware.
+Guest loading, DDB control dispatch, and VMM service linking must be tested
+independently before driver development is unlocked. The current LE writer
+rejects unsupported COFF formats and relocations instead of silently emitting
+a malformed image.

@@ -76,10 +76,36 @@ smoke() {
     printf '%s\n' "WHP-Drivers: i386 Windows COFF compiler smoke test passed"
 }
 
+
+test_le() {
+    check_source
+    need python3
+    python3 -m unittest discover -s "$llvm_root/lld/utils/whp-le" -p 'test_link.py'
+}
+
+smoke_vxd() {
+    check_tools
+    need python3
+    writer="$llvm_root/lld/utils/whp-le-link.py"
+    [ -f "$writer" ] || die "pinned LLVM lacks experimental LE writer"
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    "$bin_dir/clang" --target=i386-pc-windows-msvc \
+        -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
+        -Wall -Wextra -Werror -c \
+        "$root/tests/whp-vxd-probe.c" -o "$out_dir/whp-vxd-probe.obj"
+    python3 "$writer" --name WHPTEST --ddb WHPTEST_DDB \
+        -o "$out_dir/WHPTEST.VXD" "$out_dir/whp-vxd-probe.obj"
+    python3 "$root/tools/verify_vxd.py" --dynamic "$out_dir/WHPTEST.VXD"
+    printf '%s\n' "WHP-Drivers: LE format smoke test passed (Windows 95 runtime NOT tested)"
+}
+
 case "${1:-}" in
     bootstrap) bootstrap ;;
     check) check_tools ;;
     smoke) smoke ;;
+    test-le) test_le ;;
+    smoke-vxd) smoke_vxd ;;
     verify-vxd)
         [ "$#" -eq 2 ] || die "usage: ./build verify-vxd <file.vxd>"
         need python3
@@ -91,5 +117,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|check|smoke|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|check|smoke|smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
