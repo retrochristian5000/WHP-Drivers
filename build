@@ -191,7 +191,81 @@ smoke_radeon6410d() {
     printf '%s\n' "WHP-Drivers: Radeon HD 6410D PCI identification smoke passed (no hardware accessed)"
 }
 
+# Build the pinned OpenWatcom fork as a native host toolchain, independent
+# of any Windows 95 VxD linkage or driver selection.
+bootstrap_watcom() {
+    check_watcom_source
+    need make
+    [ -f "$watcom_src/ci/buildx.sh" ] ||
+        die "pinned OpenWatcom source lacks ci/buildx.sh"
+    [ -f "$watcom_src/cmnvars.sh" ] ||
+        die "pinned OpenWatcom source lacks cmnvars.sh"
+    [ "$watcom_root" = "$watcom_src/rel" ] ||
+        die "OpenWatcom bootstrap writes to the pinned source rel/ tree; unset WHP_WATCOM_ROOT"
+    [ -z "${WHP_WATCOM_BIN_DIR:-}" ] ||
+        die "OpenWatcom bootstrap uses pinned rel/ binaries; unset WHP_WATCOM_BIN_DIR"
+    case "$(uname -s)" in
+        Darwin|Linux) ;;
+        *) die "OpenWatcom bootstrap only wired for macOS/Linux hosts" ;;
+    esac
+
+    # Explicit compiler > built WHP LLVM > announced host clang fallback.
+    if [ -n "${WHP_WATCOM_CLANG:-}" ]; then
+        clang_host=$WHP_WATCOM_CLANG
+        printf '%s\n' "WHP-Drivers: explicit OpenWatcom host Clang: $clang_host"
+    elif [ -x "$bin_dir/clang" ]; then
+        check_source
+        clang_host="$bin_dir/clang"
+        printf '%s\n' "WHP-Drivers: using pinned WHP LLVM to bootstrap OpenWatcom"
+    else
+        clang_host=$(command -v clang) || die "OpenWatcom bootstrap requires host clang or WHP LLVM"
+        printf '%s\n' "WHP-Drivers: pinned WHP LLVM not built; using host Clang: $clang_host"
+    fi
+    clang_host=$(command -v "$clang_host") ||
+        die "cannot find OpenWatcom host compiler $clang_host"
+    case "$clang_host" in
+        /*) ;;
+        *) die "OpenWatcom host compiler must resolve to an absolute path: $clang_host" ;;
+    esac
+    [ -x "$clang_host" ] ||
+        die "OpenWatcom host compiler is not executable: $clang_host"
+    case "$clang_host" in
+        *' '*|*'='*) die "OpenWatcom upstream build cannot safely handle spaces or '=' in compiler paths" ;;
+    esac
+    case "$watcom_src" in
+        *' '*|*'='*) die "OpenWatcom upstream build cannot safely handle spaces or '=' in source paths" ;;
+    esac
+    (
+        cd "$watcom_src"
+        OWROOT="$watcom_src"
+        OWRELROOT="$watcom_src/rel"
+        OWTOOLS=CLANG
+        OWCLANG="$clang_host"
+        PATH="${clang_host%/*}:$PATH"
+        OWOBJDIR=binbuild
+        OWDOCBUILD=0
+        OWNOWGML=1
+        OWGUINOBUILD=1
+        export PATH OWROOT OWRELROOT OWTOOLS OWCLANG OWOBJDIR OWDOCBUILD OWNOWGML OWGUINOBUILD
+        # Do not source setvars.sh: it unconditionally overrides OWTOOLS=GCC.
+        # ci/buildx.sh sources cmnvars.sh like upstream macOS CI.
+        printf '%s\n' "WHP-Drivers: OpenWatcom stage 1/2 (native bootstrap tools)"
+        OWBUILD_STAGE=boot
+        export OWBUILD_STAGE
+        sh ./ci/buildx.sh ||
+            die "OpenWatcom native bootstrap stage failed"
+        printf '%s\n' "WHP-Drivers: OpenWatcom stage 2/2 (release compiler and linker)"
+        OWBUILD_STAGE=build
+        export OWBUILD_STAGE
+        sh ./ci/buildx.sh ||
+            die "OpenWatcom release build failed"
+    )
+    watcom_check
+    printf '%s\n' "WHP-Drivers: native OpenWatcom toolchain built; Windows 95 VxD loading NOT verified"
+}
+
 case "${1:-}" in
+    bootstrap-watcom) bootstrap_watcom ;;
     watcom-check) watcom_check ;;
     watcom-smoke-vxd) watcom_smoke_vxd ;;
     bootstrap) bootstrap ;;
@@ -211,5 +285,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|check|smoke|smoke-vxd|smoke-radeon6410d|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|check|smoke|smoke-vxd|smoke-radeon6410d|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac

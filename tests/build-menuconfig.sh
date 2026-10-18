@@ -47,4 +47,39 @@ if "$tmp/build.sh" config > /dev/null 2>&1; then
     exit 1
 fi
 [ ! -e "$tmp/injected" ] || exit 1
+# Independent toolchain bootstrap, with backwards-compatible "on" profile.
+printf 'WHP_DRIVER_BOOTSTRAP=on\n' > "$tmp/.whpconfig"
+"$tmp/build.sh" config | grep -q 'Tool bootstrap:  llvm'
+: > "$WHP_TEST_LOG"
+"$tmp/build.sh" build
+printf 'bootstrap\nsmoke\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+
+printf 'WHP_DRIVER_BOOTSTRAP=openwatcom\n' > "$tmp/.whpconfig"
+: > "$WHP_TEST_LOG"
+"$tmp/build.sh" build
+printf 'bootstrap-watcom\nsmoke\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+
+printf 'WHP_DRIVER_BOOTSTRAP=both\n' > "$tmp/.whpconfig"
+: > "$WHP_TEST_LOG"
+"$tmp/build.sh" build
+printf 'bootstrap\nbootstrap-watcom\nsmoke\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+
+: > "$WHP_TEST_LOG"
+"$tmp/build.sh" bootstrap-all
+printf 'bootstrap\nbootstrap-watcom\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+
+printf 'WHP_DRIVER_BOOTSTRAP=off\n' > "$tmp/.whpconfig"
+printf '3\n3\ns\n' | "$tmp/build.sh" menuconfig >/dev/null
+grep -qx 'WHP_DRIVER_BOOTSTRAP=openwatcom' "$tmp/.whpconfig"
+
+printf 'WHP_DRIVER_BOOTSTRAP=unrecognized\n' > "$tmp/.whpconfig"
+if "$tmp/build.sh" config >/dev/null 2>&1; then
+    printf '%s\n' 'invalid toolchain bootstrap option was accepted' >&2
+    exit 1
+fi
+
 printf '%s\n' 'WHP-Drivers: build.sh menuconfig regression checks passed'

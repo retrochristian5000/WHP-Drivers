@@ -15,7 +15,11 @@ fail() { printf '%s\n' "WHP-Drivers: $*" >&2; exit 1; }
 validate() {
     case "$profile" in abi|vxd|radeon6410d|all) ;; *) fail "invalid profile: $profile" ;; esac
     case "$vxd_backend" in llvm|openwatcom) ;; *) fail "invalid VxD backend: $vxd_backend" ;; esac
-    case "$bootstrap" in on|off) ;; *) fail "invalid bootstrap setting: $bootstrap" ;; esac
+    case "$bootstrap" in
+        on) bootstrap=llvm ;; # backwards-compatible .whpconfig migration
+        off|llvm|openwatcom|both) ;;
+        *) fail "invalid bootstrap setting: $bootstrap" ;;
+    esac
     case "$jobs" in ''|0|*[!0-9]*) fail "LLVM jobs must be 1-16" ;; esac
     [ "$jobs" -ge 1 ] && [ "$jobs" -le 16 ] || fail "LLVM jobs must be 1-16"
 }
@@ -54,7 +58,7 @@ show_config() {
     printf '%s\n' 'WHP-Drivers configuration'
     printf '  Workflow:        %s\n' "$profile"
     printf '  VxD backend:     %s\n' "$vxd_backend"
-    printf '  LLVM bootstrap:  %s\n' "$bootstrap"
+    printf '  Tool bootstrap:  %s\n' "$bootstrap"
     printf '  LLVM jobs:       %s\n' "$jobs"
     printf '%s\n' '  Windows 95 RTM hardware loading: NOT ENABLED'
 }
@@ -81,7 +85,7 @@ menuconfig() {
         show_config
         printf '%s\n' '  1) Cycle workflow (abi -> vxd -> radeon6410d -> all)'
         printf '%s\n' '  2) Toggle VxD backend (llvm / openwatcom)'
-        printf '%s\n' '  3) Toggle LLVM bootstrap (off / on)'
+        printf '%s\n' '  3) Cycle toolchain bootstrap (off / llvm / openwatcom / both)'
         printf '%s\n' '  4) Set LLVM build jobs (1-16)'
         printf '%s\n' '  s) Save and exit  q) Exit without saving'
         printf '> '
@@ -90,7 +94,8 @@ menuconfig() {
             1) case "$profile" in abi) profile=vxd ;; vxd) profile=radeon6410d ;;
                   radeon6410d) profile=all ;; all) profile=abi ;; esac ;;
             2) if [ "$vxd_backend" = llvm ]; then vxd_backend=openwatcom; else vxd_backend=llvm; fi ;;
-            3) if [ "$bootstrap" = off ]; then bootstrap=on; else bootstrap=off; fi ;;
+            3) case "$bootstrap" in off) bootstrap=llvm ;; llvm) bootstrap=openwatcom ;;
+                  openwatcom) bootstrap=both ;; both) bootstrap=off ;; esac ;;
             4) printf 'LLVM jobs [1-16]: '
                IFS= read -r candidate || fail 'menu closed without saving'
                old=$jobs; jobs=$candidate
@@ -109,12 +114,17 @@ run_vxd() {
     if [ "$vxd_backend" = openwatcom ]; then "$backend" watcom-smoke-vxd
     else "$backend" smoke-vxd; fi
 }
+run_bootstrap() {
+    case "$bootstrap" in
+        off) ;;
+        llvm) "$backend" bootstrap ;;
+        openwatcom) "$backend" bootstrap-watcom ;;
+        both) "$backend" bootstrap
+              "$backend" bootstrap-watcom ;;
+    esac
+}
 run_profile() {
-    if [ "$bootstrap" = on ]; then
-        if [ "$profile" != vxd ] || [ "$vxd_backend" = llvm ]; then
-            "$backend" bootstrap
-        fi
-    fi
+    run_bootstrap
     case "$profile" in
         abi) "$backend" smoke ;;
         vxd) run_vxd ;;
@@ -128,20 +138,23 @@ run_profile() {
 }
 usage() {
     cat <<'HELP'
-Usage: ./build.sh [menuconfig|config|build|test|bootstrap|<legacy target>]
+Usage: ./build.sh [menuconfig|config|build|test|bootstrap|bootstrap-watcom|bootstrap-all|<legacy target>]
   menuconfig      Configure build profile using portable interactive menu
   config          Show active settings (environment overrides .whpconfig)
   build           Run selected compile/smoke workflow; no driver installation
   test            Run format/LE tests, then selected workflow
   bootstrap       Explicit LLVM bootstrap (existing backend)
+  bootstrap-watcom Explicit native OpenWatcom host + release toolchain bootstrap
+  bootstrap-all   Build both pinned LLVM and OpenWatcom toolchains
   test-menuconfig Run isolated build.sh configuration regression checks
   <legacy target> Pass through to ./build (smoke, smoke-vxd, verify-vxd, ...)
 Profiles: abi (default), vxd, radeon6410d, all
 VxD backends: llvm (default), openwatcom (explicit and LE-verified only)
-Defaults: LLVM bootstrap OFF; LLVM build jobs 2 (max configured 16)
+Bootstrap choices: off, llvm, openwatcom, both (legacy on = llvm)
+Defaults: bootstrap OFF; LLVM build jobs 2 (max configured 16)
 Config: .whpconfig (data only, ignored by Git)
 Overrides: WHP_DRIVER_PROFILE, WHP_DRIVER_VXD_BACKEND,
-           WHP_DRIVER_BOOTSTRAP, WHP_LLVM_JOBS
+           WHP_DRIVER_BOOTSTRAP, WHP_LLVM_JOBS, WHP_WATCOM_CLANG
 HELP
 }
 
@@ -153,6 +166,9 @@ esac
 load_config
 apply_env
 case "${1:-build}" in
+    bootstrap-all) [ "$#" -eq 1 ] || fail 'bootstrap-all takes no arguments';
+                   "$backend" bootstrap
+                   "$backend" bootstrap-watcom ;;
     menuconfig) [ "$#" -eq 1 ] || fail 'menuconfig takes no arguments'; menuconfig ;;
     config|showconfig) [ "$#" -eq 1 ] || fail 'config takes no arguments'; show_config ;;
     build) [ "$#" -eq 1 ] || fail 'build takes no arguments'; run_profile ;;

@@ -14,14 +14,19 @@ Use `./build.sh` as the new top-level entry point; the historical executable
 ./build.sh test               # LE/format tests plus configured profile
 ./build.sh test-menuconfig    # isolated shell-menu regression checks
 ./build.sh bootstrap          # explicitly compile the pinned LLVM fork
+./build.sh bootstrap-watcom   # bootstrap pinned OpenWatcom host + release tools
+./build.sh bootstrap-all      # build both pinned toolchains
 ```
 
 The menu selects one workflow (`abi`, `vxd`, `radeon6410d`, or `all`),
-the VxD backend (`llvm` or optional `openwatcom`), LLVM bootstrap
-(`off` by default), and parallel LLVM jobs (1–16, default 2).
+the VxD backend (`llvm` or optional `openwatcom`), and **independent**
+toolchain bootstrap (`off`, `llvm`, `openwatcom`, or `both`), plus LLVM
+parallel jobs (1–16, default 2). Earlier `WHP_DRIVER_BOOTSTRAP=on` profiles
+are accepted and interpreted as `llvm`; `off` remains the default.
 The Radeon identity profile remains LLVM-based; the backend choice affects
 **only the VxD smoke probe**. OpenWatcom is never a silent fallback, and
-the VxD backend must pass its own LE verification.
+the VxD backend must pass its own LE verification. OpenWatcom bootstrap
+is independent of whichever backend runs the VxD probe.
 
 Settings are stored in ignored `.whpconfig` as validated data (not
 shell-sourced); environment overrides are `WHP_DRIVER_PROFILE`,
@@ -91,6 +96,30 @@ probe is *not* permission to load the result in a Windows 95 RTM guest.
 
 LLVM remains the default toolchain. Neither OpenWatcom nor Water adds
 implicit runtime libraries to VxD links.
+
+### Bootstrapping OpenWatcom independently
+
+The OpenWatcom build uses the pinned fork's CI stages directly:
+`ci/buildx.sh` with `OWBUILD_STAGE=boot` (native `wmake` and `builder`),
+then `OWBUILD_STAGE=build` (native compiler, assembler and linker release
+artifacts under `rel/`). Both stages must succeed, followed by the existing
+`./build watcom-check` check for `wcc386` and `wlink`.
+
+```sh
+./build.sh bootstrap-watcom   # OpenWatcom alone, no LLVM bootstrap required
+./build.sh bootstrap-all      # LLVM first, then OpenWatcom
+./build.sh menuconfig         # choose off / llvm / openwatcom / both
+```
+
+The bootstrap invokes `OWTOOLS=CLANG` without sourcing `setvars.sh`, which
+would otherwise override the selection with GCC. It reuses a previously
+built pinned WHP LLVM Clang when available, or announces a fallback to
+host Clang. Set `WHP_WATCOM_CLANG` to choose a specific host compiler.
+No automatic network fetching, revision changes, or driver installation is
+performed. The fork's scripts have limitations with spaces and `=` in
+source paths. macOS native build dependencies (potentially DOSBox-X) still
+need to be installed independently; actual macOS end-to-end completion
+is not yet verified.
 
 ## Radeon HD 6410D (hardware target; PCI identity skeleton)
 
