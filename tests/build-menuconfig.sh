@@ -87,7 +87,8 @@ printf 'WHP_DRIVER_BOOTSTRAP=off\n' > "$tmp/.whpconfig"
 : > "$WHP_TEST_LOG"
 "$tmp/build.sh" display-win16-check
 "$tmp/build.sh" display-ddk-check
-printf 'display-win16-check\ndisplay-ddk-check\n' > "$tmp/expected"
+"$tmp/build.sh" minivdd-check
+printf 'display-win16-check\ndisplay-ddk-check\nminivdd-check\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 
 printf '%s\n' 'WHP-Drivers: build.sh menuconfig regression checks passed'

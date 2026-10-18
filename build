@@ -312,7 +312,25 @@ win16_display_ddk_check() {
     printf '%s\n' "WHP-Drivers: historical display DDK headers compiled; DIBENG ABI and RTM guest loading unverified"
 }
 
+# A read-only i386 COFF compile check of our MINIVDD.H C boundary.
+# The Win16 display check separately compiles the same header with wcc.
+minivdd_header_check() {
+    check_tools
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    "$bin_dir/clang" --target=i386-pc-windows-msvc \
+        -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
+        -Wall -Wextra -Werror -I"$root/include" -c \
+        "$root/tests/win95-minivdd-header.c" \
+        -o "$out_dir/win95-minivdd-header.obj"
+    "$bin_dir/llvm-readobj" --file-headers "$out_dir/win95-minivdd-header.obj" |
+        grep -q 'Machine: IMAGE_FILE_MACHINE_I386' ||
+        die "MINIVDD.H ABI probe was not i386 COFF"
+    printf '%s\n' "WHP-Drivers: mini-VDD C header check passed (Win95 RTM guest ABI NOT verified)"
+}
+
 case "${1:-}" in
+    minivdd-check) minivdd_header_check ;;
     display-win16-check) win16_display_check ;;
     display-ddk-check) win16_display_ddk_check ;;
     bootstrap-watcom) bootstrap_watcom ;;
@@ -335,5 +353,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|check|smoke|smoke-vxd|smoke-radeon6410d|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac

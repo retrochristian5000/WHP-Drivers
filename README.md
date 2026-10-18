@@ -135,20 +135,28 @@ Our WHP-controlled `include/whp/win95rtm/display/` now has:
 - `ddk_minidrv.h`: **opt-in** inclusion of historical `gdidefs.h` and
   `dibeng.h` under `WHP_WIN95_DISPLAY_USE_HISTORICAL_DDK`.
 
-The historical Win95 source and contemporary 9x minidrivers establish that
-`gdidefs.h` and `dibeng.h` are needed for their declarations. The
-`MINIVDD.INC` assembly interface is separately described in Windows 95 DDK;
-some later display projects use `minivdd.h`, but the two must not be
-silently assumed equivalent, nor imported into the 16-bit layer.
+The Windows 95 DDK documents the `MINIVDD.INC` assembly interface and
+`DISPLAYINFO`. A separately recovered 9x C witness, VMDisp9x's
+`ddk/minivdd.h`, documents VDD-call identifiers, dispatch indices and the
+50-byte `DISPLAYINFO` field image. **That witness covers Windows 95/98/Me,
+not exclusively 4.00.950.** WHP now provides a *limited, project-owned*
+`include/minivdd.h` C compatibility shim backed by
+`include/whp/win95rtm/display/minivdd.h`. These expose a selected
+cross-version-observed numeric surface and a checked field-image candidate,
+not a verified RTM VDD callback ABI. The assembler `MINIVDD.INC` remains
+separate and is **not** replaced or recreated.
 
 **Header availability:** Water's Win32 headers are not a substitute.
-OpenWatcom supplies generic Win16 `windows.h`, but we have not identified
-the historical DDK-specific display headers in the pinned repositories.
-No proprietary DDK headers or invented structures have been vendored.
+OpenWatcom supplies generic Win16 `windows.h`. Historical `gdidefs.h` and
+`dibeng.h` are still needed separately. The new `minivdd.h` is intentionally
+a WHP-authored subset; no proprietary DDK file has been copied into WHP.
+When a historical DDK is supplied, its include directory comes first so
+the genuine header takes precedence over the WHP fallback.
 
 ```sh
 ./build.sh bootstrap-watcom
 ./build display-win16-check
+./build minivdd-check
 WHP_WIN95_DISPLAY_DDK_INCLUDE=/path/to/verified/win95/ddk/include \
     ./build display-ddk-check
 ```
@@ -161,7 +169,9 @@ links a working Win16 `.DRV` nor proves Windows 95 RTM DIBENG or mini-VDD
 calling conventions. A native macOS compiler run is still required before
 marking these targets validated.
 
-**Current remaining gaps:** verify full `DIBENGINE` binary layout;
+**Current remaining gaps:** verify the recovered `DISPLAYINFO` field image
+against an original Windows 95 RTM `MINIVDD.INC`, including VDD dispatch
+version limits and actual register conventions; verify full `DIBENGINE` binary layout;
 `GDIINFO`/DDI prototypes and exported ordinals; special calling convention
 for `CreateDIBPDevice`; 16-bit DIB Engine import libraries; separately
 validated `MINIVDD.INC` VMM/VDD service ABI; a genuine NE `.DRV` linker
@@ -178,6 +188,8 @@ Evidence:
   https://www.os2museum.com/wp/windows-9x-video-minidriver-hd/
 - JHRobotics 9x source, display header usage:
   https://github.com/JHRobotics/vmdisp9x/blob/main/enable.c
+- JHRobotics cross-version C-header witness (not RTM provenance):
+  https://github.com/JHRobotics/vmdisp9x/blob/main/ddk/minivdd.h
 
 ## Radeon HD 6410D (hardware target; PCI identity skeleton)
 
