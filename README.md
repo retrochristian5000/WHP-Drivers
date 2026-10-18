@@ -15,8 +15,11 @@ git submodule update --init third_party/water
 Its `include/` tree is available for **selectively audited Win32 user-mode
 helper headers**. Water's import libraries are build outputs, not assumed to be
 present in the source checkout or interchangeable with Windows 95 RTM libraries.
-No Water runtime or library is added to the VxD link by default. Historical
-VMM/VxD headers and LE service linking remain separate, unverified work.
+No Water runtime or library is added to the VxD link by default.
+A minimal, i386-only Windows 95 DDB/control-message baseline now lives in
+`include/whp/win95rtm/vmm.h` and is compiled by `./build smoke-vxd`.
+The header is **not** a complete VMM DDK: live service calls, the control
+ABI, and LE service linking remain unverified work.
 Use the recorded gitlink revision, not the moving Water `master` branch.
 
 ## LLVM toolchain
