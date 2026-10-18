@@ -100,7 +100,80 @@ smoke_vxd() {
     printf '%s\n' "WHP-Drivers: LE format smoke test passed (Windows 95 runtime NOT tested)"
 }
 
+
+# The OpenWatcom path is explicitly opt-in; the LLVM backend remains primary.
+# A working macOS *host* compiler does not establish VxD LE-linker correctness.
+watcom_src="$root/toolchains/openwatcom"
+watcom_root=${WHP_WATCOM_ROOT:-"$watcom_src/rel"}
+watcom_bin_dir=${WHP_WATCOM_BIN_DIR:-}
+
+check_watcom_source() {
+    need git
+    [ -f "$watcom_src/build.sh" ] ||
+        die "missing pinned OpenWatcom source: git submodule update --init toolchains/openwatcom"
+    pinned=$(git -C "$root" rev-parse HEAD:toolchains/openwatcom 2>/dev/null) ||
+        die "cannot read pinned OpenWatcom revision"
+    actual=$(git -C "$watcom_src" rev-parse HEAD 2>/dev/null) ||
+        die "cannot read OpenWatcom checkout revision"
+    [ "$pinned" = "$actual" ] ||
+        die "OpenWatcom checkout differs from pinned revision ($actual != $pinned)"
+}
+
+watcom_check() {
+    check_watcom_source
+    if [ -z "$watcom_bin_dir" ]; then
+        platform=$(uname -s)
+        arch=$(uname -m)
+        case "$platform:$arch" in
+            Darwin:arm64|Darwin:aarch64) host_dir=armo64 ;;
+            Darwin:x86_64) host_dir=bino64 ;;
+            Linux:x86_64) host_dir=binl64 ;;
+            Linux:aarch64|Linux:arm64) host_dir=arml64 ;;
+            *) die "unsupported OpenWatcom native host $platform/$arch; set WHP_WATCOM_BIN_DIR explicitly" ;;
+        esac
+        watcom_bin_dir="$watcom_root/$host_dir"
+    fi
+    [ -d "$watcom_root/h" ] ||
+        die "missing OpenWatcom release headers at $watcom_root/h; build/install the pinned fork"
+    [ -x "$watcom_bin_dir/wcc386" ] ||
+        die "missing native OpenWatcom compiler $watcom_bin_dir/wcc386"
+    [ -x "$watcom_bin_dir/wlink" ] ||
+        die "missing native OpenWatcom linker $watcom_bin_dir/wlink"
+    printf '%s\n' "WHP-Drivers: OpenWatcom candidate found ($watcom_bin_dir); VxD capability NOT verified"
+}
+
+watcom_smoke_vxd() {
+    watcom_check
+    need python3
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    obj="$out_dir/whp-watcom-vxd-probe.obj"
+    vxd="$out_dir/WHPWAT.VXD"
+    # Use OpenWatcom objects with its own linker; never silently mix in LLVM COFF.
+    # -bt=nt chooses a 32-bit Windows code-generation target, NOT an NT .SYS ABI.
+    (
+        export WATCOM="$watcom_root"
+        export INCLUDE="$watcom_root/h"
+        "$watcom_bin_dir/wcc386" -zq -s -bt=nt "-fo=$obj" \
+            "$root/tests/watcom-vxd-probe.c"
+    ) || die "OpenWatcom x86 compile failed"
+    rm -f "$vxd"
+    (
+        export WATCOM="$watcom_root"
+        "$watcom_bin_dir/wlink" "format windows vxd dynamic" \
+            "option nodefaultlibs" "file $obj" "name $vxd" \
+            "export WHPWAT_DDB.1"
+    ) || die "OpenWatcom Windows VxD linking failed (no fallback activated)"
+    [ -f "$vxd" ] ||
+        die "OpenWatcom reported success but produced no VxD"
+    python3 "$root/tools/verify_vxd.py" --dynamic "$vxd" ||
+        die "OpenWatcom output rejected by LE verifier (no fallback activated)"
+    printf '%s\n' "WHP-Drivers: OpenWatcom LE format probe passed; Win95 RTM loading NOT verified"
+}
+
 case "${1:-}" in
+    watcom-check) watcom_check ;;
+    watcom-smoke-vxd) watcom_smoke_vxd ;;
     bootstrap) bootstrap ;;
     check) check_tools ;;
     smoke) smoke ;;
@@ -117,5 +190,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|check|smoke|smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|check|smoke|smoke-vxd|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac

@@ -22,6 +22,44 @@ The header is **not** a complete VMM DDK: live service calls, the control
 ABI, and LE service linking remain unverified work.
 Use the recorded gitlink revision, not the moving Water `master` branch.
 
+## OpenWatcom fallback candidate (explicit, never automatic)
+
+WHP-Drivers pins the existing [WHP OpenWatcom fork](https://github.com/retrochristian5000/openwatcomfork)
+as a separate Git submodule at `toolchains/openwatcom`. Its commit is fixed
+in the Git tree; do not substitute an unverified moving upstream tip.
+
+```sh
+git submodule update --init toolchains/openwatcom
+```
+
+The fork includes Darwin bootstrap logic and macOS Intel/ARM64 CI build
+configurations. These show **source support**, not a successful build on every
+Mac. Use the fork's OpenWatcom build guide to create its `rel` release tree.
+For native tools, macOS ARM64 uses `rel/armo64` and macOS Intel uses
+`rel/bino64`. A source checkout alone has no runnable compiler.
+
+```sh
+./build watcom-check       # pinned source + native tool presence only
+./build watcom-smoke-vxd   # independent compiler/linker and LE format probe
+```
+
+The optional environment variables `WHP_WATCOM_ROOT` and
+`WHP_WATCOM_BIN_DIR` can select an explicitly prepared release tree and
+host-binary directory. By default the tests use `toolchains/openwatcom/rel`.
+An external install is not automatically guaranteed to match the pinned fork.
+
+**Do not enable OpenWatcom as the default VxD linker.** Its documented
+`FORMAT WINDOWS VXD DYNAMIC` path has an [upstream regression report](https://github.com/open-watcom/open-watcom-v2/issues/310)
+for NE rather than LE output; later linker changes in the fork have not yet
+been validated here. The opt-in probe compiles using Watcom's own x86
+object format, attempts a dynamic VxD link, and runs our existing independent
+LE verifier. A missing tool, link failure, NE/PE output, or malformed LE
+is a hard failure, **never** a successful fallback. Even a passing structural
+probe is *not* permission to load the result in a Windows 95 RTM guest.
+
+LLVM remains the default toolchain. Neither OpenWatcom nor Water adds
+implicit runtime libraries to VxD links.
+
 ## LLVM toolchain
 
 This repository pins the existing [WHP LLVM fork](https://github.com/retrochristian5000/LLVM)

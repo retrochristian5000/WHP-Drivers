@@ -5,3 +5,7 @@
 [submodule "third_party/water"]
 	path = third_party/water
 	url = https://github.com/retrochristian5000/water.git
+
+[submodule "toolchains/openwatcom"]
+	path = toolchains/openwatcom
+	url = https://github.com/retrochristian5000/openwatcomfork.git
