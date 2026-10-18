@@ -1,3 +1,7 @@
 [submodule "toolchains/llvm-project"]
 	path = toolchains/llvm-project
 	url = https://github.com/retrochristian5000/LLVM.git
+
+[submodule "third_party/water"]
+	path = third_party/water
+	url = https://github.com/retrochristian5000/water.git

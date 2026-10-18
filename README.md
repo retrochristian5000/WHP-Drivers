@@ -2,6 +2,23 @@
 
 WHP hardware-driver research and development.
 
+## Pinned Water source (Win32 headers and import-library research)
+
+The existing [Water fork](https://github.com/retrochristian5000/water) is pinned
+at `third_party/water` as a separate Git submodule. To initialize only this
+source dependency in an existing checkout:
+
+```sh
+git submodule update --init third_party/water
+```
+
+Its `include/` tree is available for **selectively audited Win32 user-mode
+helper headers**. Water's import libraries are build outputs, not assumed to be
+present in the source checkout or interchangeable with Windows 95 RTM libraries.
+No Water runtime or library is added to the VxD link by default. Historical
+VMM/VxD headers and LE service linking remain separate, unverified work.
+Use the recorded gitlink revision, not the moving Water `master` branch.
+
 ## LLVM toolchain
 
 This repository pins the existing [WHP LLVM fork](https://github.com/retrochristian5000/LLVM)
