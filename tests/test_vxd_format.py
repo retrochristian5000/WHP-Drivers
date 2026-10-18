@@ -64,6 +64,22 @@ class FormatTests(unittest.TestCase):
         with self.assertRaises(FormatError):
             check_image(bad)
 
+    def test_internal_relocation(self):
+        image = sample()
+        h = 0x80
+        # One internal 32-bit target-offset fixup on logical page one.
+        struct.pack_into("<I", image, h + 0x110 + 4, 9)
+        struct.pack_into("<HHBI", image, h + 0x118, 0x1007, 0x20, 1, 0x40)
+        self.assertEqual(check_image(image)["fixup_bytes"], 9)
+
+    def test_reject_external_relocation(self):
+        image = sample()
+        h = 0x80
+        struct.pack_into("<I", image, h + 0x110 + 4, 9)
+        struct.pack_into("<HHBI", image, h + 0x118, 0x1107, 0x20, 1, 0x40)
+        with self.assertRaises(FormatError):
+            check_image(image)
+
     def test_reject_truncation(self):
         with self.assertRaises(FormatError):
             check_image(sample()[:0x400])
