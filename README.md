@@ -2,6 +2,38 @@
 
 WHP hardware-driver research and development.
 
+## Configurable build entry point
+
+Use `./build.sh` as the new top-level entry point; the historical executable
+`./build` remains intact as a backend and preserves all existing commands.
+
+```sh
+./build.sh menuconfig         # interactive portable shell menu, save with 's'
+./build.sh config             # inspect active options
+./build.sh build              # run configured smoke profile (default: ABI)
+./build.sh test               # LE/format tests plus configured profile
+./build.sh test-menuconfig    # isolated shell-menu regression checks
+./build.sh bootstrap          # explicitly compile the pinned LLVM fork
+```
+
+The menu selects one workflow (`abi`, `vxd`, `radeon6410d`, or `all`),
+the VxD backend (`llvm` or optional `openwatcom`), LLVM bootstrap
+(`off` by default), and parallel LLVM jobs (1–16, default 2).
+The Radeon identity profile remains LLVM-based; the backend choice affects
+**only the VxD smoke probe**. OpenWatcom is never a silent fallback, and
+the VxD backend must pass its own LE verification.
+
+Settings are stored in ignored `.whpconfig` as validated data (not
+shell-sourced); environment overrides are `WHP_DRIVER_PROFILE`,
+`WHP_DRIVER_VXD_BACKEND`, `WHP_DRIVER_BOOTSTRAP`, and `WHP_LLVM_JOBS`.
+The front end performs **no automatic Git updates**, submodule pin changes,
+driver installation, or GPU access. On an existing checkout, `./build`
+still works exactly as before. A fresh checkout needs the pinned LLVM
+submodule and a built LLVM toolchain before ordinary smoke commands work
+unless LLVM bootstrap is explicitly selected. This menu is a portable
+text interface, not a curses dependency.
+
+
 ## Pinned Water source (Win32 headers and import-library research)
 
 The existing [Water fork](https://github.com/retrochristian5000/water) is pinned
