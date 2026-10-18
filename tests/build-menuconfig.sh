@@ -82,4 +82,12 @@ if "$tmp/build.sh" config >/dev/null 2>&1; then
     exit 1
 fi
 
+# New Win16/DDK header probes must remain opt-in pass-through targets.
+printf 'WHP_DRIVER_BOOTSTRAP=off\n' > "$tmp/.whpconfig"
+: > "$WHP_TEST_LOG"
+"$tmp/build.sh" display-win16-check
+"$tmp/build.sh" display-ddk-check
+printf 'display-win16-check\ndisplay-ddk-check\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+
 printf '%s\n' 'WHP-Drivers: build.sh menuconfig regression checks passed'

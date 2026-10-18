@@ -121,6 +121,64 @@ source paths. macOS native build dependencies (potentially DOSBox-X) still
 need to be installed independently; actual macOS end-to-end completion
 is not yet verified.
 
+## Windows 95 RTM display-header boundary (Win16 versus VxD)
+
+**Verified from the 1995 DDK display minidriver guidelines:** the display
+minidriver's `PDEVICE` must match `DIBENGINE`, and a genuine driver needs
+Enable, Disable, ReEnable, Control, and correct DIB Engine/VDD integration.
+The related 32-bit mini-VDD uses separate VMM/VDD interfaces.
+
+Our WHP-controlled `include/whp/win95rtm/display/` now has:
+- `win16_abi.h`: Watcom **16-bit** compiler and segmented-pointer size
+  assertions, using Watcom's own `windows.h`. It deliberately does not
+  redefine historical `DIBENGINE`, `GDIINFO`, or the display exports.
+- `ddk_minidrv.h`: **opt-in** inclusion of historical `gdidefs.h` and
+  `dibeng.h` under `WHP_WIN95_DISPLAY_USE_HISTORICAL_DDK`.
+
+The historical Win95 source and contemporary 9x minidrivers establish that
+`gdidefs.h` and `dibeng.h` are needed for their declarations. The
+`MINIVDD.INC` assembly interface is separately described in Windows 95 DDK;
+some later display projects use `minivdd.h`, but the two must not be
+silently assumed equivalent, nor imported into the 16-bit layer.
+
+**Header availability:** Water's Win32 headers are not a substitute.
+OpenWatcom supplies generic Win16 `windows.h`, but we have not identified
+the historical DDK-specific display headers in the pinned repositories.
+No proprietary DDK headers or invented structures have been vendored.
+
+```sh
+./build.sh bootstrap-watcom
+./build display-win16-check
+WHP_WIN95_DISPLAY_DDK_INCLUDE=/path/to/verified/win95/ddk/include \
+    ./build display-ddk-check
+```
+
+The first check compiles a Win16 **object only** with OpenWatcom `wcc`,
+`-bt=windows -mc -bd -zu`. The second requires an explicit DDK directory,
+checks the two required headers, then compiles an opt-in inclusion probe.
+It intentionally rejects missing or incompatible headers. Neither check
+links a working Win16 `.DRV` nor proves Windows 95 RTM DIBENG or mini-VDD
+calling conventions. A native macOS compiler run is still required before
+marking these targets validated.
+
+**Current remaining gaps:** verify full `DIBENGINE` binary layout;
+`GDIINFO`/DDI prototypes and exported ordinals; special calling convention
+for `CreateDIBPDevice`; 16-bit DIB Engine import libraries; separately
+validated `MINIVDD.INC` VMM/VDD service ABI; a genuine NE `.DRV` linker
+probe; disposable Windows 95 RTM VM testing. Keep the existing VGA fallback.
+
+Evidence:
+- Microsoft Windows 95 DDK, display minidriver guidelines:
+  https://techshelps.github.io/MSDN/WIN95DDK/HTML/S27F2.HTM
+- Microsoft Windows 95 DDK, refresh-rate VDD data `MINIVDD.INC`:
+  https://techshelps.github.io/MSDN/WIN95DDK/HTML/S281C.HTM
+- OpenWatcom Win16 16-bit compiler/memory models:
+  https://open-watcom.github.io/open-watcom-v2-wikidocs/cpguide.html
+- Michal Necasek, Win9x minidriver ABI investigation:
+  https://www.os2museum.com/wp/windows-9x-video-minidriver-hd/
+- JHRobotics 9x source, display header usage:
+  https://github.com/JHRobotics/vmdisp9x/blob/main/enable.c
+
 ## Radeon HD 6410D (hardware target; PCI identity skeleton)
 
 The first hardware target is the Radeon HD 6410D integrated GPU in the

@@ -264,7 +264,57 @@ bootstrap_watcom() {
     printf '%s\n' "WHP-Drivers: native OpenWatcom toolchain built; Windows 95 VxD loading NOT verified"
 }
 
+# A Win16 display .DRV is NOT an i386/32-bit COFF VxD. Keep its
+# memory model, DDK include path, and compiler separate from LLVM.
+win16_display_check() {
+    watcom_check
+    [ -x "$watcom_bin_dir/wcc" ] ||
+        die "OpenWatcom Win16 compiler missing: $watcom_bin_dir/wcc"
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    # Compile-only: inspect the Win16 ABI without creating/installing a DRV.
+    (
+        export WATCOM="$watcom_root"
+        export INCLUDE="$watcom_root/h:$watcom_root/h/win:$root/include"
+        "$watcom_bin_dir/wcc" -zq -bt=windows -mc -bd -zu -c \
+            "-fo=$out_dir/win95-display-win16-abi.obj" \
+            "$root/tests/win95-display-win16-abi.c"
+    ) || die "Windows 95 Win16 display ABI probe compilation failed"
+    [ -s "$out_dir/win95-display-win16-abi.obj" ] ||
+        die "Win16 ABI compiler did not produce an object"
+    printf '%s\n' "WHP-Drivers: Win16 display ABI object compiled (not a loadable driver)"
+}
+
+win16_display_ddk_check() {
+    watcom_check
+    [ -x "$watcom_bin_dir/wcc" ] ||
+        die "OpenWatcom Win16 compiler missing: $watcom_bin_dir/wcc"
+    ddk_dir=${WHP_WIN95_DISPLAY_DDK_INCLUDE:-}
+    [ -n "$ddk_dir" ] ||
+        die "set WHP_WIN95_DISPLAY_DDK_INCLUDE to an independently verified Win95 display DDK include directory"
+    [ -d "$ddk_dir" ] || die "Win95 display DDK include directory not found: $ddk_dir"
+    for hdr in gdidefs.h dibeng.h; do
+        [ -f "$ddk_dir/$hdr" ] ||
+            die "historical Win95 display DDK header missing: $ddk_dir/$hdr"
+    done
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    (
+        export WATCOM="$watcom_root"
+        export INCLUDE="$ddk_dir:$watcom_root/h:$watcom_root/h/win:$root/include"
+        "$watcom_bin_dir/wcc" -zq -bt=windows -mc -bd -zu -c \
+            -dWHP_WIN95_DISPLAY_USE_HISTORICAL_DDK \
+            "-fo=$out_dir/win95-display-ddk-abi.obj" \
+            "$root/tests/win95-display-win16-abi.c"
+    ) || die "Win95 historical display DDK compatibility probe failed (do not substitute NT/WDM headers)"
+    [ -s "$out_dir/win95-display-ddk-abi.obj" ] ||
+        die "Win95 DDK compiler did not produce an object"
+    printf '%s\n' "WHP-Drivers: historical display DDK headers compiled; DIBENG ABI and RTM guest loading unverified"
+}
+
 case "${1:-}" in
+    display-win16-check) win16_display_check ;;
+    display-ddk-check) win16_display_ddk_check ;;
     bootstrap-watcom) bootstrap_watcom ;;
     watcom-check) watcom_check ;;
     watcom-smoke-vxd) watcom_smoke_vxd ;;
@@ -285,5 +335,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|check|smoke|smoke-vxd|smoke-radeon6410d|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|check|smoke|smoke-vxd|smoke-radeon6410d|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
