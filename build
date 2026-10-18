@@ -171,6 +171,26 @@ watcom_smoke_vxd() {
     printf '%s\n' "WHP-Drivers: OpenWatcom LE format probe passed; Win95 RTM loading NOT verified"
 }
 
+smoke_radeon6410d() {
+    check_tools
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    gpu_dir="$root/drivers/display/radeon_hd_6410d"
+    "$bin_dir/clang" --target=i386-pc-windows-msvc \
+        -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
+        -Wall -Wextra -Werror -I"$gpu_dir" -c \
+        "$gpu_dir/pci_id.c" -o "$out_dir/radeon6410d-pci-id.obj"
+    "$bin_dir/llvm-readobj" --file-headers "$out_dir/radeon6410d-pci-id.obj" |
+        grep -q 'Machine: IMAGE_FILE_MACHINE_I386' ||
+        die "Radeon HD 6410D object is not i386 COFF"
+    "$bin_dir/clang" -std=c11 -Wall -Wextra -Werror -I"$gpu_dir" \
+        "$gpu_dir/pci_id.c" "$root/tests/radeon6410d-pci-id.c" \
+        -o "$out_dir/radeon6410d-pci-id-host-test"
+    "$out_dir/radeon6410d-pci-id-host-test" ||
+        die "Radeon HD 6410D PCI identity tests failed"
+    printf '%s\n' "WHP-Drivers: Radeon HD 6410D PCI identification smoke passed (no hardware accessed)"
+}
+
 case "${1:-}" in
     watcom-check) watcom_check ;;
     watcom-smoke-vxd) watcom_smoke_vxd ;;
@@ -179,6 +199,7 @@ case "${1:-}" in
     smoke) smoke ;;
     test-le) test_le ;;
     smoke-vxd) smoke_vxd ;;
+    smoke-radeon6410d) smoke_radeon6410d ;;
     verify-vxd)
         [ "$#" -eq 2 ] || die "usage: ./build verify-vxd <file.vxd>"
         need python3
@@ -190,5 +211,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|check|smoke|smoke-vxd|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|check|smoke|smoke-vxd|smoke-radeon6410d|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac

@@ -60,6 +60,51 @@ probe is *not* permission to load the result in a Windows 95 RTM guest.
 LLVM remains the default toolchain. Neither OpenWatcom nor Water adds
 implicit runtime libraries to VxD links.
 
+## Radeon HD 6410D (hardware target; PCI identity skeleton)
+
+The first hardware target is the Radeon HD 6410D integrated GPU in the
+WHP-researched HP Pavilion p6-2310 (AMD A4-3420). Earlier WHP observations
+reported DVI output through the Windows 95 RTM generic `VGA.DRV` path;
+this must remain the safe working display configuration until validated.
+
+The Linux Radeon PCI table classifies `1002:9644` as a Sumo2 integrated GPU
+and `1002:9645` as a Sumo2 mobility variant; the PCI ID database associates
+both with the Radeon HD 6410D name. **The actual GPU device ID from the HP
+machine remains unverified.** Other Sumo IDs must not be treated as this GPU.
+
+`drivers/display/radeon_hd_6410d/` contains a C-only, *pure* PCI identity
+classifier. It makes no VMM calls, does not enumerate a PCI bus, does not read
+or write BARs, VRAM, MMIO, ROM, or firmware, and has no Windows 95 installation
+INF. Its output is a **candidate identification, never permission to bind**.
+
+```sh
+./build smoke-radeon6410d
+```
+
+The check uses the pinned LLVM compiler to produce an i386 Windows COFF
+object, verifies its machine type, then runs independent native-host identity
+tests. Passing does **not** mean a working Radeon display driver exists.
+
+Before introducing any hardware interaction, capture from the real machine
+(with read-only inventory tools): PCI vendor/device ID, revision, PCI class,
+subsystem IDs, BAR types and ranges (without changing their configuration),
+and the observed Windows 95 VGA fallback. Preserve the original driver and
+boot settings. Verify that the PCI identity and firmware capabilities match.
+
+Windows 95 RTM requires a Win16 display minidriver (`.DRV`) integrated with
+the DIB engine, plus appropriate VDD/mini-VDD (`.VXD`) support where needed.
+Do not use modern WDDM or NT display-miniport headers as substitutes.
+The Win16, LE/VMM, framebuffer, modesetting, acceleration, and safe guest
+tests are **all pending**. No AMD GPU registers are assumed or initialized.
+
+Hardware/reference sources:
+- Linux Radeon Sumo2 device table:
+  https://lists.openwall.net/linux-kernel/2026/04/30/866
+- PCI IDs (historical pinned snapshot):
+  https://kernel.googlesource.com/pub/scm/utils/pciutils/pciutils/+/a9df1d1baccbafcd1f4bd7622dd20d3ea684fb75/pci.ids
+- Windows 95 DDK, display minidriver guidelines:
+  https://techshelps.github.io/MSDN/WIN95DDK/HTML/S27F2.HTM
+
 ## LLVM toolchain
 
 This repository pins the existing [WHP LLVM fork](https://github.com/retrochristian5000/LLVM)
