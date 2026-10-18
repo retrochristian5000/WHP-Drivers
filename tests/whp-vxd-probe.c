@@ -24,7 +24,7 @@ __attribute__((naked)) void whp_control(void) {
 }
 
 __attribute__((used)) struct DDB WHPTEST_DDB = {
-    .sdk = 0x040A,
+    .sdk = 0x0400,
     .name = {'W','H','P','T','E','S','T',' '},
     .init_order = 0x80000000,
     .control = whp_control,
