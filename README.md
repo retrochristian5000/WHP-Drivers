@@ -222,6 +222,37 @@ subsystem IDs, BAR types and ranges (without changing their configuration),
 and the observed Windows 95 VGA fallback. Preserve the original driver and
 boot settings. Verify that the PCI identity and firmware capabilities match.
 
+### DVI/DDC evidence stage — read-only EDID parser
+
+The Radeon identity skeleton now has a second pure-C component:
+`drivers/display/radeon_hd_6410d/dvi_edid.[ch]`. It validates exactly
+one **128-byte EDID 1.0–1.4 base block** supplied by a caller, checks the
+8-byte header and checksum, records digital versus analog monitor input,
+and decodes the first detailed timing candidate (pixel clock, active width
+and height, horizontal/vertical blanking). It records advertised extension
+count **without reading, trusting, or decoding extensions**. It accepts
+a valid analog EDID without claiming a digital signal is available.
+
+EDID is shared by VGA, DVI and other connectors: the `digital_input`
+field **does not identify a DVI port** or distinguish DVI-D from DVI-I.
+An ATOMBIOS connector-object path, board connector routing, DDC GPIO/I2C
+pin mapping, optional hot-plug behavior, and encoder/transmitter mapping
+still need read-only firmware/hardware verification. No EDID timing is
+authorized for programming and no TMDS encoder/PLL writes are implemented.
+Single-link/dual-link capabilities and monitor clock limits also remain
+unknown. The existing Windows 95 `VGA.DRV` route remains untouched.
+
+Run `./build smoke-radeon6410d` or select `radeon6410d` in
+`./build.sh menuconfig`. The existing PCI smoke now also cross-compiles
+the EDID parser as i386 COFF and runs **12 host-side synthetic regression
+scenarios**. All fixtures are fabricated test inputs, not EDID captures
+from the HP Pavilion or Radeon HD 6410D. This is not a working DVI driver.
+
+Reference implementations for the interpretation and connector distinction:
+- Linux DRM EDID format: https://gbmc.googlesource.com/linux/+/5e049663f678938dd56812ba870a471060f8ce28/include/drm/drm_edid.h
+- Linux Radeon ATOMBIOS routing: https://kernel.googlesource.com/pub/scm/linux/kernel/git/will/linux/+/85d45adef06caa988506686527a5fedf856dc550/drivers/gpu/drm/radeon/radeon_atombios.c
+- Linux Radeon ATOMBIOS connector definitions: https://code.googlesource.com/linux/torvalds/linux/+/826c484166f0f74bd8fc09220f99dc937c9297cf/drivers/gpu/drm/radeon/atombios.h
+
 Windows 95 RTM requires a Win16 display minidriver (`.DRV`) integrated with
 the DIB engine, plus appropriate VDD/mini-VDD (`.VXD`) support where needed.
 Do not use modern WDDM or NT display-miniport headers as substitutes.

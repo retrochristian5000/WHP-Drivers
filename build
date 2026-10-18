@@ -188,7 +188,20 @@ smoke_radeon6410d() {
         -o "$out_dir/radeon6410d-pci-id-host-test"
     "$out_dir/radeon6410d-pci-id-host-test" ||
         die "Radeon HD 6410D PCI identity tests failed"
-    printf '%s\n' "WHP-Drivers: Radeon HD 6410D PCI identification smoke passed (no hardware accessed)"
+    # Pure EDID/DDC data interpretation: no PCI reads, I2C, or modesetting.
+    "$bin_dir/clang" --target=i386-pc-windows-msvc \
+        -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
+        -Wall -Wextra -Werror -I"$gpu_dir" -c \
+        "$gpu_dir/dvi_edid.c" -o "$out_dir/radeon6410d-dvi-edid.obj"
+    "$bin_dir/llvm-readobj" --file-headers "$out_dir/radeon6410d-dvi-edid.obj" |
+        grep -q 'Machine: IMAGE_FILE_MACHINE_I386' ||
+        die "Radeon HD 6410D DVI EDID object is not i386 COFF"
+    "$bin_dir/clang" -std=c11 -Wall -Wextra -Werror -I"$gpu_dir" \
+        "$gpu_dir/dvi_edid.c" "$root/tests/radeon6410d-dvi-edid.c" \
+        -o "$out_dir/radeon6410d-dvi-edid-host-test"
+    "$out_dir/radeon6410d-dvi-edid-host-test" ||
+        die "Radeon HD 6410D EDID parser regression tests failed"
+    printf '%s\n' "WHP-Drivers: Radeon HD 6410D PCI + EDID smoke passed (no DDC or GPU accessed)"
 }
 
 # Build the pinned OpenWatcom fork as a native host toolchain, independent
