@@ -205,8 +205,10 @@ machine remains unverified.** Other Sumo IDs must not be treated as this GPU.
 
 `drivers/display/radeon_hd_6410d/` contains a C-only, *pure* PCI identity
 classifier. It makes no VMM calls, does not enumerate a PCI bus, does not read
-or write BARs, VRAM, MMIO, ROM, or firmware, and has no Windows 95 installation
-INF. Its output is a **candidate identification, never permission to bind**.
+or write BARs, VRAM, MMIO, ROM, or firmware, and has no working Windows 95 driver to install. A **deliberately
+non-installable** `R6410D.INF` now records the installation metadata shape,
+but has no PCI binding or copy/registry directives. Its output is a
+**candidate identification, never permission to bind**.
 
 ```sh
 ./build smoke-radeon6410d
@@ -221,6 +223,53 @@ Before introducing any hardware interaction, capture from the real machine
 subsystem IDs, BAR types and ranges (without changing their configuration),
 and the observed Windows 95 VGA fallback. Preserve the original driver and
 boot settings. Verify that the PCI identity and firmware capabilities match.
+
+### Windows 95 RTM Radeon INF (installation gate)
+
+`packaging/win95rtm/R6410D.INF` is an ASCII Windows 95 research scaffold.
+It includes the historical `[Version]` `Signature="$CHICAGO$"`, the
+`Display` class, provider string, manufacturer section, and an **empty
+models section**. The PCI candidate IDs `1002:9644` (desktop) and
+`1002:9645` (mobility) appear **only in comments**. Neither device has
+been independently confirmed from the user's actual HP hardware.
+
+**DO NOT INSTALL OR COPY THIS INF INTO `WINDOWS\\INF`.** It is not a
+driver package: no `.DRV`, `.VXD`, installer section, `CopyFiles`,
+`AddReg`, automatic PCI ID match, monitor profile, DDC enablement, or
+video-mode settings are present. These omissions are safety controls,
+not missing defaults to guess. The previous `VGA.DRV` path remains
+available. A real installable INF will only be produced after actual
+hardware-id verification, functional Win16/mini-VDD binaries, and
+disposable Win95 RTM guest tests; do not manually remove these guards.
+
+```sh
+./build inf-check          # requires only Python 3; no compiler/GPU
+./build.sh inf-check       # same target through existing frontend
+./build.sh test            # begins with INF safety checks
+```
+
+`tools/verify_radeon_inf.py` enforces the exact four-section skeleton,
+prohibits additional active keys or sections, and confirms PCI IDs remain
+comments. `tests/test_radeon_inf.py` uses negative tests for accidental
+PCI binding, file copying, registry changes (including `DDC=1`),
+post-Win95 directives, and duplicate keys. This is a **repo-side static
+safety gate**, not a Windows Setup parser or Win95 acceptance test.
+
+For later activation, compare historical Win95 display INF witness
+`vmdisp9x.inf` (a modern cross-9x example, not RTM-specific) and
+Microsoft's Windows 95 DDK INF documentation. In particular, `HKR,DEFAULT,drv`
+and `HKR,DEFAULT,minivdd` must reference **real validated** driver files,
+and `HKR,DEFAULT,DDC,,1` must not be added until the VDD/BIOS DDC
+feature works. Do not substitute modern WDDM/NT `ClassGUID`, catalog,
+or x64 INF conventions.
+
+References:
+- Historical Windows 95 DDK INF example:
+  https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2AD0.HTM
+- Windows 95 DDK VESA DDC enablement requirements:
+  https://techshelps.github.io/MSDN/WIN95DDK/HTML/S281E.HTM
+- Windows 9x display INF cross-check (VMDisp9x):
+  https://github.com/JHRobotics/vmdisp9x/blob/main/vmdisp9x.inf
 
 ### DVI/DDC evidence stage — read-only EDID parser
 

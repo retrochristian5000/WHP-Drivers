@@ -24,10 +24,10 @@ grep -qx 'WHP_DRIVER_VXD_BACKEND=openwatcom' "$tmp/.whpconfig"
 printf 'smoke\nwatcom-smoke-vxd\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 "$tmp/build.sh" test
-printf 'smoke\nwatcom-smoke-vxd\ntest-format\ntest-le\nwatcom-smoke-vxd\n' > "$tmp/expected"
+printf 'smoke\nwatcom-smoke-vxd\ninf-check\ntest-format\ntest-le\nwatcom-smoke-vxd\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 WHP_DRIVER_PROFILE=radeon6410d "$tmp/build.sh" build
-printf 'smoke\nwatcom-smoke-vxd\ntest-format\ntest-le\nwatcom-smoke-vxd\nsmoke-radeon6410d\n' > "$tmp/expected"
+printf 'smoke\nwatcom-smoke-vxd\ninf-check\ntest-format\ntest-le\nwatcom-smoke-vxd\nsmoke-radeon6410d\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 
 cp "$tmp/.whpconfig" "$tmp/expected-config"
@@ -88,7 +88,8 @@ printf 'WHP_DRIVER_BOOTSTRAP=off\n' > "$tmp/.whpconfig"
 "$tmp/build.sh" display-win16-check
 "$tmp/build.sh" display-ddk-check
 "$tmp/build.sh" minivdd-check
-printf 'display-win16-check\ndisplay-ddk-check\nminivdd-check\n' > "$tmp/expected"
+"$tmp/build.sh" inf-check
+printf 'display-win16-check\ndisplay-ddk-check\nminivdd-check\ninf-check\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 
 printf '%s\n' 'WHP-Drivers: build.sh menuconfig regression checks passed'

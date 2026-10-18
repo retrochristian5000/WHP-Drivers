@@ -173,6 +173,7 @@ case "${1:-build}" in
     config|showconfig) [ "$#" -eq 1 ] || fail 'config takes no arguments'; show_config ;;
     build) [ "$#" -eq 1 ] || fail 'build takes no arguments'; run_profile ;;
     test) [ "$#" -eq 1 ] || fail 'test takes no arguments';
+          "$backend" inf-check
           if [ "$profile" != all ]; then
               "$backend" test-format
               "$backend" test-le

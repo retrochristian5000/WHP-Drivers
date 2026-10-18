@@ -1,0 +1,28 @@
+; WHP-Drivers Radeon HD 6410D - Windows 95 RTM INF research skeleton.
+; STATUS: DELIBERATELY NON-INSTALLABLE. DO NOT COPY TO WINDOWS\INF.
+; No Radeon Win16 .DRV, mini-VDD .VXD, modesetting, or DVI driver exists yet.
+; Known candidates, NOT confirmed on the user's machine:
+;   Desktop Sumo2:  PCI\VEN_1002&DEV_9644
+;   Mobility Sumo2: PCI\VEN_1002&DEV_9645
+; These comments are evidence notes, NOT enabled hardware matches.
+; Activate only after read-only PCI/subsystem confirmation, validated
+; display/mini-VDD binaries, INF registry review, and Win95 RTM VM tests.
+; Reference: Windows 95 DDK INF syntax; VMDisp9x Windows 9x display INF.
+; This file must never replace or modify VGA.DRV.
+
+[Version]
+Signature="$CHICAGO$"
+Class=Display
+Provider=%WHP%
+
+[Manufacturer]
+%WHP%=WHP.RadeonModels
+
+[WHP.RadeonModels]
+; Intentionally empty: no PCI binding, software fallback, or install section.
+; Adding a device entry here requires a corresponding audited DDInstall
+; section and real, tested Windows 95 RTM .DRV and .VXD artifacts.
+
+[Strings]
+WHP="WHP-Drivers (research only)"
+Radeon6410D="AMD Radeon HD 6410D (prototype, not installable)"

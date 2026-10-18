@@ -342,6 +342,16 @@ minivdd_header_check() {
     printf '%s\n' "WHP-Drivers: mini-VDD C header check passed (Win95 RTM guest ABI NOT verified)"
 }
 
+# Standalone Win95 INF preflight (no toolchain, guest, or GPU required).
+radeon_inf_check() {
+    need python3
+    python3 "$root/tools/verify_radeon_inf.py" ||
+        die "Radeon Win95 INF safety verification failed"
+    python3 -m unittest discover -s "$root/tests" -p 'test_radeon_inf.py' ||
+        die "Radeon Win95 INF fail-closed regressions failed"
+}
+
+
 case "${1:-}" in
     minivdd-check) minivdd_header_check ;;
     display-win16-check) win16_display_check ;;
@@ -355,6 +365,7 @@ case "${1:-}" in
     test-le) test_le ;;
     smoke-vxd) smoke_vxd ;;
     smoke-radeon6410d) smoke_radeon6410d ;;
+    inf-check) radeon_inf_check ;;
     verify-vxd)
         [ "$#" -eq 2 ] || die "usage: ./build verify-vxd <file.vxd>"
         need python3
@@ -366,5 +377,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
