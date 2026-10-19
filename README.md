@@ -60,7 +60,7 @@ Water and consumed at the recorded gitlink revision. Header probes fail
 if the Water submodule is absent or checked out at a different revision.
 The header is **not** a complete VMM DDK: live service calls, the control
 ABI, and LE service linking remain unverified work.
-Use the recorded gitlink revision (`074e0377068f`), not the moving Water `master` branch.
+Use the recorded gitlink revision (`fb913f91fc59`), not the moving Water `master` branch.
 
 ## OpenWatcom fallback candidate (explicit, never automatic)
 
@@ -124,6 +124,49 @@ source paths. macOS native build dependencies (potentially DOSBox-X) still
 need to be installed independently; actual macOS end-to-end completion
 is not yet verified.
 
+## Windows 95 RTM sound-driver DDK boundary
+
+Windows 95 RTM audio cards use traditional Win16 multimedia installable
+drivers (NE .DRV modules) for wave, MIDI, auxiliary and mixer messages,
+potentially combined with separate protected-mode LE .VXD hardware drivers.
+The 1995 DDK MSSB16.DEF Sound Blaster 16 sample includes DriverProc,
+wodMessage, widMessage, auxMessage and mxdMessage with per-driver DEF
+ordinals; those example ordinal numbers must not be hardcoded for other cards.
+
+Water already has generic Win32 mmddk.h, mmsystem.h and WinMM/16-bit
+MMSYSTEM compatibility code. Those headers are NOT authenticated Win95
+RTM 16-bit driver headers, and Water's DLL imports are not sound-card
+firmware or hardware DDK libraries. Instead of copying any proprietary
+1995 DDK files, Water now owns a small opt-in Win16 audio include boundary:
+
+    third_party/water/include/whp/win95rtm/audio/ddk_audio.h
+
+The base probe reuses Water's existing Win16 width/far-pointer checks.
+The opt-in probe requires BOTH mmsystem.h and mmddk.h in an independently
+verified historical DDK include directory; that path is searched before
+OpenWatcom or generic Water headers. On case-sensitive hosts, normalize
+file spelling separately from preserving original file provenance.
+
+    ./build audio-win16-check
+    WHP_WIN95_AUDIO_DDK_INCLUDE=/path/to/verified/win95/ddk/include ./build audio-ddk-check
+
+These compile only Win16 objects with OpenWatcom wcc -bt=windows -mc
+-bd -zu; they do NOT build/install a playable sound card driver, NE
+.DRV file, VxD, INF, or WDM/NT .SYS. The historical DDK and local
+toolchain have not been supplied or executed here, and successful object
+compilation alone cannot verify the original binary ABI.
+
+Before implementing physical sound I/O, identify a real Sound Blaster,
+Crystal, ESS, etc. device by bus/PnP ID, chip revision, I/O base, IRQ,
+DMA channels, codec/DSP and companion VxD. Keep existing Crystal MIDI
+VxD evidence in Water documentation/cwbmidi-vxd.md; it primarily
+covers later package releases and does not establish Win95 RTM support.
+
+Historical sources:
+- Windows 95 DDK audio overview: https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2733.HTM
+- Windows 95 DDK message reference: https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2B24.HTM
+- DDK MSSB16.DEF sample: https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2AE1.HTM
+- Microsoft KB Q152539: https://www.betaarchive.com/wiki/index.php/Microsoft_KB_Archive/152539
 ## Windows 95 RTM display-header boundary (Win16 versus VxD)
 
 **Verified from the 1995 DDK display minidriver guidelines:** the display

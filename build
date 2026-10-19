@@ -25,6 +25,7 @@ check_water_headers() {
     need git
     for hdr in whp/win95rtm/vmm.h \
                whp/win95rtm/display/win16_abi.h \
+               whp/win95rtm/audio/ddk_audio.h \
                whp/win95rtm/display/ddk_minidrv.h \
                whp/win95rtm/display/minivdd.h; do
         [ -f "$water_inc/$hdr" ] ||
@@ -349,6 +350,54 @@ win16_display_ddk_check() {
     printf '%s\n' "WHP-Drivers: historical display DDK headers compiled; DIBENG ABI and RTM guest loading unverified"
 }
 
+# Win95 RTM audio drivers use a Win16 NE interface distinct from Win9x VxDs.
+# Reuse the same genuine 16-bit compiler/segmented memory model as display.
+win16_audio_check() {
+    watcom_check
+    check_water_headers
+    [ -x "$watcom_bin_dir/wcc" ] ||
+        die "OpenWatcom Win16 compiler missing: $watcom_bin_dir/wcc"
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    (
+        export WATCOM="$watcom_root"
+        export INCLUDE="$watcom_root/h:$watcom_root/h/win:$root/include:$water_inc"
+        "$watcom_bin_dir/wcc" -zq -bt=windows -mc -bd -zu -c \
+            "-fo=$out_dir/win95-audio-win16-abi.obj" \
+            "$root/tests/win95-audio-win16-abi.c"
+    ) || die "Win95 Win16 audio ABI probe compilation failed"
+    [ -s "$out_dir/win95-audio-win16-abi.obj" ] ||
+        die "Win16 audio ABI compiler did not produce an object"
+    printf '%s\n' "WHP-Drivers: Win16 audio ABI object compiled (not a sound driver)"
+}
+
+win16_audio_ddk_check() {
+    watcom_check
+    check_water_headers
+    [ -x "$watcom_bin_dir/wcc" ] ||
+        die "OpenWatcom Win16 compiler missing: $watcom_bin_dir/wcc"
+    ddk_dir=${WHP_WIN95_AUDIO_DDK_INCLUDE:-}
+    [ -n "$ddk_dir" ] ||
+        die "set WHP_WIN95_AUDIO_DDK_INCLUDE to a verified Win95 multimedia DDK include directory"
+    [ -d "$ddk_dir" ] || die "Win95 audio DDK directory missing: $ddk_dir"
+    for hdr in mmsystem.h mmddk.h; do
+        [ -f "$ddk_dir/$hdr" ] ||
+            die "Win95 audio DDK header missing: $ddk_dir/$hdr (do not use Water's generic Win32 header)"
+    done
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    (
+        export WATCOM="$watcom_root"
+        export INCLUDE="$ddk_dir:$watcom_root/h:$watcom_root/h/win:$root/include:$water_inc"
+        "$watcom_bin_dir/wcc" -zq -bt=windows -mc -bd -zu -c \
+            -dWHP_WIN95_AUDIO_USE_HISTORICAL_DDK \
+            "-fo=$out_dir/win95-audio-ddk-abi.obj" \
+            "$root/tests/win95-audio-win16-abi.c"
+    ) || die "Win95 audio DDK Win16 probe failed (no NT/WDM or 32-bit mmddk fallback)"
+    [ -s "$out_dir/win95-audio-ddk-abi.obj" ] ||
+        die "Win95 audio DDK Win16 compiler did not produce an object"
+    printf '%s\n' "WHP-Drivers: Win95 audio DDK Win16 header probe compiled (NE driver/hardware unverified)"
+}
 # A read-only i386 COFF compile check of our MINIVDD.H C boundary.
 # The Win16 display check separately compiles the same header with wcc.
 minivdd_header_check() {
@@ -381,6 +430,8 @@ case "${1:-}" in
     minivdd-check) minivdd_header_check ;;
     display-win16-check) win16_display_check ;;
     display-ddk-check) win16_display_ddk_check ;;
+    audio-win16-check) win16_audio_check ;;
+    audio-ddk-check) win16_audio_ddk_check ;;
     bootstrap-watcom) bootstrap_watcom ;;
     watcom-check) watcom_check ;;
     watcom-smoke-vxd) watcom_smoke_vxd ;;
@@ -402,5 +453,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
