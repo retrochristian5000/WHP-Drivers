@@ -7,6 +7,8 @@ llvm_root="$root/toolchains/llvm-project"
 llvm_src="$llvm_root/llvm"
 build_dir=${WHP_LLVM_BUILD_DIR:-"$root/.build/llvm-native"}
 bin_dir=${WHP_LLVM_BIN_DIR:-"$build_dir/bin"}
+water_root="$root/third_party/water"
+water_inc="$water_root/include"
 
 die() {
     printf '%s\n' "WHP-Drivers: $*" >&2
@@ -15,6 +17,25 @@ die() {
 
 need() {
     command -v "$1" >/dev/null 2>&1 || die "missing required program: $1"
+}
+
+# Shared WHP Windows 95 RTM headers are owned by the pinned Water gitlink.
+# Fail closed: never silently fall back to host, NT/WDM, or moving master headers.
+check_water_headers() {
+    need git
+    for hdr in whp/win95rtm/vmm.h \
+               whp/win95rtm/display/win16_abi.h \
+               whp/win95rtm/display/ddk_minidrv.h \
+               whp/win95rtm/display/minivdd.h; do
+        [ -f "$water_inc/$hdr" ] ||
+            die "missing Water Win95 RTM header $hdr; git submodule update --init third_party/water"
+    done
+    pinned=$(git -C "$root" rev-parse HEAD:third_party/water 2>/dev/null) ||
+        die "cannot read pinned Water revision"
+    actual=$(git -C "$water_root" rev-parse HEAD 2>/dev/null) ||
+        die "cannot read Water checkout revision"
+    [ "$pinned" = "$actual" ] ||
+        die "Water checkout differs from pinned revision ($actual != $pinned)"
 }
 
 check_source() {
@@ -85,6 +106,7 @@ test_le() {
 
 smoke_vxd() {
     check_tools
+    check_water_headers
     need python3
     writer="$llvm_root/lld/utils/whp-le-link.py"
     [ -f "$writer" ] || die "pinned LLVM lacks experimental LE writer"
@@ -92,7 +114,7 @@ smoke_vxd() {
     mkdir -p "$out_dir"
     "$bin_dir/clang" --target=i386-pc-windows-msvc \
         -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
-        -Wall -Wextra -Werror -I"$root/include" -c \
+        -Wall -Wextra -Werror -I"$root/include" -I"$water_inc" -c \
         "$root/tests/whp-vxd-probe.c" -o "$out_dir/whp-vxd-probe.obj"
     python3 "$writer" --name WHPTEST --ddb WHPTEST_DDB \
         -o "$out_dir/WHPTEST.VXD" "$out_dir/whp-vxd-probe.obj"
@@ -281,6 +303,7 @@ bootstrap_watcom() {
 # memory model, DDK include path, and compiler separate from LLVM.
 win16_display_check() {
     watcom_check
+    check_water_headers
     [ -x "$watcom_bin_dir/wcc" ] ||
         die "OpenWatcom Win16 compiler missing: $watcom_bin_dir/wcc"
     out_dir="$build_dir/whp-tests"
@@ -288,7 +311,7 @@ win16_display_check() {
     # Compile-only: inspect the Win16 ABI without creating/installing a DRV.
     (
         export WATCOM="$watcom_root"
-        export INCLUDE="$watcom_root/h:$watcom_root/h/win:$root/include"
+        export INCLUDE="$watcom_root/h:$watcom_root/h/win:$root/include:$water_inc"
         "$watcom_bin_dir/wcc" -zq -bt=windows -mc -bd -zu -c \
             "-fo=$out_dir/win95-display-win16-abi.obj" \
             "$root/tests/win95-display-win16-abi.c"
@@ -300,6 +323,7 @@ win16_display_check() {
 
 win16_display_ddk_check() {
     watcom_check
+    check_water_headers
     [ -x "$watcom_bin_dir/wcc" ] ||
         die "OpenWatcom Win16 compiler missing: $watcom_bin_dir/wcc"
     ddk_dir=${WHP_WIN95_DISPLAY_DDK_INCLUDE:-}
@@ -314,7 +338,7 @@ win16_display_ddk_check() {
     mkdir -p "$out_dir"
     (
         export WATCOM="$watcom_root"
-        export INCLUDE="$ddk_dir:$watcom_root/h:$watcom_root/h/win:$root/include"
+        export INCLUDE="$ddk_dir:$watcom_root/h:$watcom_root/h/win:$root/include:$water_inc"
         "$watcom_bin_dir/wcc" -zq -bt=windows -mc -bd -zu -c \
             -dWHP_WIN95_DISPLAY_USE_HISTORICAL_DDK \
             "-fo=$out_dir/win95-display-ddk-abi.obj" \
@@ -329,11 +353,12 @@ win16_display_ddk_check() {
 # The Win16 display check separately compiles the same header with wcc.
 minivdd_header_check() {
     check_tools
+    check_water_headers
     out_dir="$build_dir/whp-tests"
     mkdir -p "$out_dir"
     "$bin_dir/clang" --target=i386-pc-windows-msvc \
         -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
-        -Wall -Wextra -Werror -I"$root/include" -c \
+        -Wall -Wextra -Werror -I"$root/include" -I"$water_inc" -c \
         "$root/tests/win95-minivdd-header.c" \
         -o "$out_dir/win95-minivdd-header.obj"
     "$bin_dir/llvm-readobj" --file-headers "$out_dir/win95-minivdd-header.obj" |

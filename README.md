@@ -54,10 +54,13 @@ helper headers**. Water's import libraries are build outputs, not assumed to be
 present in the source checkout or interchangeable with Windows 95 RTM libraries.
 No Water runtime or library is added to the VxD link by default.
 A minimal, i386-only Windows 95 DDB/control-message baseline now lives in
-`include/whp/win95rtm/vmm.h` and is compiled by `./build smoke-vxd`.
+`third_party/water/include/whp/win95rtm/vmm.h` and is compiled by
+`./build smoke-vxd`. All shared WHP Windows 95 RTM headers are owned by
+Water and consumed at the recorded gitlink revision. Header probes fail
+if the Water submodule is absent or checked out at a different revision.
 The header is **not** a complete VMM DDK: live service calls, the control
 ABI, and LE service linking remain unverified work.
-Use the recorded gitlink revision, not the moving Water `master` branch.
+Use the recorded gitlink revision (`c3e993ab2090`), not the moving Water `master` branch.
 
 ## OpenWatcom fallback candidate (explicit, never automatic)
 
@@ -128,7 +131,7 @@ minidriver's `PDEVICE` must match `DIBENGINE`, and a genuine driver needs
 Enable, Disable, ReEnable, Control, and correct DIB Engine/VDD integration.
 The related 32-bit mini-VDD uses separate VMM/VDD interfaces.
 
-Our WHP-controlled `include/whp/win95rtm/display/` now has:
+The Water-owned `third_party/water/include/whp/win95rtm/display/` now has:
 - `win16_abi.h`: Watcom **16-bit** compiler and segmented-pointer size
   assertions, using Watcom's own `windows.h`. It deliberately does not
   redefine historical `DIBENGINE`, `GDIINFO`, or the display exports.
@@ -141,12 +144,15 @@ The Windows 95 DDK documents the `MINIVDD.INC` assembly interface and
 50-byte `DISPLAYINFO` field image. **That witness covers Windows 95/98/Me,
 not exclusively 4.00.950.** WHP now provides a *limited, project-owned*
 `include/minivdd.h` C compatibility shim backed by
-`include/whp/win95rtm/display/minivdd.h`. These expose a selected
+`third_party/water/include/whp/win95rtm/display/minivdd.h`. These expose a selected
 cross-version-observed numeric surface and a checked field-image candidate,
 not a verified RTM VDD callback ABI. The assembler `MINIVDD.INC` remains
 separate and is **not** replaced or recreated.
 
-**Header availability:** Water's Win32 headers are not a substitute.
+**Header availability:** Water's generic Win32 headers are not a substitute
+for the historical DDK. Only the version-scoped WHP reference headers were
+moved to Water; `include/minivdd.h` remains a driver-facing compatibility
+adapter, and Radeon-specific headers remain in `drivers/`.
 OpenWatcom supplies generic Win16 `windows.h`. Historical `gdidefs.h` and
 `dibeng.h` are still needed separately. The new `minivdd.h` is intentionally
 a WHP-authored subset; no proprietary DDK file has been copied into WHP.
