@@ -60,7 +60,7 @@ Water and consumed at the recorded gitlink revision. Header probes fail
 if the Water submodule is absent or checked out at a different revision.
 The header is **not** a complete VMM DDK: live service calls, the control
 ABI, and LE service linking remain unverified work.
-Use the recorded gitlink revision (`5db9a70de85f`), not the moving Water `master` branch.
+Use the recorded gitlink revision (`73762439454b`), not the moving Water `master` branch.
 
 ## OpenWatcom fallback candidate (explicit, never automatic)
 
@@ -124,6 +124,40 @@ source paths. macOS native build dependencies (potentially DOSBox-X) still
 need to be installed independently; actual macOS end-to-end completion
 is not yet verified.
 
+## Windows 95 RTM Add New Hardware installation boundary
+
+Historical Windows 95 Control Panel offers **Add New Hardware** with
+automatic detection and a manual category -> manufacturer -> model ->
+Have Disk route. A new Plug and Play device can also trigger a separate
+automatic installation/media-prompt path at boot or insertion.
+Microsoft Q142984 documents OEMSETUP.INF for manufacturer drivers.
+
+These are user-interface and setup mechanisms, not evidence that a
+chosen driver matches actual hardware or that installation succeeded.
+Legacy ISA devices may need manual I/O port, IRQ, DMA and memory resource
+allocation; Plug and Play devices are enumerated and resource-arbitrated.
+Sound Win16 .DRV, 9x VxDs, NDIS 3.1 miniports and display mini-VDDs
+retain their independent ABI and driver-service requirements.
+
+The pinned Water ledger `documentation/win95rtm-add-new-hardware.md`
+audits Windows 95's SETUPX-related workflow against Water source.
+Water already owns `dlls/setupx.dll16` and generic INF parsing, but
+the driver-selection, Have Disk and installation functions needed
+for an authentic wizard are not yet implemented. Its newer SetupAPI/
+Configuration Manager/Newdev code is NOT proof of RTM wizard behavior.
+Windows 95 retail and OSR2 also differ in documented bad-INF symptoms.
+
+**Safety invariant:** `packaging/win95rtm/R6410D.INF` remains strictly
+NON-INSTALLABLE. Its empty model list must NOT be filled simply to
+show the Radeon in a wizard. `./build inf-check` remains the preflight
+for that scaffold. Do not copy research INFs to WINDOWS\\INF or change
+real PnP resource settings. Inspect installation changes only in a
+disposable RTM guest with original driver media and snapshots.
+
+References:
+- Win95 Installing New Devices: https://techshelps.github.io/MSDN/DNWIN95/HTML/S64D5.HTM
+- Microsoft Q142984: https://helparchive.huntertur.net/document/43903
+- Microsoft Q182723 retail vs OSR2: https://techshelps.github.io/MSDN/KB/Source/win95x/q182723.htm
 ## Windows 95 RTM Ethernet DDK (NDIS 3.1)
 
 Water moved its project-authored Windows 95 RTM reference headers from
