@@ -54,13 +54,13 @@ helper headers**. Water's import libraries are build outputs, not assumed to be
 present in the source checkout or interchangeable with Windows 95 RTM libraries.
 No Water runtime or library is added to the VxD link by default.
 A minimal, i386-only Windows 95 DDB/control-message baseline now lives in
-`third_party/water/include/whp/win95rtm/vmm.h` and is compiled by
+`third_party/water/include/ddk/win95rtm/vmm.h` and is compiled by
 `./build smoke-vxd`. All shared WHP Windows 95 RTM headers are owned by
 Water and consumed at the recorded gitlink revision. Header probes fail
 if the Water submodule is absent or checked out at a different revision.
 The header is **not** a complete VMM DDK: live service calls, the control
 ABI, and LE service linking remain unverified work.
-Use the recorded gitlink revision (`fb913f91fc59`), not the moving Water `master` branch.
+Use the recorded gitlink revision (`5db9a70de85f`), not the moving Water `master` branch.
 
 ## OpenWatcom fallback candidate (explicit, never automatic)
 
@@ -124,6 +124,43 @@ source paths. macOS native build dependencies (potentially DOSBox-X) still
 need to be installed independently; actual macOS end-to-end completion
 is not yet verified.
 
+## Windows 95 RTM Ethernet DDK (NDIS 3.1)
+
+Water moved its project-authored Windows 95 RTM reference headers from
+`include/whp/win95rtm/` to `include/ddk/win95rtm/`, a platform/release
+directory under the conventional DDK tree. Existing `WHP_` constants
+remain namespaced because they are not proven exact Microsoft DDK declarations.
+The Win16 width/far-pointer checker is now shared at
+`include/ddk/win95rtm/win16_abi.h`, not duplicated in audio/display.
+
+Windows 95 RTM Ethernet NIC drivers use NDIS 3.1. Microsoft's 1995
+network driver DDK recommends **NT 3.51 DDK** miniport headers for binary
+compatibility across Windows 95 and NT 3.51. The older NDIS 3.0 full MAC
+model can also be recompiled with Win95 DDK tools for `.VXD` output.
+An NDIS miniport and a full MAC driver are different binding contracts;
+do not confuse either with DOS NDIS 2, contemporary NT `.SYS` runtime
+libraries, or a modern NDIS 6 driver.
+
+Water's general `include/ddk/ndis.h` includes later API concepts and is
+**not** authenticated as the NT3.51/Windows95 NDIS header. The new
+`include/ddk/win95rtm/network/ndis31.h` therefore exports no guessed
+interfaces by default and requires verified DDK headers on opt-in.
+
+    WHP_WIN95_NDIS31_DDK_INCLUDE=/path/to/verified/nt351/ddk/include ./build ndis31-ddk-check
+
+This runs OpenWatcom `wcc386` in a **compile-only** 32-bit NT-target
+configuration using historical `ndis.h` and `ntddk.h` first in the
+include path. `-bt=nt` in this header probe does NOT mean the resulting
+object is a Windows 95 loadable LE `.VXD` or a valid NT `.SYS` driver.
+No NIC was selected, no real hardware or network was accessed, no INF
+was installed, and no packet send/receive or miniport initialization
+functionality has been invented. Header selection and actual ABI layouts
+still require a provenance-checked DDK and Windows 95 guest tests.
+
+Source trail:
+- Microsoft Win95 DDK network model: https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D14.HTM
+- Windows 95 versus Windows for Workgroups NDIS: https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D16.HTM
+- NT 3.51 DDK network design: https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D04.HTM
 ## Windows 95 RTM sound-driver DDK boundary
 
 Windows 95 RTM audio cards use traditional Win16 multimedia installable
@@ -139,7 +176,7 @@ RTM 16-bit driver headers, and Water's DLL imports are not sound-card
 firmware or hardware DDK libraries. Instead of copying any proprietary
 1995 DDK files, Water now owns a small opt-in Win16 audio include boundary:
 
-    third_party/water/include/whp/win95rtm/audio/ddk_audio.h
+    third_party/water/include/ddk/win95rtm/audio/ddk_audio.h
 
 The base probe reuses Water's existing Win16 width/far-pointer checks.
 The opt-in probe requires BOTH mmsystem.h and mmddk.h in an independently
@@ -174,8 +211,8 @@ minidriver's `PDEVICE` must match `DIBENGINE`, and a genuine driver needs
 Enable, Disable, ReEnable, Control, and correct DIB Engine/VDD integration.
 The related 32-bit mini-VDD uses separate VMM/VDD interfaces.
 
-The Water-owned `third_party/water/include/whp/win95rtm/display/` now has:
-- `win16_abi.h`: Watcom **16-bit** compiler and segmented-pointer size
+The Water-owned `third_party/water/include/ddk/win95rtm/` now has:
+- `win16_abi.h`: shared Watcom **16-bit** compiler and segmented-pointer size
   assertions, using Watcom's own `windows.h`. It deliberately does not
   redefine historical `DIBENGINE`, `GDIINFO`, or the display exports.
 - `ddk_minidrv.h`: **opt-in** inclusion of historical `gdidefs.h` and
@@ -187,7 +224,7 @@ The Windows 95 DDK documents the `MINIVDD.INC` assembly interface and
 50-byte `DISPLAYINFO` field image. **That witness covers Windows 95/98/Me,
 not exclusively 4.00.950.** WHP now provides a *limited, project-owned*
 `include/minivdd.h` C compatibility shim backed by
-`third_party/water/include/whp/win95rtm/display/minivdd.h`. These expose a selected
+`third_party/water/include/ddk/win95rtm/display/minivdd.h`. These expose a selected
 cross-version-observed numeric surface and a checked field-image candidate,
 not a verified RTM VDD callback ABI. The assembler `MINIVDD.INC` remains
 separate and is **not** replaced or recreated.

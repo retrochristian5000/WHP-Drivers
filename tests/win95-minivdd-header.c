@@ -1,6 +1,6 @@
 /* Compile-only mini-VDD header/ABI checks. No VDD calls, no PCI I/O. */
 #include <minivdd.h>
-#include <whp/win95rtm/display/minivdd.h>
+#include <ddk/win95rtm/display/minivdd.h>
 
 typedef char whp_check_vdd_base[(MINIVDD_SVC_BASE_OFFSET == 0x80) ? 1 : -1];
 typedef char whp_check_vdd_register[(VDD_DRIVER_REGISTER == 0x80) ? 1 : -1];

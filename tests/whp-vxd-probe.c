@@ -1,5 +1,5 @@
 /* Structural VxD linking probe, NOT a production driver; do not install. */
-#include <whp/win95rtm/vmm.h>
+#include <ddk/win95rtm/vmm.h>
 
 /* Intentionally minimal: this is only a linker/relocation probe.
  * A real VMM control dispatcher must handle EAX messages and carry status.

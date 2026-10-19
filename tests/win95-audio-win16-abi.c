@@ -1,7 +1,7 @@
 /* Compile-only 16-bit Windows 95 audio driver header boundary.
  * No MM driver entry points, DSP I/O, VxD calls or installable binary.
  */
-#include <whp/win95rtm/audio/ddk_audio.h>
+#include <ddk/win95rtm/audio/ddk_audio.h>
 
 #ifdef WHP_WIN95_AUDIO_USE_HISTORICAL_DDK
 #ifndef WODM_OPEN

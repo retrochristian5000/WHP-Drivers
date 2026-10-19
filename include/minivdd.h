@@ -8,7 +8,7 @@
 #ifndef WHP_WIN95_MINIVDD_COMPAT_H
 #define WHP_WIN95_MINIVDD_COMPAT_H
 
-#include <whp/win95rtm/display/minivdd.h>
+#include <ddk/win95rtm/display/minivdd.h>
 
 #define MINIVDD_SVC_BASE_OFFSET           WHP_W95_VDD_API_BASE
 #define VDD_DRIVER_REGISTER               WHP_W95_VDD_DRIVER_REGISTER
