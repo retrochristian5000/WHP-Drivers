@@ -60,7 +60,7 @@ Water and consumed at the recorded gitlink revision. Header probes fail
 if the Water submodule is absent or checked out at a different revision.
 The header is **not** a complete VMM DDK: live service calls, the control
 ABI, and LE service linking remain unverified work.
-Use the recorded gitlink revision (`73762439454b`), not the moving Water `master` branch.
+Use the recorded gitlink revision (`790cc4dcba9a`), not the moving Water `master` branch.
 
 ## OpenWatcom fallback candidate (explicit, never automatic)
 
@@ -125,6 +125,23 @@ need to be installed independently; actual macOS end-to-end completion
 is not yet verified.
 
 ## Windows 95 RTM Add New Hardware installation boundary
+
+### Win16 SETUPX ordinal 312: guarded preselection
+
+The pinned Water `dlls/setupx.dll16` now maps `DiSelectDevice` ordinal
+312 to a limited, no-UI `DiSelectDevice16` implementation. It checks
+`DEVICE_INFO16` size and recognizes a caller's non-NULL, already
+selected compatible/class driver list **head**; otherwise it returns
+an explicit SETUPX error with no installation side effects.
+This pointer relationship does NOT prove an INF is valid, hardware is
+supported, or a driver was installed. No original Win95 RTM guest ABI
+or authentic wizard UI has yet been tested. A standalone C harness is
+in Water at `scripts/tests/test_setupx_select_device.py`.
+
+**Keep `R6410D.INF` non-installable.** No hardware ID binding, file
+copy, registry change, class installer, or Radeon mode-setting was
+added by the SETUPX improvement. Driver-list generation and authentic
+manual selection/Have Disk interactions remain unresolved.
 
 Historical Windows 95 Control Panel offers **Add New Hardware** with
 automatic detection and a manual category -> manufacturer -> model ->
