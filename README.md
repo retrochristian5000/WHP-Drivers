@@ -60,7 +60,7 @@ Water and consumed at the recorded gitlink revision. Header probes fail
 if the Water submodule is absent or checked out at a different revision.
 The header is **not** a complete VMM DDK: live service calls, the control
 ABI, and LE service linking remain unverified work.
-Use the recorded gitlink revision (`790cc4dcba9a`), not the moving Water `master` branch.
+Use the recorded gitlink revision (`9a06cd444500`), not the moving Water `master` branch.
 
 ## OpenWatcom fallback candidate (explicit, never automatic)
 
@@ -124,6 +124,28 @@ source paths. macOS native build dependencies (potentially DOSBox-X) still
 need to be installed independently; actual macOS end-to-end completion
 is not yet verified.
 
+## Windows 95 hotfixes as ABI and negative-regression evidence
+
+The pinned Water ledger `documentation/win95rtm-hotfix-regressions.md`
+connects Microsoft Q256015 / MS00-017 (March 2000 DOS device-name
+path crash, fixed by release-specific IFSMGR.VXD binaries), Q138250
+(1995 FAT 8.3 tilde alias classification), and Q161020 (Windows 95
+updates installed by W95upd.inf via SETUPX.DLL or ADVPACK.DLL).
+
+Track Windows 95 RTM 4.00.950, retail IFSMGR 4.00.951 / 4.00.954,
+OSR2 IFSMGR 4.00.1116, and Windows 98/98 SE variants separately.
+The same filename does NOT confer compatibility across releases.
+
+Water's current `dlls/ifsmgr.vxd/ifsmgr.c` handles selected
+`DeviceIoControl` requests but does not implement the native 9x
+IFSMGR pathname dispatch. Do not patch the unrelated modern
+`dlls/ntdll/path.c` merely to imitate IFSMGR; distinguish safe
+path-component parsing from disk/network redirector access.
+
+Keep tests synthetic and side-effect-free until the authentic
+ring-0 dispatch path and patch binary are independently verified.
+Never execute a known crash-inducing path on an unpatched Windows 95
+host or install an arbitrary archived hotfix on a real machine.
 ## Windows 95 RTM Add New Hardware installation boundary
 
 ### Win16 SETUPX ordinal 312: guarded preselection
