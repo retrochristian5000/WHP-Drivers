@@ -60,7 +60,7 @@ Water and consumed at the recorded gitlink revision. Header probes fail
 if the Water submodule is absent or checked out at a different revision.
 The header is **not** a complete VMM DDK: live service calls, the control
 ABI, and LE service linking remain unverified work.
-Use the recorded gitlink revision (`9b0d8d4837b9`), not the moving Water `master` branch.
+Use the recorded gitlink revision (`bdd44d06ee26`), not the moving Water `master` branch.
 
 ## OpenWatcom fallback candidate (explicit, never automatic)
 
@@ -156,6 +156,9 @@ marker before invoking the existing MSRLE codec decoder. A synthetic
 C99 source harness is in `scripts/tests/test_msrle_stream.py`.
 This is a defensive compatibility change, not proof of exact
 Win95 RTM codec error semantics.
+The MSRLE32 encoder also now correctly extracts all MSB-first
+1bpp input pixels, including partial final bytes (synthetic source
+regression in `scripts/tests/test_msrle_1bpp.py`).
 
 The GDI path (`dlls/win32u/dib.c`) and later WIC decoder
 (`dlls/windowscodecs/bmpdecode.c`) remain distinct and unmodified.
