@@ -60,7 +60,7 @@ Water and consumed at the recorded gitlink revision. Header probes fail
 if the Water submodule is absent or checked out at a different revision.
 The header is **not** a complete VMM DDK: live service calls, the control
 ABI, and LE service linking remain unverified work.
-Use the recorded gitlink revision (`9a06cd444500`), not the moving Water `master` branch.
+Use the recorded gitlink revision (`a1dab6db7a2e`), not the moving Water `master` branch.
 
 ## OpenWatcom fallback candidate (explicit, never automatic)
 
@@ -146,6 +146,28 @@ Keep tests synthetic and side-effect-free until the authentic
 ring-0 dispatch path and patch binary are independently verified.
 Never execute a known crash-inducing path on an unpatched Windows 95
 host or install an arbitrary archived hotfix on a real machine.
+### AMD K6-2 high-speed CPU startup update (OSR2; Q192841/Q234259)
+
+The Water hotfix ledger now records `AMDK6UPD.EXE`: the high-speed
+CPU divide exceptions Microsoft documented in `IOS.VXD`,
+`ESDI_506.PDR` and `SCSIPORT.PDR`. The official fix is for Win95
+**OSR2/2.1/2.5**, not retail Win95 RTM. Preserve this release split;
+the OSR2 PDRs are not NT `scsiport.sys` or generic Windows 95 drivers.
+
+The update was revised: the original `VFBackup.VXD` 4.00.1112
+was superseded by 4.00.1114 after backup failures, with QFE
+metadata `980911N1` versus `990602N1`. Inspect package members,
+file-version resources and their hashes before deriving binary
+behavior; unchanged byte size does not imply unchanged code.
+
+Current Water `dlls/ios.vxd/ios.c` is a partial service compatibility
+layer and does not have the original timing calibration, IDE or SCSI
+driver initializers. Do not implement a hardcoded 350 MHz cutoff,
+fabricate successful IOS service calls or import OSR2 code into RTM.
+Microsoft Q312108's 2.2 GHz NDIS divide error is a *separate* bug.
+
+Full evidence and synthetic test matrix:
+`third_party/water/documentation/win95rtm-hotfix-regressions.md`.
 ## Windows 95 RTM Add New Hardware installation boundary
 
 ### Win16 SETUPX ordinal 312: guarded preselection
