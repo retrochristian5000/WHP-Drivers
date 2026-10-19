@@ -60,7 +60,7 @@ Water and consumed at the recorded gitlink revision. Header probes fail
 if the Water submodule is absent or checked out at a different revision.
 The header is **not** a complete VMM DDK: live service calls, the control
 ABI, and LE service linking remain unverified work.
-Use the recorded gitlink revision (`b11127404e7c`), not the moving Water `master` branch.
+Use the recorded gitlink revision (`348221d47371`), not the moving Water `master` branch.
 
 ## OpenWatcom fallback candidate (explicit, never automatic)
 
