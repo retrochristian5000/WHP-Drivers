@@ -60,7 +60,7 @@ Water and consumed at the recorded gitlink revision. Header probes fail
 if the Water submodule is absent or checked out at a different revision.
 The header is **not** a complete VMM DDK: live service calls, the control
 ABI, and LE service linking remain unverified work.
-Use the recorded gitlink revision (`4c8eccae2f6d`), not the moving Water `master` branch.
+Use the recorded gitlink revision (`9b0d8d4837b9`), not the moving Water `master` branch.
 
 ## OpenWatcom fallback candidate (explicit, never automatic)
 
@@ -146,6 +146,24 @@ Keep tests synthetic and side-effect-free until the authentic
 ring-0 dispatch path and patch binary are independently verified.
 Never execute a known crash-inducing path on an unpatched Windows 95
 host or install an arbitrary archived hotfix on a real machine.
+### Windows 95 RLE graphics evidence and VfW decompression guard
+
+Water now audits the Windows 3.x/95-era DIB RLE4/RLE8 format
+separately from Video for Windows MSRLE compression.
+`dlls/msrle32/msrle32.c` preflights compressed packet lengths,
+word padding, run widths, vertical deltas and an end-of-image
+marker before invoking the existing MSRLE codec decoder. A synthetic
+C99 source harness is in `scripts/tests/test_msrle_stream.py`.
+This is a defensive compatibility change, not proof of exact
+Win95 RTM codec error semantics.
+
+The GDI path (`dlls/win32u/dib.c`) and later WIC decoder
+(`dlls/windowscodecs/bmpdecode.c`) remain distinct and unmodified.
+RLE bitmap decoding is not disk compression, DBLBUFF, IOS, or
+INF installation. See Water's
+`documentation/win95-rle-graphics.md` for the evidence and
+remaining palette/stride/runtime test gaps.
+
 ### INT13.VXD versus IOS and BIOS disk emulation
 
 The pinned Water revision now includes a separate `dlls/int13.vxd`
