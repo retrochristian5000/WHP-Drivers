@@ -60,7 +60,7 @@ Water and consumed at the recorded gitlink revision. Header probes fail
 if the Water submodule is absent or checked out at a different revision.
 The header is **not** a complete VMM DDK: live service calls, the control
 ABI, and LE service linking remain unverified work.
-Use the recorded gitlink revision (`a1dab6db7a2e`), not the moving Water `master` branch.
+Use the recorded gitlink revision (`4c8eccae2f6d`), not the moving Water `master` branch.
 
 ## OpenWatcom fallback candidate (explicit, never automatic)
 
@@ -146,6 +146,24 @@ Keep tests synthetic and side-effect-free until the authentic
 ring-0 dispatch path and patch binary are independently verified.
 Never execute a known crash-inducing path on an unpatched Windows 95
 host or install an arbitrary archived hotfix on a real machine.
+### INT13.VXD versus IOS and BIOS disk emulation
+
+The pinned Water revision now includes a separate `dlls/int13.vxd`
+compatibility boundary and routes the historical Windows 95 VxD device
+ID `0020h` independently from IOS `0010h`. The new module explicitly
+rejects unsupported service/IOCTL calls and performs no host disk I/O.
+
+It must NOT import `programs/ntio.sys/int13.c` from Water's DOS/NTVDM
+compatibility path: its BIOS drive `80h` emulation currently maps to
+a host **logical volume**, not a physical disk MBR at LBA 0. Mixing
+those coordinates could read or overwrite unintended sectors.
+See `third_party/water/documentation/win95rtm-int13-vxd.md`.
+
+Historical Win95 RTM DDB/interrupt hooks, VMM32 startup and IOS
+handoff are still not implemented. Do not package this placeholder as
+a working original Windows 95 INT13 driver. No driver binding or
+installable Radeon INF was enabled by these changes.
+
 ### AMD K6-2 high-speed CPU startup update (OSR2; Q192841/Q234259)
 
 The Water hotfix ledger now records `AMDK6UPD.EXE`: the high-speed
