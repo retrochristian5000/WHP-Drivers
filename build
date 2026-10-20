@@ -21,8 +21,18 @@ need() {
 
 # Shared WHP Windows 95 RTM headers are owned by the pinned Water gitlink.
 # Fail closed: never silently fall back to host, NT/WDM, or moving master headers.
-check_water_headers() {
+check_water_revision() {
     need git
+    pinned=$(git -C "$root" rev-parse HEAD:third_party/water 2>/dev/null) ||
+        die "cannot read pinned Water revision"
+    actual=$(git -C "$water_root" rev-parse HEAD 2>/dev/null) ||
+        die "cannot read Water checkout revision"
+    [ "$pinned" = "$actual" ] ||
+        die "Water checkout differs from pinned revision ($actual != $pinned)"
+}
+
+check_water_headers() {
+    check_water_revision
     for hdr in ddk/win95rtm/vmm.h \
                ddk/win95rtm/win16_abi.h \
                ddk/win95rtm/audio/ddk_audio.h \
@@ -31,12 +41,6 @@ check_water_headers() {
         [ -f "$water_inc/$hdr" ] ||
             die "missing Water Win95 RTM header $hdr; git submodule update --init third_party/water"
     done
-    pinned=$(git -C "$root" rev-parse HEAD:third_party/water 2>/dev/null) ||
-        die "cannot read pinned Water revision"
-    actual=$(git -C "$water_root" rev-parse HEAD 2>/dev/null) ||
-        die "cannot read Water checkout revision"
-    [ "$pinned" = "$actual" ] ||
-        die "Water checkout differs from pinned revision ($actual != $pinned)"
 }
 
 check_source() {
@@ -402,6 +406,7 @@ win16_audio_ddk_check() {
 # silently substitute Water's newer include/ddk/ndis.h or NT/WDM SDK.
 ndis31_ddk_check() {
     watcom_check
+    check_water_revision
     [ -f "$water_inc/ddk/win95rtm/network/ndis31.h" ] ||
         die "missing pinned Water Win95 NDIS 3.1 boundary header"
     [ -x "$watcom_bin_dir/wcc386" ] ||
