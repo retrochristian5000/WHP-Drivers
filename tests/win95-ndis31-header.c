@@ -37,9 +37,10 @@ typedef char whp_w95_ndis31_miniport_version_fields[
     (sizeof(((NDIS_MINIPORT_CHARACTERISTICS *)0)->MajorNdisVersion) == 1 &&
      sizeof(((NDIS_MINIPORT_CHARACTERISTICS *)0)->MinorNdisVersion) == 1) ? 1 : -1];
 typedef char whp_w95_ndis31_packet_type[(sizeof(NDIS_PACKET) > 0) ? 1 : -1];
-/* Verify legacy registration entry points exist; no imports or linkage here. */
-typedef char whp_w95_ndis31_wrapper_decl[(sizeof(&NdisMInitializeWrapper) > 0) ? 1 : -1];
-typedef char whp_w95_ndis31_register_decl[(sizeof(&NdisMRegisterMiniport) > 0) ? 1 : -1];
+/* Registration is compile-checked by the DDK-gated rtl8111e/ndis31_adapter.c.
+ * NdisMInitializeWrapper can be function-like macro and is not necessarily
+ * addressable: sizeof(&NdisMInitializeWrapper) is an invalid ABI test.
+ */
 
 NDIS_STATUS whp_w95_ndis31_header_probe(NDIS_HANDLE adapter)
 {

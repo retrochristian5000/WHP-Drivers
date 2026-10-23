@@ -302,6 +302,60 @@ Sources: Microsoft 1995 Windows 95 DDK:
 https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D14.HTM
 and https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D16.HTM
 
+### RTL8111E NT 3.51 miniport callback adapter (2026-10-23)
+
+`drivers/network/rtl8111e/ndis31_adapter.c` now contains a **DDK-backed
+source-level adapter** for the legacy NDIS 3.0 callback shape used by
+NT 3.51 miniports and the Windows 95 NDIS 3.1 Plug and Play wrapper.
+It assigns Initialize, Halt, Reset, QueryInformation, SetInformation,
+Send and TransferData handlers directly into the historical
+`NDIS_MINIPORT_CHARACTERISTICS` fields, without casting mismatched
+function pointers or reconstructing the structure in Water. The code
+uses `NdisMInitializeWrapper`, `NdisMRegisterMiniport`, and
+`NdisTerminateWrapper` in a named **registration probe**, deliberately
+not an exported `DriverEntry`.
+
+The adapter intentionally returns `NDIS_STATUS_FAILURE` on hardware
+initialization and all data-plane operations. It does **not** advertise
+a usable RTL8111E, select PCI BARs, enable interrupts, start DMA or
+pretend that the lifecycle core is already bound to NDIS. The probe's
+register-success path does not create an installable driver. The
+existing `win95-ndis31-header.c` type probe no longer takes the address
+of `NdisMInitializeWrapper`: some legacy headers define that identifier
+as a **function-like macro** and so `sizeof(&NdisMInitializeWrapper)`
+was an invalid declaration test. The registration probe instead
+exercises the actual call syntax at compile time.
+
+```sh
+# No DDK needed: four synthetic-header tests (not authenticity tests).
+./build test-ndis31-adapter
+
+# Real historical header compile: includes existing DDK provenance checks.
+WHP_WIN95_NDIS31_DDK_INCLUDE=/verified/nt351/inc \
+WHP_NT351_DDK_NDIS_SHA256=REPLACE_WITH_VERIFIED_NDIS_SHA256 \
+WHP_NT351_DDK_NTDDK_SHA256=REPLACE_WITH_VERIFIED_NTDDK_SHA256 \
+./build ndis31-adapter-check
+```
+
+A synthetic 3.x header fixture and mocked wrapper verify callback
+failure paths, cleanup on rejected registration, architecture-targeted
+i386 COFF compilation, and refusal to compile without the DDK guards.
+This fixture **is not the NT 3.51 DDK**; its callback definitions only
+support local tests. The DDK compile target uses the pinned Water
+boundary, a supplied historical include tree and the existing pinned
+OpenWatcom compiler. Its object format and compatibility with
+historical `ndis.lib` still require explicit link verification.
+
+The remaining implementation gap is **real hardware enumeration,
+resource ownership, DMA/interrupt serialization, Ethernet OIDs and
+packet indications**. This object must not be deployed to Windows 95.
+
+Sources: Microsoft Windows 95 DDK
+https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D14.HTM ;
+NDIS 3.0 structure in historical-style public-domain w32api
+https://chromium.googlesource.com/external/github.com/zephyrproject-rtos/picolibc/+/7cadc91d9843048a161fea8469ffc2508b226a5b/winsup/w32api/include/ddk/ndis.h
+(comparison only; not authenticated NT 3.51 DDK).
+
 ### NDIS 3.1 link-input research gate (2026-10-23)
 
 A Win95 RTM NDIS miniport is **not** a full-MAC LE VxD. Our existing
