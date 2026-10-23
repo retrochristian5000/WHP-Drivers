@@ -868,7 +868,7 @@ independently before driver development is unlocked. The current LE writer
 rejects unsupported COFF formats and relocations instead of silently emitting
 a malformed image.
 
-## Realtek RTL8111E (HP Pavilion p6-2310; identification stage)
+## Realtek RTL8111E (HP Pavilion p6-2310; staged miniport development)
 
 The HP Pavilion p6-2310 (H3Y76AA) has a reported Realtek RTL8111E
 PCI Express Gigabit Ethernet controller. Prior WHP LISTPCI observations
@@ -892,7 +892,7 @@ and native-host regression tests (provided pinned toolchain is built).
 An independent host Clang check also compiled the same source into
 i386 COFF and passed the test vectors. This is **not yet an installable
 Windows 95 driver**: there is no NDIS 3.1 miniport registration, LE
-binary, DMA ring, IRQ handling, PHY management, transmit/receive path,
+binary, hardware-connected DMA, IRQ handling, PHY management, transmit/receive path,
 or binding INF. Nothing has been loaded on the Pavilion.
 
 Keep the existing `./build ndis31-ddk-check` historical NT 3.51 DDK
@@ -900,6 +900,69 @@ gate. A loadable driver also requires read-only PCI inventory and a
 verified Windows 95 RTM bus-enumeration path. Do not substitute NDIS 2
 DOS, NDIS 5, an NT `.SYS`, or later Win9x headers without an explicit
 compatibility analysis.
+
+### RTL8111E DMA descriptor and ring core (2026-10-23)
+
+The project now has an actual descriptor/ring **software implementation** in
+`drivers/network/rtl8111e/dma_ring.h` and `dma_ring.c`, plus host-side
+simulation vectors `tests/rtl8111e-dma-ring.c`. Unlike the earlier
+identification and lifecycle-only code, this module writes and consumes
+RTL8168-family **16-byte** TX/RX descriptors in little-endian byte layout:
+`opts1`, `opts2`, address low and address high. It controls OWN
+(bit 31), ring-end/EOR (bit 30), first-fragment/FS (bit 29), and
+last-fragment/LS (bit 28). It checks the RX error summary, rejects
+fragmented frames, and subtracts the four FCS bytes from valid RX
+lengths. Offloads, jumbo frames and chained fragments are intentionally
+not enabled.
+
+**Boundaries and safeguards:**
+- Only caller-supplied **already-mapped bus addresses**, never CPU virtual
+  pointers converted into physical addresses. The first implementation
+  conservatively requires a 32-bit address range, aligned 256-byte ring
+  base, and eight 16-byte descriptors per ring. These are project policy
+  limits, **not** claims about the RTL8111E's maximum DMA capabilities.
+- Bounded 60–2048-byte TX frames and 64–2048-byte RX buffers; rejects
+  address overflow, zero/oversized lengths, queues at capacity, and
+  rebinding live rings. Buffer addresses cannot cross the 4 GiB ceiling.
+- A six-function DMA **platform hook contract** supplies data synchronization,
+  descriptor preparation **before OWN**, publication **after OWN**,
+  completion acquisition, read barriers after cleared OWN, and RX data
+  synchronization. It MUST be implemented by authenticated historical
+  NDIS/OS services. A compiler fence or no-op hook is insufficient.
+- Hardware completion does **not** automatically retire NDIS ownership.
+  `whp_dma_complete` returns the descriptor result and leaves the
+  buffer **CPU-held**; only `whp_dma_ack` after NDIS TX completion or
+  RX payload copying/drop can retire its lifecycle ticket. Reset/halt
+  remains blocked until both DMA rings and the lifecycle core are drained.
+- Rejects suspicious device-modified buffer addresses or EOR bits and
+  never releases DMA memory while ownership is unsettled. Synchronization
+  calls must be serialized by the platform adapter; the ring is not
+  inherently thread-safe.
+- `whp_dma_unbind` only permits a quiesced HALTING/HALTED/RESETTING
+  state and zero outstanding tickets. The verified platform must first
+  disable DMA and interrupts, unmap buffers and release actual physical
+  allocations; this core **does not** perform those privileged actions.
+
+Run `./build smoke-rtl8111e` to compile `dma_ring.c` as an i386
+Windows COFF object and exercise its simulator against the real portable
+miniport lifecycle core. The source was also independently compiled
+to i386 COFF and the DMA vectors passed locally under AddressSanitizer
+and UBSan using a lightweight lifecycle mock. Those local tests are NOT
+authentic NDIS driver tests.
+
+The RTL8111E NDIS 3.1 adapter still returns failure on hardware
+initialization, because the **NT 3.51 DDK DMA allocation and cache
+synchronization APIs, actual PCI BAR/bus-master ownership, DMA masks,
+interrupt masking and physical driver image have not been verified**.
+Do not set the NIC's TX/RX ring registers or bus-master command bit
+based solely on these simulated descriptors.
+
+Hardware layout/reference witness (Linux r8169):
+https://kernel.googlesource.com/pub/scm/linux/kernel/git/torvalds/linux/+/906dde0f355bd97c080c215811ae7db1137c4af8/drivers/net/ethernet/realtek/r8169.c
+
+NDIS shared memory context (modern documentation, NOT NT 3.51 ABI
+verification):
+https://learn.microsoft.com/en-us/windows-hardware/drivers/network/using-shared-memory-in-network-drivers
 
 ### RTL8111E miniport lifecycle core (2026-10-23)
 

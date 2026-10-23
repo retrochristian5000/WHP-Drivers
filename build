@@ -263,7 +263,22 @@ smoke_rtl8111e() {
         -o "$out_dir/rtl8111e-miniport-host-test"
     "$out_dir/rtl8111e-miniport-host-test" ||
         die "RTL8111E miniport lifecycle tests failed"
-    printf '%s\n' "WHP-Drivers: RTL8111E identity + miniport policy smoke passed (not loadable)"
+    # 16-byte TX/RX descriptor DMA ring: i386 COFF + host simulator.
+    # No PCI bus-master enablement, NDIS DMA allocator or MMIO access.
+    "$bin_dir/clang" --target=i386-pc-windows-msvc \
+        -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
+        -Wall -Wextra -Werror -I"$nic_dir" -c \
+        "$nic_dir/dma_ring.c" -o "$out_dir/rtl8111e-dma-ring.obj"
+    "$bin_dir/llvm-readobj" --file-headers "$out_dir/rtl8111e-dma-ring.obj" |
+        grep -q 'Machine: IMAGE_FILE_MACHINE_I386' ||
+        die "RTL8111E DMA ring object is not i386 COFF"
+    "$bin_dir/clang" -std=c11 -Wall -Wextra -Werror -I"$nic_dir" \
+        "$nic_dir/identity.c" "$nic_dir/miniport_core.c" \
+        "$nic_dir/dma_ring.c" "$root/tests/rtl8111e-dma-ring.c" \
+        -o "$out_dir/rtl8111e-dma-ring-host-test"
+    "$out_dir/rtl8111e-dma-ring-host-test" ||
+        die "RTL8111E DMA ring simulator regressions failed"
+    printf '%s\n' "WHP-Drivers: RTL8111E identity, miniport lifecycle and DMA ring smoke passed (not loadable)"
 
 }
 
