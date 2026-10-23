@@ -231,6 +231,27 @@ smoke_radeon6410d() {
     printf '%s\n' "WHP-Drivers: Radeon HD 6410D PCI + EDID smoke passed (no DDC or GPU accessed)"
 }
 
+# Realtek RTL8111E: data-only PCI/XID/MAC checks, no hardware operations.
+smoke_rtl8111e() {
+    check_tools
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    nic_dir="$root/drivers/network/rtl8111e"
+    "$bin_dir/clang" --target=i386-pc-windows-msvc \
+        -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
+        -Wall -Wextra -Werror -I"$nic_dir" -c \
+        "$nic_dir/identity.c" -o "$out_dir/rtl8111e-identity.obj"
+    "$bin_dir/llvm-readobj" --file-headers "$out_dir/rtl8111e-identity.obj" |
+        grep -q 'Machine: IMAGE_FILE_MACHINE_I386' ||
+        die "RTL8111E identity object is not i386 COFF"
+    "$bin_dir/clang" -std=c11 -Wall -Wextra -Werror -I"$nic_dir" \
+        "$nic_dir/identity.c" "$root/tests/rtl8111e-identity.c" \
+        -o "$out_dir/rtl8111e-identity-host-test"
+    "$out_dir/rtl8111e-identity-host-test" ||
+        die "RTL8111E identity tests failed"
+    printf '%s\n' "WHP-Drivers: RTL8111E identity smoke passed (no NDIS driver/hardware access)"
+}
+
 # Build the pinned OpenWatcom fork as a native host toolchain, independent
 # of any Windows 95 VxD linkage or driver selection.
 bootstrap_watcom() {
@@ -477,6 +498,7 @@ case "${1:-}" in
     test-le) test_le ;;
     smoke-vxd) smoke_vxd ;;
     smoke-radeon6410d) smoke_radeon6410d ;;
+    smoke-rtl8111e) smoke_rtl8111e ;;
     inf-check) radeon_inf_check ;;
     verify-vxd)
         [ "$#" -eq 2 ] || die "usage: ./build verify-vxd <file.vxd>"
@@ -489,5 +511,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|ndis31-ddk-check|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|ndis31-ddk-check|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac

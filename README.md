@@ -636,3 +636,42 @@ Guest loading, DDB control dispatch, and VMM service linking must be tested
 independently before driver development is unlocked. The current LE writer
 rejects unsupported COFF formats and relocations instead of silently emitting
 a malformed image.
+
+## Realtek RTL8111E (HP Pavilion p6-2310; identification stage)
+
+The HP Pavilion p6-2310 (H3Y76AA) has a reported Realtek RTL8111E
+PCI Express Gigabit Ethernet controller. Prior WHP LISTPCI observations
+found the controller at PCI bus 003, device 00, while Windows 95 RTM
+Device Manager did not expose it. Windows 95 RTM `PCI.VXD` version
+4.00.950, the exact PCI device/function/revision/subsystem IDs and the
+PCIe bridge enumeration path remain separate verification gates.
+
+The RTL8168/RTL8111 family shares PCI vendor/device ID `10EC:8168`;
+that ID is **not** enough to distinguish RTL8111E from other revisions.
+`drivers/network/rtl8111e/` now contains a portable data-only core
+which checks Ethernet-class PCI identity (`02:00`), classifies externally
+supplied `TxConfig` (register offset `0x40`) signature snapshots into
+E1/E2/EVL candidates, and validates externally supplied MAC-address bytes.
+Revision masks follow the Linux `r8169` chip table; unsupported signatures
+remain *family candidates*, not asserted RTL8111E matches. No source code
+in this module enumerates PCI, maps BARs, reads MMIO, or touches hardware.
+
+Run `./build smoke-rtl8111e` for pinned LLVM i386 COFF compilation
+and native-host regression tests (provided pinned toolchain is built).
+An independent host Clang check also compiled the same source into
+i386 COFF and passed the test vectors. This is **not yet an installable
+Windows 95 driver**: there is no NDIS 3.1 miniport registration, LE
+binary, DMA ring, IRQ handling, PHY management, transmit/receive path,
+or binding INF. Nothing has been loaded on the Pavilion.
+
+Keep the existing `./build ndis31-ddk-check` historical NT 3.51 DDK
+gate. A loadable driver also requires read-only PCI inventory and a
+verified Windows 95 RTM bus-enumeration path. Do not substitute NDIS 2
+DOS, NDIS 5, an NT `.SYS`, or later Win9x headers without an explicit
+compatibility analysis.
+
+Evidence:
+- Microsoft Windows 95 DDK network model:
+  https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D14.HTM
+- Linux `r8169_main.c` RTL8168E/8111E revision mask and TxConfig:
+  https://linux.googlesource.com/linux/kernel/git/torvalds/linux/+/6c790212c588fddeb0d852f2790840753bb604b1/drivers/net/ethernet/realtek/r8169_main.c
