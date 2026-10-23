@@ -157,7 +157,8 @@ run_fast_tests() {
         rtl8111e|all)
             step test-ndis31-audit
             step test-ndis31-libs
-            step test-ndis31-adapter ;;
+            step test-ndis31-adapter
+            step test-ndis31-llvm ;;
     esac
 }
 run_tests() {
@@ -170,7 +171,8 @@ run_tests() {
         rtl8111e|all)
             step test-ndis31-audit
             step test-ndis31-libs
-            step test-ndis31-adapter ;;
+            step test-ndis31-adapter
+            step test-ndis31-llvm ;;
     esac
     run_profile
 }

@@ -454,6 +454,35 @@ win16_audio_ddk_check() {
     printf '%s\n' "WHP-Drivers: Win95 audio DDK Win16 header probe compiled (NE driver/hardware unverified)"
 }
 
+# Pin-specific LLVM check: compile a deliberately synthetic i386 NDIS ABI
+# control and examine REAL COFF symbols. No kit, linker or hardware involved.
+llvm_ndis31_abi_check() {
+    check_tools
+    need python3
+    python3 "$root/tools/check_ndis31_llvm.py" probe --clang "$bin_dir/clang" ||
+        die "pinned LLVM failed NDIS 3.x i386 calling-convention/object ABI probe"
+}
+
+# More expensive, explicit check: cross-compile the actual portable RTL8111E
+# objects and reject unresolved CRT/stack helper references and default libs.
+# Does not link a miniport or accept a synthetic DDK as original evidence.
+llvm_ndis31_core_audit() {
+    llvm_ndis31_abi_check
+    smoke_rtl8111e
+    out_dir="$build_dir/whp-tests"
+    python3 "$root/tools/check_ndis31_llvm.py" core \
+        --obj "$out_dir/rtl8111e-identity.obj" \
+        --obj "$out_dir/rtl8111e-miniport-core.obj" \
+        --obj "$out_dir/rtl8111e-dma-ring.obj" ||
+        die "RTL8111E portable COFF objects have unsupported unresolved imports"
+}
+
+ndis31_llvm_test() {
+    need python3
+    cd "$root"
+    exec python3 -m unittest discover -s tests -p 'test_ndis31_llvm.py'
+}
+
 # Standalone, read-only NDIS 3.1 linker dependency inspection.
 # No linker, driver image, DDK bootstrap, PCI enumeration or hardware access.
 ndis31_link_inventory() {
@@ -594,6 +623,9 @@ case "${1:-}" in
     display-ddk-check) win16_display_ddk_check ;;
     audio-win16-check) win16_audio_check ;;
     audio-ddk-check) win16_audio_ddk_check ;;
+    llvm-ndis31-abi-check) llvm_ndis31_abi_check ;;
+    llvm-ndis31-core-audit) llvm_ndis31_core_audit ;;
+    test-ndis31-llvm) ndis31_llvm_test ;;
     ndis31-ddk-check) ndis31_ddk_check ;;
     ndis31-adapter-check) ndis31_adapter_check ;;
     test-ndis31-adapter) ndis31_adapter_test ;;
@@ -624,5 +656,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac

@@ -9,6 +9,7 @@ on:
       - tests/test_ndis31_*.py
       - tests/test_vxd_format.py
       - tools/audit_ndis31_*.py
+      - tools/check_ndis31_llvm.py
   pull_request:
     paths:
       - build.sh
@@ -17,6 +18,7 @@ on:
       - tests/test_ndis31_*.py
       - tests/test_vxd_format.py
       - tools/audit_ndis31_*.py
+      - tools/check_ndis31_llvm.py
   workflow_dispatch:
 
 permissions:

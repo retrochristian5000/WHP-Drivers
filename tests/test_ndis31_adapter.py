@@ -1,11 +1,13 @@
 """Synthetic NDIS 3.x fixture: verifies our adapter code, NOT DDK authenticity."""
 from pathlib import Path
+import sys
 import shutil
 import subprocess
 import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
 ADAPTER = ROOT / "drivers/network/rtl8111e/ndis31_adapter.c"
 HEADER = r'''
 #ifndef MOCK_NDIS31_H
@@ -21,7 +23,12 @@ typedef BOOLEAN *PBOOLEAN;
 typedef void *PNDIS_PACKET;
 typedef UINT NDIS_MEDIUM, *PNDIS_MEDIUM;
 #define VOID void
+/* Synthetic x86-only calling-convention control; NOT an NT 3.51 header. */
+#if defined(_M_IX86) || defined(__i386__)
+#define NTAPI __attribute__((stdcall))
+#else
 #define NTAPI
+#endif
 #define FALSE 0
 #define NDIS_STATUS_SUCCESS 0
 #define NDIS_STATUS_FAILURE 0xc0000001u
@@ -43,9 +50,9 @@ typedef struct {
   NDIS_STATUS (NTAPI *SetInformationHandler)(NDIS_HANDLE,NDIS_OID,PVOID,ULONG,PULONG,PULONG);
   NDIS_STATUS (NTAPI *TransferDataHandler)(PNDIS_PACKET,PUINT,NDIS_HANDLE,NDIS_HANDLE,UINT,UINT);
 } NDIS_MINIPORT_CHARACTERISTICS;
-void NdisInitializeWrapper(NDIS_HANDLE *, PVOID, PVOID, PVOID);
-NDIS_STATUS NdisMRegisterMiniport(NDIS_HANDLE, NDIS_MINIPORT_CHARACTERISTICS *, UINT);
-void NdisTerminateWrapper(NDIS_HANDLE, PVOID);
+void NTAPI NdisInitializeWrapper(NDIS_HANDLE *, PVOID, PVOID, PVOID);
+NDIS_STATUS NTAPI NdisMRegisterMiniport(NDIS_HANDLE, NDIS_MINIPORT_CHARACTERISTICS *, UINT);
+void NTAPI NdisTerminateWrapper(NDIS_HANDLE, PVOID);
 #endif
 '''
 HARNESS = r'''
@@ -123,6 +130,15 @@ class AdapterTests(unittest.TestCase):
                               "-c", str(ADAPTER), "-o", str(output))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(output.read_bytes()[:2], b"\x4c\x01")
+        # This catches the previous synthetic-header defect: NTAPI was empty
+        # and the i386 callback tests could pass with cdecl stack cleanup.
+        from check_ndis31_llvm import read_coff
+        declared, imports = read_coff(output)
+        self.assertIn("_whp_rtl8111e_ndis31_registration_probe", declared)
+        self.assertIn("_NdisInitializeWrapper@16", imports)
+        self.assertIn("_NdisMRegisterMiniport@12", imports)
+        self.assertIn("_NdisTerminateWrapper@8", imports)
+
 
     def test_unverified_build_rejected(self):
         result = self.compile("-fsyntax-only", str(ADAPTER))

@@ -277,6 +277,59 @@ References:
 - Win95 Installing New Devices: https://techshelps.github.io/MSDN/DNWIN95/HTML/S64D5.HTM
 - Microsoft Q142984: https://helparchive.huntertur.net/document/43903
 - Microsoft Q182723 retail vs OSR2: https://techshelps.github.io/MSDN/KB/Source/win95x/q182723.htm
+### LLVM/COFF checks for NT 3.51 miniport development (2026-10-23)
+
+The RTL8111E portable cores use the pinned LLVM/Clang fork with the
+explicit `--target=i386-pc-windows-msvc` ABI. An i386 COFF machine
+header alone cannot establish NDIS `__stdcall` calling conventions,
+wrapper symbol decoration, historical import libraries, the PE driver
+image flags or a Windows 95 RTM load.
+
+The synthetic NDIS adapter header previously defined `NTAPI` as empty.
+That tested callback shapes but masked cdecl/stdcall mismatches when
+compiling the 32-bit Windows object. The fixture now declares synthetic
+i386 callbacks and wrapper functions as `__stdcall`, with explicit
+decorated symbol assertions. It is still **not** the NT 3.51 DDK.
+
+Two explicit pinned-compiler audit commands are now provided:
+
+```sh
+./build llvm-ndis31-abi-check
+./build llvm-ndis31-core-audit
+./build test-ndis31-llvm
+```
+
+The ABI check compiles a synthetic C fixture with pinned LLVM and verifies
+the actual COFF names for cdecl, stdcall, direct NDIS-style calls, and
+`dllimport` calls. These are deliberately **contrasting** examples:
+which import form the genuine historical DDK uses is still unverified.
+
+The core audit compiles `identity.c`, `miniport_core.c`, and
+`dma_ring.c`, then parses their real i386 COFF symbols, checks
+inter-object references, and rejects implicit `.drectve`
+default-library directives, unexpected CRT/TLS sections and unverified
+runtime helpers such as `memcpy`, `__chkstk` and security-cookie calls.
+It is read-only on the produced object files and makes no NDIS imports.
+Failures expose exact unexpected symbol names instead of silently
+pulling a newer CRT or disabling protections.
+
+The verifier is `tools/check_ndis31_llvm.py`. Six regression cases cover
+actual Clang decoration, wrong-machine objects, unexpected default libs,
+core symbol resolution, helper imports, and corrupt objects. The
+`rtl8111e` and `all` fast/full test profiles exercise these synthetic
+cases, without a historic kit or an expensive LLVM bootstrap.
+
+**LLVM fork status:** No incorrect compiler lowering has been established
+yet; do not patch LLVM without a failing pinned-fork test. WHP-Drivers
+continues to pin `9137c36d8aeb475cf89d7f330e4cf39b49241ab8`.
+Water's pin is newer but does not automatically mean its changes are
+required here. Authentic NT 3.51 header ABI, real `ndis.lib`, PE loader
+and DMA cache hooks remain independently unverified. These commands do
+not produce or install a Windows 95 miniport.
+
+Reference (x86 symbol decoration):
+https://learn.microsoft.com/en-us/cpp/build/reference/decorated-names
+
 ## Windows 95 RTM Ethernet DDK (NDIS 3.1)
 
 ### RTL8111E header dependency audit (2026-10-23)
