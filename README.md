@@ -302,6 +302,66 @@ Sources: Microsoft 1995 Windows 95 DDK:
 https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D14.HTM
 and https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D16.HTM
 
+### NDIS 3.1 link-input research gate (2026-10-23)
+
+A Win95 RTM NDIS miniport is **not** a full-MAC LE VxD. Our existing
+`smoke-vxd` and LE writer are not the linker recipe for the RTL8111E.
+The miniport's platform-facing object must be compiled using a genuine,
+verified NT 3.51 DDK contract, and its import names must resolve to
+historically compatible exports. A `.SYS` extension is not a proof of a
+loadable Win95 RTM miniport.
+
+**Candidate library families, not automatic linker inputs:**
+
+- `ndis.lib`: NDIS wrapper import candidate, expected for calls to
+  `NdisM*` and `Ndis*`. Must come from the authenticated historical kit.
+- `ntoskrnl.lib`: add **only** if validated NT 3.51-era imports are
+  genuinely referenced and compatible with Win95's miniport wrapper.
+- `hal.lib`: similarly conditional; do not bypass NDIS abstractions
+  by importing arbitrary NT HAL functions.
+- Compiler helpers: inspect each emitted undefined symbol and provenance.
+  Never silently pull host C runtime, Win32 DLL imports, modern CRT,
+  WDM or unrelated VxD service libraries into the miniport.
+
+New read-only commands:
+
+```sh
+./build ndis31-link-inventory --lib /verified/nt351/lib/i386/ndis.lib
+./build ndis31-link-audit \
+  --lib /verified/nt351/lib/i386/ndis.lib \
+  --pin ndis.lib=REPLACE_WITH_VERIFIED_64_DIGIT_SHA256 \
+  --obj /verified/rtl8111e-ndis31-adapter.obj \
+  --nm /verified/whp-llvm/bin/llvm-nm
+python3 -m unittest discover -s tests -p 'test_ndis31_lib_audit.py'
+```
+
+The first command reports the archive magic, file name and SHA256 without
+linking; the second accepts explicit, independently pinned input archives
+and standard i386 COFF objects, uses the specified `llvm-nm` to compare
+**exact** decorated undefined/defined names, reports unresolved symbols,
+and prints a **proposed input order**, not linker flags. It deliberately
+rejects an empty miniport object list or one without any unresolved
+`Ndis*` calls: our current RTL8111E identity and miniport lifecycle
+objects contain no NDIS registration adapter and cannot form a real
+miniport image yet.
+
+**Limits:** an `!<arch>` archive header is only a format preflight;
+it is NOT validation that every member is i386 COFF or that an archive
+has authentic DDK provenance. Name resolution is not proof of ABI,
+stdcall stack widths, relocations, linkage, runtime exports, compiler
+helpers, or correct PE image flags. The exact NT 3.51 DDK link
+recipe, the needed compiler support archives and Windows 95 loader
+behavior remain **unverified**; never ship or bind based on this output.
+
+Evidence:
+- Microsoft 1995 DDK, Windows 95 miniport recommendation:
+  https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D14.HTM
+- Microsoft 1995 DDK, miniports vs full-MAC VxD driver names:
+  https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D16.HTM
+- Novell Technical Information, November 1996, miniport `*.SYS`
+  against Windows 95 `NDIS.VXD`:
+  https://support.novell.com/techcenter/articles/ana19961101.html
+
 ### DDK-provenance and miniport build gate (2026-10-23)
 
 The miniport route requires an independently verified **Windows NT 3.51 DDK**,

@@ -438,6 +438,22 @@ win16_audio_ddk_check() {
         die "Win95 audio DDK Win16 compiler did not produce an object"
     printf '%s\n' "WHP-Drivers: Win95 audio DDK Win16 header probe compiled (NE driver/hardware unverified)"
 }
+
+# Standalone, read-only NDIS 3.1 linker dependency inspection.
+# No linker, driver image, DDK bootstrap, PCI enumeration or hardware access.
+ndis31_link_inventory() {
+    need python3
+    [ "$#" -gt 0 ] || die "usage: ./build ndis31-link-inventory --lib PATH [--lib PATH...]"
+    exec python3 "$root/tools/audit_ndis31_libs.py" inventory "$@"
+}
+
+ndis31_link_audit() {
+    need python3
+    [ "$#" -gt 0 ] ||
+        die "usage: ./build ndis31-link-audit --lib PATH --pin LIBNAME=SHA256 --obj PATH --nm LLVM_NM"
+    exec python3 "$root/tools/audit_ndis31_libs.py" resolve "$@"
+}
+
 # Inspect a local DDK candidate without touching compiler, hardware or repo pins.
 ndis31_ddk_inventory() {
     need python3
@@ -531,6 +547,8 @@ case "${1:-}" in
     audio-ddk-check) win16_audio_ddk_check ;;
     ndis31-ddk-check) ndis31_ddk_check ;;
     ndis31-ddk-inventory) ndis31_ddk_inventory ;;
+    ndis31-link-inventory) shift; ndis31_link_inventory "$@" ;;
+    ndis31-link-audit) shift; ndis31_link_audit "$@" ;;
     test-ndis31-audit) ndis31_ddk_audit_test ;;
     bootstrap-watcom) bootstrap_watcom ;;
     watcom-check) watcom_check ;;
@@ -554,5 +572,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|ndis31-ddk-check|ndis31-ddk-inventory|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|ndis31-ddk-check|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
