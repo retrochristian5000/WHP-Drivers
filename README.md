@@ -365,8 +365,8 @@ WHP_WIN95_NDIS31_DDK_INCLUDE=/verified/nt351/inc ./build ndis31-ddk-inventory
 
 # Record hashes only after independently verifying the original kit.
 WHP_WIN95_NDIS31_DDK_INCLUDE=/verified/nt351/inc \
-WHP_NT351_DDK_NDIS_SHA256=<verified-64-hex> \
-WHP_NT351_DDK_NTDDK_SHA256=<verified-64-hex> \
+WHP_NT351_DDK_NDIS_SHA256=REPLACE_WITH_VERIFIED_NDIS_SHA256 \
+WHP_NT351_DDK_NTDDK_SHA256=REPLACE_WITH_VERIFIED_NTDDK_SHA256 \
 ./build ndis31-ddk-check
 
 # Synthetic fixture regressions; does not require or reproduce a DDK.
