@@ -509,6 +509,7 @@ ndis31_ddk_check() {
         export WATCOM="$watcom_root"
         export INCLUDE="$ddk_dir:$watcom_root/h:$watcom_root/h/nt:$root/include:$water_inc"
         "$watcom_bin_dir/wcc386" -zq -s -bt=nt -c \
+            -dNDIS_MINIPORT_DRIVER \
             -dWHP_WIN95_NDIS31_USE_HISTORICAL_DDK \
             "-fo=$out_dir/win95-ndis31-header.obj" \
             "$root/tests/win95-ndis31-header.c"
