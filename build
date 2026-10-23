@@ -438,6 +438,22 @@ win16_audio_ddk_check() {
         die "Win95 audio DDK Win16 compiler did not produce an object"
     printf '%s\n' "WHP-Drivers: Win95 audio DDK Win16 header probe compiled (NE driver/hardware unverified)"
 }
+# Inspect a local DDK candidate without touching compiler, hardware or repo pins.
+ndis31_ddk_inventory() {
+    need python3
+    ddk_dir=${WHP_WIN95_NDIS31_DDK_INCLUDE:-}
+    [ -n "$ddk_dir" ] ||
+        die "set WHP_WIN95_NDIS31_DDK_INCLUDE to a candidate NT 3.51 DDK include path"
+    python3 "$root/tools/audit_ndis31_ddk.py" inspect "$ddk_dir" ||
+        die "DDK candidate inventory failed"
+}
+
+ndis31_ddk_audit_test() {
+    need python3
+    cd "$root"
+    exec python3 -m unittest discover -s tests -p 'test_ndis31_ddk_audit.py'
+}
+
 # NDIS 3.1 miniport header compile-only probe: NT 3.51 DDK, never
 # silently substitute Water's newer include/ddk/ndis.h or NT/WDM SDK.
 ndis31_ddk_check() {
@@ -455,6 +471,16 @@ ndis31_ddk_check() {
         [ -f "$ddk_dir/$hdr" ] ||
             die "NT 3.51 DDK file missing: $ddk_dir/$hdr (no modern fallback)"
     done
+    # Byte identity is necessary for reproducibility but NOT DDK provenance.
+    # The owner must independently establish which historical kit supplied
+    # these bytes before recording the expected checksums.
+    ndis_sha=${WHP_NT351_DDK_NDIS_SHA256:-}
+    ntddk_sha=${WHP_NT351_DDK_NTDDK_SHA256:-}
+    [ -n "$ndis_sha" ] && [ -n "$ntddk_sha" ] ||
+        die "provide BOTH WHP_NT351_DDK_NDIS_SHA256 and WHP_NT351_DDK_NTDDK_SHA256"
+    python3 "$root/tools/audit_ndis31_ddk.py" verify "$ddk_dir" \
+        --ndis-sha256 "$ndis_sha" --ntddk-sha256 "$ntddk_sha" ||
+        die "NT 3.51 DDK fingerprint or NDIS-generation preflight failed"
     out_dir="$build_dir/whp-tests"
     mkdir -p "$out_dir"
     (
@@ -504,6 +530,8 @@ case "${1:-}" in
     audio-win16-check) win16_audio_check ;;
     audio-ddk-check) win16_audio_ddk_check ;;
     ndis31-ddk-check) ndis31_ddk_check ;;
+    ndis31-ddk-inventory) ndis31_ddk_inventory ;;
+    test-ndis31-audit) ndis31_ddk_audit_test ;;
     bootstrap-watcom) bootstrap_watcom ;;
     watcom-check) watcom_check ;;
     watcom-smoke-vxd) watcom_smoke_vxd ;;
@@ -526,5 +554,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|ndis31-ddk-check|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|ndis31-ddk-check|ndis31-ddk-inventory|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac

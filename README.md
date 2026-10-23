@@ -302,6 +302,81 @@ Sources: Microsoft 1995 Windows 95 DDK:
 https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D14.HTM
 and https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D16.HTM
 
+### DDK-provenance and miniport build gate (2026-10-23)
+
+The miniport route requires an independently verified **Windows NT 3.51 DDK**,
+particularly the `ndis.h` / `ntddk.h` declaration set and the original
+network-driver build/link examples and libraries. The **Windows 95 DDK** is
+a separate source for RTM network PnP and INF installation behavior; its
+`ndis.mk` extension guidance refers to **full MAC VxDs, not NT-compatible
+miniport binaries**. Do not direct our experimental LE VxD writer at the
+RTL8111E miniport or assume renaming a `.SYS` file creates a `.VXD`.
+
+Confirmed sources:
+- Microsoft, *About Windows 95 Network Device Drivers* (1995):
+  https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D14.HTM
+- Microsoft, *Windows 95 and Windows for Workgroups* (1995):
+  https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D16.HTM
+- Microsoft, *Where can I find more information on the Windows 95 network
+  architecture?*: https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D04.HTM
+  (NT 3.51 DDK, Network Drivers, Design Guide, Part 2, Chapter 7
+  **Miniport NIC Driver Operations** and Chapter 15 **Full NIC Driver
+  Operations**)
+- Microsoft NDIS versions matrix, for version exclusion (not legacy ABI
+  header provenance):
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/network/overview-of-ndis-versions
+
+**Version constraints:** Win95 RTM = NDIS 3.1; Win95 OSR2's NDIS 4.0
+includes `MiniportSendPackets`, so that callback is NOT a baseline RTM
+entry point. Do not use NDIS 6 `NdisMRegisterMiniportDriver`,
+`NDIS_MINIPORT_DRIVER_CHARACTERISTICS`, `MiniportInitializeEx`,
+`NET_BUFFER_LIST` or the WDM resource model for this driver.
+
+Current outstanding DDK-dependent requirements:
+1. Exact legacy `NDIS_MINIPORT_CHARACTERISTICS` field order and sizes,
+   pointer conventions, `DriverEntry`, `NdisMInitializeWrapper`,
+   `NdisMRegisterMiniport` and adapter attribute setup.
+2. Miniport initialization, halt, reset, query/set-information, send,
+   transfer-data, ISR/interrupt-handler and check-for-hang signatures,
+   required-vs-optional callbacks, concurrency/IRQL requirements and
+   completion/receive-indication contracts.
+3. NDIS 3.x Ethernet OID table, status codes, packet/buffer chaining,
+   resource and DMA allocation/mapping and wrapper import symbols.
+4. Historical miniport linker recipe, startup semantics, binary format,
+   Win95 RTM INF/PnP binding, and actual guest loading.
+5. Real RTL8111E PCIe enumeration and resource access on the Pavilion;
+   the portable miniport lifecycle core does not solve this.
+
+**Preflight added:** `./build ndis31-ddk-inventory` runs without LLVM
+or OpenWatcom and reports fingerprints for candidate `ndis.h` and
+`ntddk.h` (read-only). `./build ndis31-ddk-check` now requires **both**
+SHA256 pins and rejects changed hashes or selected later-generation NDIS
+identifiers before running the existing DDK-backed compile probe.
+The lightweight identifier scan covers the two named headers only: it
+cannot verify transitive includes, callback binary layout, imports,
+license, vendor authenticity or historical kit provenance. Hash pins
+prove the **same bytes** were supplied, not that those bytes came from
+Microsoft's original DDK. The compiler probe still requires the pinned
+OpenWatcom tree and a user-supplied historical DDK.
+
+```sh
+# Read-only candidate inspection: not authentication.
+WHP_WIN95_NDIS31_DDK_INCLUDE=/verified/nt351/inc ./build ndis31-ddk-inventory
+
+# Record hashes only after independently verifying the original kit.
+WHP_WIN95_NDIS31_DDK_INCLUDE=/verified/nt351/inc \
+WHP_NT351_DDK_NDIS_SHA256=<verified-64-hex> \
+WHP_NT351_DDK_NTDDK_SHA256=<verified-64-hex> \
+./build ndis31-ddk-check
+
+# Synthetic fixture regressions; does not require or reproduce a DDK.
+./build test-ndis31-audit
+```
+
+**No historical DDK was supplied in this round:** no successful DDK ABI
+compilation, miniport linking, Win95 loading, INF activation or Ethernet
+operations are claimed. Water's revision remains pinned and unchanged.
+
 Water moved its project-authored Windows 95 RTM reference headers from
 `include/whp/win95rtm/` to `include/ddk/win95rtm/`, a platform/release
 directory under the conventional DDK tree. Existing `WHP_` constants
