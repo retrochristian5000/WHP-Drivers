@@ -712,6 +712,40 @@ verified Windows 95 RTM bus-enumeration path. Do not substitute NDIS 2
 DOS, NDIS 5, an NT `.SYS`, or later Win9x headers without an explicit
 compatibility analysis.
 
+### RTL8111E miniport lifecycle core (2026-10-23)
+
+\`miniport_core.h\` and \`miniport_core.c\` provide **hardware-independent**
+miniport lifecycle policy, not a loadable NDIS driver or a replacement DDK.
+The core implements HALTED → INITIALIZING → RUNNING and explicit
+RESETTING/HALTING drain paths. Initialization rejects unknown family
+signatures and unusable MAC addresses. TX and RX have independently bounded
+8-ticket bookkeeping pools with monotonically increasing serials; stale,
+duplicate, out-of-range and wrong-direction completions are rejected.
+Exhausting the serial space fails closed rather than reusing a ticket.
+
+After reset/halt starts, new TX/RX work is refused. The drain operation
+must complete/fail its **actual NDIS requests and receive indications**
+before calling the corresponding ticket-retirement functions, and both
+pools must be empty before reset/halt finishes. Failure to drain returns
+\`WHP_MP_BUSY\` without discarding ownership. A failed reset returns to
+HALTED; it does not silently resume network traffic.
+
+**Concurrency boundary:** this core has no lock and is not thread-safe.
+The eventual NT 3.51/Win95 NDIS miniport adapter MUST serialize all
+calls with verified historical synchronization, and MUST own hardware
+memory barriers, interrupt masking, DMA synchronization, NDIS completion
+semantics and timeouts. The internal ticket cap is a software testing
+limit, **not** a claimed RTL8111E DMA ring size. Do not invoke the core
+from concurrently executing interrupt/send/reset code without that lock.
+The PCIe/PnP enumeration and historical NDIS headers remain unverified.
+
+Run \`./build smoke-rtl8111e\` to compile the identification *and* miniport
+policy sources as i386 COFF, run host-only identity tests, and run the
+miniport lifecycle regression. \`./build.sh menuconfig\` also offers
+\`rtl8111e\`, and the \`all\` profile now includes its smoke check.
+No DMA, IRQ, PHY, real packet path, \`.VXD\`, INF binding or RTL8111E
+hardware access has been enabled.
+
 Evidence:
 - Microsoft Windows 95 DDK network model:
   https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D14.HTM

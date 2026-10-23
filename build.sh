@@ -13,7 +13,7 @@ jobs=2
 fail() { printf '%s\n' "WHP-Drivers: $*" >&2; exit 1; }
 
 validate() {
-    case "$profile" in abi|vxd|radeon6410d|all) ;; *) fail "invalid profile: $profile" ;; esac
+    case "$profile" in abi|vxd|radeon6410d|rtl8111e|all) ;; *) fail "invalid profile: $profile" ;; esac
     case "$vxd_backend" in llvm|openwatcom) ;; *) fail "invalid VxD backend: $vxd_backend" ;; esac
     case "$bootstrap" in
         on) bootstrap=llvm ;; # backwards-compatible .whpconfig migration
@@ -83,7 +83,7 @@ menuconfig() {
     while :; do
         printf '\n%s\n' '=== WHP-Drivers menuconfig ==='
         show_config
-        printf '%s\n' '  1) Cycle workflow (abi -> vxd -> radeon6410d -> all)'
+        printf '%s\n' '  1) Cycle workflow (abi -> vxd -> radeon6410d -> rtl8111e -> all)'
         printf '%s\n' '  2) Toggle VxD backend (llvm / openwatcom)'
         printf '%s\n' '  3) Cycle toolchain bootstrap (off / llvm / openwatcom / both)'
         printf '%s\n' '  4) Set LLVM build jobs (1-16)'
@@ -92,7 +92,7 @@ menuconfig() {
         IFS= read -r choice || { printf '\n' >&2; fail 'menu closed without saving'; }
         case "$choice" in
             1) case "$profile" in abi) profile=vxd ;; vxd) profile=radeon6410d ;;
-                  radeon6410d) profile=all ;; all) profile=abi ;; esac ;;
+                  radeon6410d) profile=rtl8111e ;; rtl8111e) profile=all ;; all) profile=abi ;; esac ;;
             2) if [ "$vxd_backend" = llvm ]; then vxd_backend=openwatcom; else vxd_backend=llvm; fi ;;
             3) case "$bootstrap" in off) bootstrap=llvm ;; llvm) bootstrap=openwatcom ;;
                   openwatcom) bootstrap=both ;; both) bootstrap=off ;; esac ;;
@@ -129,11 +129,13 @@ run_profile() {
         abi) "$backend" smoke ;;
         vxd) run_vxd ;;
         radeon6410d) "$backend" smoke-radeon6410d ;;
+        rtl8111e) "$backend" smoke-rtl8111e ;;
         all) "$backend" smoke
              "$backend" test-format
              "$backend" test-le
              run_vxd
-             "$backend" smoke-radeon6410d ;;
+             "$backend" smoke-radeon6410d
+             "$backend" smoke-rtl8111e ;;
     esac
 }
 usage() {
@@ -148,7 +150,7 @@ Usage: ./build.sh [menuconfig|config|build|test|bootstrap|bootstrap-watcom|boots
   bootstrap-all   Build both pinned LLVM and OpenWatcom toolchains
   test-menuconfig Run isolated build.sh configuration regression checks
   <legacy target> Pass through to ./build (smoke, smoke-vxd, verify-vxd, ...)
-Profiles: abi (default), vxd, radeon6410d, all
+Profiles: abi (default), vxd, radeon6410d, rtl8111e, all
 VxD backends: llvm (default), openwatcom (explicit and LE-verified only)
 Bootstrap choices: off, llvm, openwatcom, both (legacy on = llvm)
 Defaults: bootstrap OFF; LLVM build jobs 2 (max configured 16)

@@ -30,6 +30,16 @@ WHP_DRIVER_PROFILE=radeon6410d "$tmp/build.sh" build
 printf 'smoke\nwatcom-smoke-vxd\ninf-check\ntest-format\ntest-le\nwatcom-smoke-vxd\nsmoke-radeon6410d\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 
+# New profile must use only the network smoke; all now includes network.
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=rtl8111e "$tmp/build.sh" build
+printf 'smoke-rtl8111e\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=all "$tmp/build.sh" build
+printf 'smoke\ntest-format\ntest-le\nwatcom-smoke-vxd\nsmoke-radeon6410d\nsmoke-rtl8111e\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+
 cp "$tmp/.whpconfig" "$tmp/expected-config"
 printf '1\nq\n' | "$tmp/build.sh" menuconfig >/dev/null
 cmp "$tmp/.whpconfig" "$tmp/expected-config" >/dev/null || exit 1
