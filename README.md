@@ -260,6 +260,48 @@ References:
 - Microsoft Q182723 retail vs OSR2: https://techshelps.github.io/MSDN/KB/Source/win95x/q182723.htm
 ## Windows 95 RTM Ethernet DDK (NDIS 3.1)
 
+### RTL8111E header dependency audit (2026-10-23)
+
+WHP-Drivers pins Water commit `bdd44d06ee26ee4ab0ccfd880646a5c72907aa4c`.
+At that revision, Water's `include/ddk/win95rtm/network/ndis31.h`
+has only a 32-bit x86/opt-in include boundary. It does not supply
+the NT 3.51 NDIS miniport ABI, callbacks or import library.
+Water's `include/ddk/ndis.h` defines protocol/CoNDIS-era types and
+does **not** define the classic `NDIS_MINIPORT_CHARACTERISTICS`
+required by this RTL8111E work. `include/ntddndis.h` contains
+Ethernet OIDs but also newer WLAN and PnP definitions; presence of
+individual OIDs is **not** proof of NT 3.51 DDK ABI compatibility.
+
+The exact missing or unverified pieces for an installable miniport are:
+- Historical `NDIS_MINIPORT_CHARACTERISTICS`, `NDIS_PACKET`,
+  `NDIS_BUFFER`, `NDIS_HANDLE`, `NDIS_STATUS` layouts and callbacks
+  with NT 3.51 calling conventions.
+- Historical `NdisMInitializeWrapper`, `NdisMRegisterMiniport`,
+  `NdisMSetAttributes`, IRQ/DMA/resource APIs, and the actual Windows
+  95 NDIS wrapper import/link and loader ABI.
+- NDIS 3.x Ethernet OID/filter handling, network media status and
+  packet send/receive completion semantics.
+- Independently verified NT 3.51 DDK headers/libs, the Pavilion's
+  PCIe/bus enumeration and driver binding evidence.
+
+The RTL8111E chip register definitions belong in
+`drivers/network/rtl8111e/`, not in Water's generic NDIS DDK
+interface. Similarly, Water's newer NDIS 6.0
+`NDIS_MINIPORT_DRIVER_CHARACTERISTICS` and NetBufferLists interfaces
+must **not** be used for the Windows 95 RTM driver.
+
+The existing `./build ndis31-ddk-check` opt-in probe now checks a
+larger *declaration surface*: miniport version fields, packet type,
+Ethernet medium and OIDs, legacy registration entry points, and
+32-bit fundamental NDIS widths. It deliberately cannot run without
+a separately verified NT 3.51 DDK include directory; it cannot
+prove linking, DMA, operation, or Windows 95 loading. No Water
+submodule revision changed during this audit.
+
+Sources: Microsoft 1995 Windows 95 DDK:
+https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D14.HTM
+and https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D16.HTM
+
 Water moved its project-authored Windows 95 RTM reference headers from
 `include/whp/win95rtm/` to `include/ddk/win95rtm/`, a platform/release
 directory under the conventional DDK tree. Existing `WHP_` constants
