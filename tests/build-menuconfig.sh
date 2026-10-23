@@ -106,7 +106,7 @@ cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 # dispatch: the fake backend must see exact order and NO duplicate tests.
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=rtl8111e "$tmp/build.sh" test-fast
-printf 'test-format\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\ntest-ndis31-llvm\n' > "$tmp/expected"
+printf 'test-format\ninf-check\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\ntest-ndis31-llvm\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=rtl8111e "$tmp/build.sh" test

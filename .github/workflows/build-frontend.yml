@@ -10,6 +10,9 @@ on:
       - tests/test_vxd_format.py
       - tools/audit_ndis31_*.py
       - tools/check_ndis31_llvm.py
+      - packaging/win95rtm/*.INF
+      - tools/verify_*_inf.py
+      - tests/test_*_inf.py
   pull_request:
     paths:
       - build.sh
@@ -19,6 +22,9 @@ on:
       - tests/test_vxd_format.py
       - tools/audit_ndis31_*.py
       - tools/check_ndis31_llvm.py
+      - packaging/win95rtm/*.INF
+      - tools/verify_*_inf.py
+      - tests/test_*_inf.py
   workflow_dispatch:
 
 permissions:

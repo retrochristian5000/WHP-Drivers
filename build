@@ -233,6 +233,7 @@ smoke_radeon6410d() {
 
 # Realtek RTL8111E: data-only PCI/XID/MAC checks, no hardware operations.
 smoke_rtl8111e() {
+    rtl8111e_inf_check
     check_tools
     out_dir="$build_dir/whp-tests"
     mkdir -p "$out_dir"
@@ -607,6 +608,16 @@ minivdd_header_check() {
     printf '%s\n' "WHP-Drivers: mini-VDD C header check passed (Win95 RTM guest ABI NOT verified)"
 }
 
+# Windows 95 NDIS 3.1 RTL8111E INF: fail-closed research scaffold.
+# This check does not create a hardware install or copy driver files.
+rtl8111e_inf_check() {
+    need python3
+    python3 "$root/tools/verify_rtl8111e_inf.py" ||
+        die "RTL8111E Win95 INF safety verification failed"
+    python3 -m unittest discover -s "$root/tests" -p 'test_rtl8111e_inf.py' ||
+        die "RTL8111E Win95 INF fail-closed regressions failed"
+}
+
 # Standalone Win95 INF preflight (no toolchain, guest, or GPU required).
 radeon_inf_check() {
     need python3
@@ -644,7 +655,8 @@ case "${1:-}" in
     smoke-vxd) smoke_vxd ;;
     smoke-radeon6410d) smoke_radeon6410d ;;
     smoke-rtl8111e) smoke_rtl8111e ;;
-    inf-check) radeon_inf_check ;;
+    rtl8111e-inf-check) rtl8111e_inf_check ;;
+    inf-check) radeon_inf_check; rtl8111e_inf_check ;;
     verify-vxd)
         [ "$#" -eq 2 ] || die "usage: ./build verify-vxd <file.vxd>"
         need python3
@@ -656,5 +668,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac

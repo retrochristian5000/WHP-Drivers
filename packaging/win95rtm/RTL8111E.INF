@@ -1,0 +1,33 @@
+; WHP-Drivers RTL8111E NDIS 3.1 Windows 95 RTM INF research skeleton.
+; STATUS: DELIBERATELY NON-INSTALLABLE. DO NOT COPY TO WINDOWS\INF.
+; This is not a driver package: the NDIS miniport image, PCIe resource
+; handling, interrupt/DMA synchronization, and Win95 guest tests are missing.
+; Candidate PCI family ID ONLY: PCI\VEN_10EC&DEV_8168
+; This ID is shared across RTL8168/RTL8111 chip revisions. It does NOT
+; prove RTL8111E and is NOT an enabled device/model mapping below.
+; Before activation verify exact vendor/device/revision/subsystem ID on
+; the target computer and successful PCI bridge enumeration in Win95 RTM.
+;
+; HISTORICAL INSTALLATION CHECKLIST (comments only, NEVER active):
+; - Bind a verified PCI model to a checked .ndi install section.
+; - Audit NDIS 3.x miniport service loading (DevLoader / DeviceVxDs).
+; - Audit NDI interface direction: UpperRange=ndis3; LowerRange=ethernet.
+; - Audit NDI\\Install ndis3 registration, SourceDisks*, CopyFiles,
+;   DestinationDirs, and copied .SYS file against a verified DDK witness.
+; - Compare Windows 95 RTM NET*.INF samples; no NT .Services section.
+; - Run an isolated Windows 95 RTM VM test before ever binding real NIC.
+
+[Version]
+Signature="$CHICAGO$"
+Class=Net
+Provider=%WHP%
+
+[Manufacturer]
+%WHP%=WHP.RTL8111E
+
+[WHP.RTL8111E]
+; Intentionally empty: no model or PCI binding while driver is incomplete.
+
+[Strings]
+WHP="WHP-Drivers (research only)"
+RTL8111E="Realtek RTL8111E Ethernet (research, not installable)"

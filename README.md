@@ -942,6 +942,64 @@ a malformed image.
 
 ## Realtek RTL8111E (HP Pavilion p6-2310; staged miniport development)
 
+### RTL8111E Windows 95 RTM network INF research gate (2026-10-23)
+
+`packaging/win95rtm/RTL8111E.INF` now exists as an **intentionally
+non-installable** Net-class research scaffold. Its active metadata is
+limited to `[Version]` (`Signature="$CHICAGO$"`, `Class=Net`,
+provider), `[Manufacturer]`, an **empty** `[WHP.RTL8111E]` model
+section, and `[Strings]`. The PCI candidate
+`PCI\\VEN_10EC&DEV_8168` appears **only in comments**: this is a
+family-wide RTL8168/RTL8111 ID, not a proven RTL8111E revision nor a
+verified Windows 95 RTM PCI enumeration. The file has **no active
+hardware binding, AddReg, CopyFiles, install section or executable
+reference**. Do not copy it into `WINDOWS\\INF` or use Add Hardware
+with it.
+
+Period Windows 95 network INF evidence identifies the future activation
+pieces: PCI device/model match, `.ndi` install section,
+`DevLoader=*ndis`, `DeviceVxDs` referencing a real miniport `.SYS`
+(not a renamed full-MAC `.VXD`), `Ndi\\Interfaces` with
+`UpperRange=ndis3` / `LowerRange=ethernet`, `Ndi\\Install`
+registration, source/destination file tables, and actual copied-driver
+provenance. Those details are **checklist comments only**, not copied
+guesses from a modern Windows NT `AddService` INF. A 1990s 3Com
+`w95el90x.inf` is an informative historical witness, but its own
+dual NDIS 2/3/4 settings and chip IDs are **not** this driver's ABI.
+
+Run the narrow or combined checks (Python 3 only):
+
+```sh
+./build rtl8111e-inf-check
+./build inf-check                 # Radeon + RTL8111E research scaffolds
+WHP_DRIVER_PROFILE=rtl8111e ./build.sh test-fast
+```
+
+`tools/verify_rtl8111e_inf.py` rejects any new active key/section,
+model mapping, copied binary, NT service stanza, malformed encoding,
+removed safety notice, or changed documented PCI candidate.
+`tests/test_rtl8111e_inf.py` adds 13 fail-closed regression cases;
+the RTL8111E smoke target now runs the INF gate before compiling.
+The existing Radeon INF tests remain unchanged. No driver binary is
+built or installed as a consequence of this file or these commands.
+
+To activate a real NIC package later, first obtain the exact target
+PCI revision/subsystem, confirm Windows 95 RTM sees the PCI bridge,
+finish the NDIS 3.1 adapter and DMA/cache/interrupt behavior, compile
+and link against authenticated NT 3.51 DDK headers and import libs,
+verify the actual driver image/loader in a disposable RTM guest, then
+derive an installable INF from inspected period NET*.INF examples.
+
+Evidence:
+- Windows 95 DDK network differences and CardType / INF instructions:
+  https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D16.HTM
+- Historical 3Com Windows 95 network INF (comparison, not template authority):
+  https://files.mpoli.fi/unpacked/hardware/net/3com/3c90xx2.exe/w95el90x.inf
+- Microsoft NDI binding direction (modern description; cross-check only):
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/network/specifying-binding-interfaces
+
+
+
 The HP Pavilion p6-2310 (H3Y76AA) has a reported Realtek RTL8111E
 PCI Express Gigabit Ethernet controller. Prior WHP LISTPCI observations
 found the controller at PCI bus 003, device 00, while Windows 95 RTM
@@ -965,7 +1023,9 @@ An independent host Clang check also compiled the same source into
 i386 COFF and passed the test vectors. This is **not yet an installable
 Windows 95 driver**: there is no NDIS 3.1 miniport registration, LE
 binary, hardware-connected DMA, IRQ handling, PHY management, transmit/receive path,
-or binding INF. Nothing has been loaded on the Pavilion.
+or active binding INF. A deliberately non-installable INF research scaffold
+now exists; see its separately enforced safety gate above. Nothing has
+been loaded on the Pavilion.
 
 Keep the existing `./build ndis31-ddk-check` historical NT 3.51 DDK
 gate. A loadable driver also requires read-only PCI inventory and a

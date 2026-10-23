@@ -152,7 +152,7 @@ run_profile() {
 }
 run_fast_tests() {
     step test-format
-    case "$profile" in radeon6410d|all) step inf-check ;; esac
+    case "$profile" in radeon6410d|rtl8111e|all) step inf-check ;; esac
     case "$profile" in
         rtl8111e|all)
             step test-ndis31-audit
