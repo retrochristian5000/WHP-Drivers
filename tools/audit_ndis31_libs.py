@@ -50,7 +50,7 @@ def library(path: Path) -> str:
         raise AuditError(f"invalid or oversized COFF archive: {path}")
     with path.open("rb") as src:
         if src.read(len(ARCHIVE_MAGIC)) != ARCHIVE_MAGIC:
-            raise AuditError(f"unsupported library archive format (not COFF): {path}")
+            raise AuditError(f"unsupported archive signature (expected traditional ar/COFF-compatible library): {path}")
     return digest(path)
 
 
@@ -171,8 +171,8 @@ def resolve(libs: list[Path], objs: list[Path],
         for name in missing:
             print(f"  {name}", file=sys.stderr)
         raise AuditError("not all object imports are present in selected libraries")
-    print("All currently observed undefined symbols have candidates in the")
-    print("selected i386 objects/archives. Linker/loader compatibility UNVERIFIED.")
+    print("All currently observed undefined symbols have lexical candidates in the")
+    print("selected objects/archives; archive member architecture and linker/loader compatibility UNVERIFIED.")
     print("Proposed linker INPUT ORDER (no linker was run):")
     for obj in objs:
         print(f"  OBJECT {obj}")

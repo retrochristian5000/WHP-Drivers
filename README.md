@@ -332,7 +332,7 @@ New read-only commands:
   --pin ndis.lib=REPLACE_WITH_VERIFIED_64_DIGIT_SHA256 \
   --obj /verified/rtl8111e-ndis31-adapter.obj \
   --nm /verified/whp-llvm/bin/llvm-nm
-python3 -m unittest discover -s tests -p 'test_ndis31_lib_audit.py'
+./build test-ndis31-libs
 ```
 
 The first command reports the archive magic, file name and SHA256 without

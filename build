@@ -447,6 +447,12 @@ ndis31_link_inventory() {
     exec python3 "$root/tools/audit_ndis31_libs.py" inventory "$@"
 }
 
+ndis31_link_audit_test() {
+    need python3
+    cd "$root"
+    exec python3 -m unittest discover -s tests -p 'test_ndis31_lib_audit.py'
+}
+
 ndis31_link_audit() {
     need python3
     [ "$#" -gt 0 ] ||
@@ -549,6 +555,7 @@ case "${1:-}" in
     ndis31-ddk-inventory) ndis31_ddk_inventory ;;
     ndis31-link-inventory) shift; ndis31_link_inventory "$@" ;;
     ndis31-link-audit) shift; ndis31_link_audit "$@" ;;
+    test-ndis31-libs) ndis31_link_audit_test ;;
     test-ndis31-audit) ndis31_ddk_audit_test ;;
     bootstrap-watcom) bootstrap_watcom ;;
     watcom-check) watcom_check ;;
@@ -572,5 +579,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|ndis31-ddk-check|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|ndis31-ddk-check|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
