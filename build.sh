@@ -9,6 +9,7 @@ profile=abi
 vxd_backend=llvm
 bootstrap=off
 jobs=2
+plan_only=0
 
 fail() { printf '%s\n' "WHP-Drivers: $*" >&2; exit 1; }
 
@@ -110,41 +111,95 @@ menuconfig() {
     done
 }
 
+# The printed plan and real execution share one dependency order.
+# Never use eval or shell-source .whpconfig; each step has fixed argv.
+step() {
+    if [ "$plan_only" -eq 1 ]; then
+        printf '  ./build'
+        for arg do printf ' %s' "$arg"; done
+        printf '\n'
+    else
+        "$backend" "$@"
+    fi
+}
 run_vxd() {
-    if [ "$vxd_backend" = openwatcom ]; then "$backend" watcom-smoke-vxd
-    else "$backend" smoke-vxd; fi
+    if [ "$vxd_backend" = openwatcom ]; then step watcom-smoke-vxd
+    else step smoke-vxd; fi
 }
 run_bootstrap() {
     case "$bootstrap" in
         off) ;;
-        llvm) "$backend" bootstrap ;;
-        openwatcom) "$backend" bootstrap-watcom ;;
-        both) "$backend" bootstrap
-              "$backend" bootstrap-watcom ;;
+        llvm) step bootstrap ;;
+        openwatcom) step bootstrap-watcom ;;
+        both) step bootstrap
+              step bootstrap-watcom ;;
     esac
 }
 run_profile() {
     run_bootstrap
     case "$profile" in
-        abi) "$backend" smoke ;;
+        abi) step smoke ;;
         vxd) run_vxd ;;
-        radeon6410d) "$backend" smoke-radeon6410d ;;
-        rtl8111e) "$backend" smoke-rtl8111e ;;
-        all) "$backend" smoke
-             "$backend" test-format
-             "$backend" test-le
+        radeon6410d) step smoke-radeon6410d ;;
+        rtl8111e) step smoke-rtl8111e ;;
+        all) step smoke
+             step test-format
+             step test-le
              run_vxd
-             "$backend" smoke-radeon6410d
-             "$backend" smoke-rtl8111e ;;
+             step smoke-radeon6410d
+             step smoke-rtl8111e ;;
     esac
+}
+run_fast_tests() {
+    step test-format
+    case "$profile" in radeon6410d|all) step inf-check ;; esac
+    case "$profile" in
+        rtl8111e|all)
+            step test-ndis31-audit
+            step test-ndis31-libs
+            step test-ndis31-adapter ;;
+    esac
+}
+run_tests() {
+    step inf-check
+    if [ "$profile" != all ]; then
+        step test-format
+        step test-le
+    fi
+    case "$profile" in
+        rtl8111e|all)
+            step test-ndis31-audit
+            step test-ndis31-libs
+            step test-ndis31-adapter ;;
+    esac
+    run_profile
+}
+
+# Deliberately do not delete LLVM/OpenWatcom toolchains or other artifacts.
+# Reject custom LLVM build tree paths to avoid removing external data.
+clean_tests() {
+    [ -z "${WHP_LLVM_BUILD_DIR:-}" ] ||
+        fail 'clean-tests refuses WHP_LLVM_BUILD_DIR override (manual cleanup required)'
+    out="$root/.build/llvm-native/whp-tests"
+    [ ! -L "$root/.build" ] && [ ! -L "$root/.build/llvm-native" ] &&
+        [ ! -L "$out" ] || fail 'clean-tests refuses symlinked output path'
+    if [ -e "$out" ]; then
+        [ -d "$out" ] || fail 'test output path is not a directory'
+        rm -rf "$out" || fail 'cannot remove test output'
+    fi
+    printf 'WHP-Drivers: removed generated test artifacts only\n'
 }
 usage() {
     cat <<'HELP'
-Usage: ./build.sh [menuconfig|config|build|test|bootstrap|bootstrap-watcom|bootstrap-all|<legacy target>]
+Usage: ./build.sh [menuconfig|config|plan|build|incremental|test|test-fast|clean-tests|bootstrap|bootstrap-watcom|bootstrap-all|<legacy target>]
   menuconfig      Configure build profile using portable interactive menu
   config          Show active settings (environment overrides .whpconfig)
+  plan            Print selected build steps without running them
   build           Run selected compile/smoke workflow; no driver installation
-  test            Run format/LE tests, then selected workflow
+  incremental     Run selected workflow without toolchain bootstrapping
+  test            Run full checks, including applicable NDIS regressions
+  test-fast       Run host-only regression checks (no toolchain bootstrap)
+  clean-tests     Remove only default .build/llvm-native/whp-tests artifacts
   bootstrap       Explicit LLVM bootstrap (existing backend)
   bootstrap-watcom Explicit native OpenWatcom host + release toolchain bootstrap
   bootstrap-all   Build both pinned LLVM and OpenWatcom toolchains
@@ -173,14 +228,17 @@ case "${1:-build}" in
                    "$backend" bootstrap-watcom ;;
     menuconfig) [ "$#" -eq 1 ] || fail 'menuconfig takes no arguments'; menuconfig ;;
     config|showconfig) [ "$#" -eq 1 ] || fail 'config takes no arguments'; show_config ;;
-    build) [ "$#" -eq 1 ] || fail 'build takes no arguments'; run_profile ;;
-    test) [ "$#" -eq 1 ] || fail 'test takes no arguments';
-          "$backend" inf-check
-          if [ "$profile" != all ]; then
-              "$backend" test-format
-              "$backend" test-le
-          fi
+    plan) [ "$#" -eq 1 ] || fail 'plan takes no arguments'
+          plan_only=1; printf 'WHP-Drivers: selected build plan (%s)\n' "$profile"
           run_profile ;;
+    build) [ "$#" -eq 1 ] || fail 'build takes no arguments'; run_profile ;;
+    incremental) [ "$#" -eq 1 ] || fail 'incremental takes no arguments'
+                 bootstrap=off; run_profile ;;
+    test-fast) [ "$#" -eq 1 ] || fail 'test-fast takes no arguments'
+               run_fast_tests ;;
+    test) [ "$#" -eq 1 ] || fail 'test takes no arguments'; run_tests ;;
+    clean-tests) [ "$#" -eq 1 ] || fail 'clean-tests takes no arguments'
+                 clean_tests ;;
     *) [ -x "$backend" ] || fail 'legacy ./build backend missing'
        exec "$backend" "$@" ;;
 esac

@@ -10,15 +10,19 @@ Use `./build.sh` as the new top-level entry point; the historical executable
 ```sh
 ./build.sh menuconfig         # interactive portable shell menu, save with 's'
 ./build.sh config             # inspect active options
+./build.sh plan               # show exact configured backend steps (read-only)
 ./build.sh build              # run configured smoke profile (default: ABI)
-./build.sh test               # LE/format tests plus configured profile
+./build.sh incremental        # build using existing toolchains; never bootstrap
+./build.sh test-fast          # host regressions; does not build LLVM
+./build.sh test               # full format, LE, and selected driver checks
+./build.sh clean-tests        # remove generated test outputs, not toolchains
 ./build.sh test-menuconfig    # isolated shell-menu regression checks
 ./build.sh bootstrap          # explicitly compile the pinned LLVM fork
 ./build.sh bootstrap-watcom   # bootstrap pinned OpenWatcom host + release tools
 ./build.sh bootstrap-all      # build both pinned toolchains
 ```
 
-The menu selects one workflow (`abi`, `vxd`, `radeon6410d`, or `all`),
+The menu selects one workflow (`abi`, `vxd`, `radeon6410d`, `rtl8111e`, or `all`),
 the VxD backend (`llvm` or optional `openwatcom`), and **independent**
 toolchain bootstrap (`off`, `llvm`, `openwatcom`, or `both`), plus LLVM
 parallel jobs (1–16, default 2). Earlier `WHP_DRIVER_BOOTSTRAP=on` profiles
@@ -27,6 +31,21 @@ The Radeon identity profile remains LLVM-based; the backend choice affects
 **only the VxD smoke probe**. OpenWatcom is never a silent fallback, and
 the VxD backend must pass its own LE verification. OpenWatcom bootstrap
 is independent of whichever backend runs the VxD probe.
+
+**Workflow consistency (2026-10-23):** `plan` uses the same step dispatcher
+as `build`, rather than independently guessing compiler commands.
+`incremental` disables bootstrap **for that invocation only** without
+changing `.whpconfig` or updating any submodules; an absent compiler
+will still produce an explicit failure. `test-fast` exercises the local
+format checks and, for selected profiles, Radeon INF and synthetic NDIS
+3.1 declaration/library/adapter regressions. It does not require a
+historical NT 3.51 DDK or bootstrap a toolchain, although the NDIS
+adapter tests may use a host compiler. Full `test` preserves the
+LE and selected smoke probes and adds the NIC regressions for
+`rtl8111e`/`all`. `clean-tests` refuses symlinked test-output paths and
+custom LLVM build directories; it only deletes the default
+`.build/llvm-native/whp-tests` directory. Neither command installs
+drivers, invents a validated NDIS miniport binary, or enables hardware DMA.
 
 Settings are stored in ignored `.whpconfig` as validated data (not
 shell-sourced); environment overrides are `WHP_DRIVER_PROFILE`,

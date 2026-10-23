@@ -102,4 +102,81 @@ printf 'WHP_DRIVER_BOOTSTRAP=off\n' > "$tmp/.whpconfig"
 printf 'display-win16-check\ndisplay-ddk-check\nminivdd-check\ninf-check\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 
+# Comparable QEMU/Water workflow commands are intentionally host-only
+# dispatch: the fake backend must see exact order and NO duplicate tests.
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=rtl8111e "$tmp/build.sh" test-fast
+printf 'test-format\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=rtl8111e "$tmp/build.sh" test
+printf 'inf-check\ntest-format\ntest-le\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\nsmoke-rtl8111e\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=radeon6410d "$tmp/build.sh" test-fast
+printf 'test-format\ninf-check\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=all "$tmp/build.sh" test
+printf 'inf-check\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\nsmoke\ntest-format\ntest-le\nsmoke-vxd\nsmoke-radeon6410d\nsmoke-rtl8111e\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+
+# The read-only build plan and real backend execution share target order.
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=all WHP_DRIVER_BOOTSTRAP=both \
+    "$tmp/build.sh" plan > "$tmp/plan"
+[ ! -s "$WHP_TEST_LOG" ] || exit 1
+grep -Fx 'WHP-Drivers: selected build plan (all)' "$tmp/plan" >/dev/null
+cat > "$tmp/expected-plan" <<'PLAN'
+WHP-Drivers: selected build plan (all)
+  ./build bootstrap
+  ./build bootstrap-watcom
+  ./build smoke
+  ./build test-format
+  ./build test-le
+  ./build smoke-vxd
+  ./build smoke-radeon6410d
+  ./build smoke-rtl8111e
+PLAN
+cmp "$tmp/plan" "$tmp/expected-plan" >/dev/null || exit 1
+WHP_DRIVER_PROFILE=all WHP_DRIVER_BOOTSTRAP=both "$tmp/build.sh" build
+sed -n '2,$s/^  \.\/build //p' "$tmp/expected-plan" > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+
+# Incremental overrides auto-bootstrap for the invocation only;
+# never overwrites the user's saved toolchain preference.
+cp "$tmp/.whpconfig" "$tmp/expected-config"
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_BOOTSTRAP=both "$tmp/build.sh" incremental
+printf 'smoke\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+cmp "$tmp/.whpconfig" "$tmp/expected-config" >/dev/null || exit 1
+
+# Cleanup is narrowly scoped; symlink and alternate build-tree paths fail.
+mkdir -p "$tmp/.build/llvm-native/whp-tests"
+touch "$tmp/.build/llvm-native/whp-tests/test-output"
+touch "$tmp/.build/llvm-native/keep"
+"$tmp/build.sh" clean-tests > /dev/null
+[ ! -e "$tmp/.build/llvm-native/whp-tests" ] || exit 1
+[ -f "$tmp/.build/llvm-native/keep" ] || exit 1
+touch "$tmp/victim"
+ln -s "$tmp/victim" "$tmp/.build/llvm-native/whp-tests"
+if "$tmp/build.sh" clean-tests >/dev/null 2>&1; then
+    printf '%s\n' 'clean-tests followed a symlink' >&2
+    exit 1
+fi
+[ -f "$tmp/victim" ] || exit 1
+rm "$tmp/.build/llvm-native/whp-tests"
+if WHP_LLVM_BUILD_DIR="$tmp/custom" "$tmp/build.sh" clean-tests >/dev/null 2>&1; then
+    printf '%s\n' 'clean-tests accepted an external build tree' >&2
+    exit 1
+fi
+
+# Refuse unexpected args and keep older backend pass-through unchanged.
+if "$tmp/build.sh" plan extra >/dev/null 2>&1; then exit 1; fi
+: > "$WHP_TEST_LOG"
+"$tmp/build.sh" ndis31-link-inventory --lib "$tmp/ndis.lib"
+printf 'ndis31-link-inventory --lib %s/ndis.lib\n' "$tmp" > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+
 printf '%s\n' 'WHP-Drivers: build.sh menuconfig regression checks passed'

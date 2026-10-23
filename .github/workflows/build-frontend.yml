@@ -1,0 +1,46 @@
+name: WHP-Drivers frontend and host tests
+
+on:
+  push:
+    paths:
+      - build.sh
+      - build
+      - tests/build-menuconfig.sh
+      - tests/test_ndis31_*.py
+      - tests/test_vxd_format.py
+      - tools/audit_ndis31_*.py
+  pull_request:
+    paths:
+      - build.sh
+      - build
+      - tests/build-menuconfig.sh
+      - tests/test_ndis31_*.py
+      - tests/test_vxd_format.py
+      - tools/audit_ndis31_*.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Portable build dispatcher
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          persist-credentials: false
+      - name: Shell syntax
+        run: |
+          sh -n ./build.sh
+          sh -n ./build
+          sh -n ./tests/build-menuconfig.sh
+      - name: Mocked workflow regression
+        run: sh ./build.sh test-menuconfig
+      - name: Fast format and NDIS fixture regressions
+        run: |
+          WHP_DRIVER_PROFILE=abi sh ./build.sh test-fast
+          WHP_DRIVER_PROFILE=radeon6410d sh ./build.sh test-fast
+          WHP_DRIVER_PROFILE=rtl8111e sh ./build.sh test-fast
