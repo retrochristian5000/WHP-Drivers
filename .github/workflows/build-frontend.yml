@@ -38,6 +38,7 @@ jobs:
         run: |
           sh -n ./build.sh
           sh -n ./build
+          test -x ./build
           sh -n ./tests/build-menuconfig.sh
       - name: Mocked workflow regression
         run: sh ./build.sh test-menuconfig
