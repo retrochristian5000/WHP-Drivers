@@ -1370,7 +1370,9 @@ storage-class endpoint, including vendor/device, class/subclass/PI,
 revision, subsystem pair, command flags and IRQ line/pin. A family-ID
 versus PCI-class disagreement is a diagnostic clue, not permission
 to select a different driver. It **does not** read a disk sector,
-touch BARs/MMIO, inspect a RAID array or access Option ROM metadata.
+write BARs, access MMIO, inspect a RAID array or access Option ROM metadata.
+The separately gated DOS memory preflight can now **read PCI BAR address
+fields only**, without claiming that their assigned size is known.
 No Windows 95 storage driver, AHCI port initialization, DOS block
 driver or RAID volume assembly is implemented by this step.
 
@@ -1442,6 +1444,72 @@ instrumentation, not a claim that PCIe, HDA or the RTL8111E work.
 ./build test-dos-version                  # host-only; no DOS interrupt
 WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
 ```
+
+#### DOS PCIe memory preflight (read-only)
+
+`WHPPCI.EXE` can discover PCIe endpoints via firmware's **standard**
+PCI configuration space but **does not provide a protected-mode driver
+or access to their memory-mapped registers**. The new
+`drivers/bus/pci95/pci_dos_memory.[ch]` logic inspects BAR base
+addresses and type-1 bridge memory windows already returned by the
+PCI BIOS. It never probes BAR sizes by writing all-ones values,
+reconfigures bridges, enables bus mastering, allocates DMA memory,
+maps physical addresses, or reads/writes PCIe MMIO.
+
+The DOS executable also calls **BIOS INT 12h** to report the installed
+conventional-memory upper boundary. This is *not* a measurement of
+free memory, UMB availability, XMS, EMS, or the physical e820 map.
+Warnings distinguish **where a BAR begins** from whether an entire
+BAR aperture actually overlaps RAM: the size is unknown without
+additional trusted resource information. The bridge audit uses actual
+base/limit registers and PCI Command.Memory Space Enable to distinguish
+declared windows from active decoding. A potential collision is a
+diagnostic clue, not proof of corruption.
+
+- I/O BARs within and beyond the x86 16-bit I/O-port addressing range
+  are distinguished; no port I/O is performed.
+- 32-bit and 64-bit MMIO BARs retain full base addresses.
+- Bases below the BIOS conventional-memory bound receive a warning.
+  Bases in the remaining low 1 MiB are flagged as legacy-address
+  candidates; neither implies the firmware necessarily maps RAM there.
+- Above-1-MiB MMIO requires a deliberate physical mapping mechanism,
+  not a cast to a real-mode far pointer. Addresses above 4 GiB require
+  additional address-width and mapping support.
+- Bridge memory windows are checked for low-memory ranges, address
+  ranges crossing 4 GiB, and inactive memory decoding. The decoder
+  does not claim that a reported bridge window's range is currently
+  accessible from DOS.
+
+The existing `WHPPCI.EXE` MZ image reserves an 8-KiB stack.
+Ralf Brown's Interrupt List notes that a PCI BIOS `INT 1Ah, AX=B109h`
+read can consume up to **1,024 bytes** of stack; the real-mode runtime,
+compiler-generated frames and any resident software must still be
+validated in an actual DOS guest. This work neither shrinks the stack
+nor adds a memory allocator or a speculative VCPI/DPMI mode switch.
+
+Use the light host-only checks:
+
+```sh
+./build test-pci-dos-memory
+WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
+```
+
+**Boundary:** PCI BIOS `B109h` reads only standard configuration
+offsets `00h`–`FFh` in this tool, not PCIe extended configuration.
+The BIOS might omit legacy PCI BIOS support even when PCIe hardware is
+present. MS-DOS 6.22 and DOS 7.10 use the same *BIOS diagnostic*
+interface here; their different filesystem APIs are independent.
+Driver-level PCIe support still needs a verified mapping model,
+resource ownership, IRQ handling and safe DMA bounce/translation
+policies before any live hardware writes.
+
+Sources:
+- Ralf Brown, PCI BIOS read-configuration-word contract and stack note:
+  https://fd.lod.bz/rbil/interrup/bios_expansion/1ab109.html
+- PCI bridge memory register layout:
+  https://sources.debian.org/src/seabios/0.5.1-3/src/pci_regs.h
+- Windows PCIe extended configuration-space distinction:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/pci/accessing-pci-device-configuration-space
 
 The utility checks the historical PCI BIOS installation function
 `INT 1Ah, AX=B101h` and uses the **read-only** configuration-word
