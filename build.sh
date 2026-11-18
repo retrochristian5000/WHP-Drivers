@@ -14,7 +14,7 @@ plan_only=0
 fail() { printf '%s\n' "WHP-Drivers: $*" >&2; exit 1; }
 
 validate() {
-    case "$profile" in abi|vxd|radeon6410d|rtl8111e|dos-pci|all) ;; *) fail "invalid profile: $profile" ;; esac
+    case "$profile" in abi|vxd|radeon6410d|rtl8111e|hda|dos-pci|all) ;; *) fail "invalid profile: $profile" ;; esac
     case "$vxd_backend" in llvm|openwatcom) ;; *) fail "invalid VxD backend: $vxd_backend" ;; esac
     case "$bootstrap" in
         on) bootstrap=llvm ;; # backwards-compatible .whpconfig migration
@@ -84,7 +84,7 @@ menuconfig() {
     while :; do
         printf '\n%s\n' '=== WHP-Drivers menuconfig ==='
         show_config
-        printf '%s\n' '  1) Cycle workflow (abi -> vxd -> radeon6410d -> rtl8111e -> dos-pci -> all)'
+        printf '%s\n' '  1) Cycle workflow (abi -> vxd -> radeon6410d -> rtl8111e -> hda -> dos-pci -> all)'
         printf '%s\n' '  2) Toggle VxD backend (llvm / openwatcom)'
         printf '%s\n' '  3) Cycle toolchain bootstrap (off / llvm / openwatcom / both)'
         printf '%s\n' '  4) Set LLVM build jobs (1-16)'
@@ -93,8 +93,8 @@ menuconfig() {
         IFS= read -r choice || { printf '\n' >&2; fail 'menu closed without saving'; }
         case "$choice" in
             1) case "$profile" in abi) profile=vxd ;; vxd) profile=radeon6410d ;;
-                  radeon6410d) profile=rtl8111e ;; rtl8111e) profile=dos-pci ;;
-                  dos-pci) profile=all ;; all) profile=abi ;; esac ;;
+                  radeon6410d) profile=rtl8111e ;; rtl8111e) profile=hda ;;
+                  hda) profile=dos-pci ;; dos-pci) profile=all ;; all) profile=abi ;; esac ;;
             2) if [ "$vxd_backend" = llvm ]; then vxd_backend=openwatcom; else vxd_backend=llvm; fi ;;
             3) case "$bootstrap" in off) bootstrap=llvm ;; llvm) bootstrap=openwatcom ;;
                   openwatcom) bootstrap=both ;; both) bootstrap=off ;; esac ;;
@@ -143,17 +143,24 @@ run_profile() {
         vxd) run_vxd ;;
         radeon6410d) step smoke-radeon6410d ;;
         rtl8111e) step smoke-rtl8111e ;;
+        hda) step smoke-hda ;;
         dos-pci) step dos-pci-build ;;
         all) step smoke
              step test-format
              step test-le
              run_vxd
              step smoke-radeon6410d
-             step smoke-rtl8111e ;;
+             step smoke-rtl8111e
+             step smoke-hda ;;
     esac
 }
 run_fast_tests() {
+    if [ "$profile" = hda ]; then
+        step test-hda-probe
+        return
+    fi
     if [ "$profile" = dos-pci ]; then
+        step test-hda-probe
         step test-pci95-bridge
         step test-pci95-bios-read
         step test-rtl8111e-pci-snapshot
@@ -162,6 +169,9 @@ run_fast_tests() {
     fi
     step test-format
     case "$profile" in radeon6410d|rtl8111e|all) step inf-check ;; esac
+    case "$profile" in
+        all) step test-hda-probe ;;
+    esac
     case "$profile" in
         rtl8111e|all)
             step test-pci95-bridge
@@ -175,6 +185,10 @@ run_fast_tests() {
     esac
 }
 run_tests() {
+    if [ "$profile" = hda ]; then
+        run_profile
+        return
+    fi
     if [ "$profile" = dos-pci ]; then
         run_fast_tests
         run_profile
@@ -240,7 +254,8 @@ Usage: ./build.sh [menuconfig|config|plan|build|incremental|test|test-fast|clean
   bootstrap-all   Build both pinned LLVM and OpenWatcom toolchains
   test-menuconfig Run isolated build.sh configuration regression checks
   <legacy target> Pass through to ./build (smoke, smoke-vxd, verify-vxd, ...)
-Profiles: abi (default), vxd, radeon6410d, rtl8111e, dos-pci, all
+Profiles: abi (default), vxd, radeon6410d, rtl8111e, hda, dos-pci, all
+HDA profile: read-only PCI/GCAP probes, never a sound driver
 DOS PCI profile: opt-in OpenWatcom 16-bit MZ build; no real-mode execution
 VxD backends: llvm (default), openwatcom (explicit and LE-verified only)
 Bootstrap choices: off, llvm, openwatcom, both (legacy on = llvm)
