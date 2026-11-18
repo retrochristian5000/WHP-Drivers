@@ -66,13 +66,18 @@ def inspect(include: Path) -> tuple[dict[str, str], tuple[str, ...]]:
     files = load(include)
     hashes = {name: sha256(data) for name, data in files.items()}
     source = "\n".join(code_without_comments(data) for data in files.values())
-    found = tuple(token for token in LATER_TOKENS if re.search(r"\b" + re.escape(token) + r"\b", source))
+    # The C tag "struct _NDIS_MINIPORT_DRIVER_CHARACTERISTICS" is a
+    # modern API even though the public typedef omits its leading "_".
+    # A plain word-boundary scan misses it because "_" is a word char.
+    def has_identifier(token: str) -> bool:
+        return bool(re.search(r"\b_?" + re.escape(token) + r"\b", source))
+    found = tuple(token for token in LATER_TOKENS if has_identifier(token))
     print("WHP-Drivers: NT 3.51 DDK candidate inventory (NOT authentication)")
     for name in HEADERS:
         print(f"  {name}: SHA256={hashes[name]}")
     print("  classic declarations (diagnostic only):")
     for name in HISTORICAL_LEADS:
-        present = bool(re.search(r"\b" + re.escape(name) + r"\b", source))
+        present = has_identifier(name)
         print(f"    {name}: {'present' if present else 'not located'}")
     if found:
         print("  later-version NDIS identifiers: " + ", ".join(found))
