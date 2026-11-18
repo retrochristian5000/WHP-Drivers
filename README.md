@@ -663,14 +663,24 @@ WHP_DRIVER_PROFILE=hda ./build.sh incremental
 The existing `third_party/water` submodule is the authoritative
 source for Windows 95 RTM **compile-time** driver reference headers.
 The gitlink is advanced to include:
-- `include/ddk/win95rtm/audio/hda_regs.h`: standard HDA controller
-  PCI class tuple, GCAP/GCTL/STATESTS, CORB/RIRB offset and bit-mask
-  references, with no fabricated Windows 95 HDA driver services
+- `include/ddk/hda/hda_regs.h`: OS-neutral Intel HDA PCI class
+  tuple, GCAP/GCTL/STATESTS, CORB/RIRB offsets and bit masks
+- `include/ddk/win95rtm/audio/hda_regs.h`: 37 legacy aliases for the
+  shared register values; **not** evidence that Windows 95 shipped HDA
 - `include/ddk/win95rtm/win16_abi.h`: neutral
   `WHP_WIN95_RTM_VERSION` for audio and display, preserving
   `WHP_WIN95_RTM_DISPLAY_VERSION` as an alias
 - The unchanged `audio/ddk_audio.h` Win16 boundary and
   `vmm.h` i386 DDB reference; neither is a complete historical DDK
+
+This matters because Water models Windows releases separately:
+XP RTM lacked bundled UAA HDA; XP SP1/SP2 could gain the separately
+installed KB888111 update; XP SP3 includes UAA HDA bus support, while
+Windows 95 RTM remains without a native HDA driver. Neither PCI
+detection nor a UAA bus driver proves that the appropriate codec
+driver has bound and audio output is working. The historical matrix
+is in Water's `documentation/windows-xp-hda-uaa.md`. The existing
+HDA research must not silently become an XP, Vista or Win95 driver.
 
 The HDA *software* decoder remains standalone, so cheap unit tests
 are unaffected by a missing Water checkout. The targeted opt-in
@@ -683,6 +693,11 @@ git submodule update --init third_party/water
 WHP_DRIVER_PROFILE=hda ./build.sh test-fast   # standalone HDA data tests
 WHP_DRIVER_PROFILE=hda ./build.sh incremental # pinned LLVM + Water checks
 ```
+
+The native Water HDA contract now verifies all 37 legacy macro
+aliases against canonical hardware values; the CI job fetches the
+canonical header and compatibility wrapper from the **same pinned
+revision**, rather than building the entire Water toolchain.
 
 The full HDA smoke additionally compiles
 `tests/win95-hda-vxd-header.c` with Water's `vmm.h` and
