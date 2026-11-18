@@ -213,12 +213,16 @@ fi
 [ -f "$tmp/victim" ] || exit 1
 rm "$tmp/.build/llvm-native/whp-tests"
 
-# DOS cleanup must not touch separate LLVM data or follow a symlink.
+# The canonical DOS probe cleanup and legacy alias share one safe output.
+mkdir -p "$tmp/.build/dos-pci"
+touch "$tmp/.build/dos-pci/WHPPROBE.EXE"
+"$tmp/build.sh" clean-dos-probe >/dev/null
+[ ! -e "$tmp/.build/dos-pci" ] || exit 1
+[ -f "$tmp/.build/llvm-native/keep" ] || exit 1
 mkdir -p "$tmp/.build/dos-pci"
 touch "$tmp/.build/dos-pci/WHPPCI.EXE"
 "$tmp/build.sh" clean-dos-pci >/dev/null
 [ ! -e "$tmp/.build/dos-pci" ] || exit 1
-[ -f "$tmp/.build/llvm-native/keep" ] || exit 1
 ln -s "$tmp/victim" "$tmp/.build/dos-pci"
 if "$tmp/build.sh" clean-dos-pci >/dev/null 2>&1; then
     printf '%s\n' 'DOS cleanup followed a symlink' >&2
