@@ -155,6 +155,7 @@ run_fast_tests() {
     case "$profile" in radeon6410d|rtl8111e|all) step inf-check ;; esac
     case "$profile" in
         rtl8111e|all)
+            step test-pci95-bridge
             step test-rtl8111e-pci-snapshot
             step test-ndis31-audit
             step test-ndis31-libs
