@@ -37,7 +37,22 @@ printf 'smoke-rtl8111e\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=all "$tmp/build.sh" build
-printf 'smoke\ntest-format\ntest-le\nwatcom-smoke-vxd\nsmoke-radeon6410d\nsmoke-rtl8111e\n' > "$tmp/expected"
+printf 'smoke\ntest-format\ntest-le\nwatcom-smoke-vxd\nsmoke-radeon6410d\nsmoke-rtl8111e\nsmoke-hda\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+
+# HDA is a separate profile. Fast tests never bootstrap LLVM or Watcom.
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=hda "$tmp/build.sh" build
+printf 'smoke-hda\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=hda "$tmp/build.sh" test-fast
+printf 'test-hda-probe\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=hda "$tmp/build.sh" plan > "$tmp/hda-plan"
+[ ! -s "$WHP_TEST_LOG" ] || exit 1
+grep -Fx '  ./build smoke-hda' "$tmp/hda-plan" >/dev/null || exit 1
 
 # DOS is a separate opt-in profile; it must not force a toolchain bootstrap.
 : > "$WHP_TEST_LOG"
@@ -46,14 +61,12 @@ printf 'dos-pci-build\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=dos-pci "$tmp/build.sh" test-fast
-printf 'test-pci95-bridge\ntest-pci95-bios-read\ntest-rtl8111e-pci-snapshot\ntest-dos-mz\n' > "$tmp/expected"
+printf 'test-hda-probe\ntest-pci95-bridge\ntest-pci95-bios-read\ntest-rtl8111e-pci-snapshot\ntest-dos-mz\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=dos-pci "$tmp/build.sh" plan > "$tmp/dos-plan"
 [ ! -s "$WHP_TEST_LOG" ] || exit 1
 grep -Fx '  ./build dos-pci-build' "$tmp/dos-plan" >/dev/null || exit 1
-
-cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 
 cp "$tmp/.whpconfig" "$tmp/expected-config"
 printf '1\nq\n' | "$tmp/build.sh" menuconfig >/dev/null
@@ -133,7 +146,7 @@ printf 'test-format\ninf-check\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=all "$tmp/build.sh" test
-printf 'inf-check\ntest-pci95-bios-read\ntest-dos-mz\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\ntest-ndis31-llvm\nsmoke\ntest-format\ntest-le\nsmoke-vxd\nsmoke-radeon6410d\nsmoke-rtl8111e\n' > "$tmp/expected"
+printf 'inf-check\ntest-pci95-bios-read\ntest-dos-mz\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\ntest-ndis31-llvm\nsmoke\ntest-format\ntest-le\nsmoke-vxd\nsmoke-radeon6410d\nsmoke-rtl8111e\nsmoke-hda\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 
 # The read-only build plan and real backend execution share target order.
@@ -152,6 +165,7 @@ WHP-Drivers: selected build plan (all)
   ./build smoke-vxd
   ./build smoke-radeon6410d
   ./build smoke-rtl8111e
+  ./build smoke-hda
 PLAN
 cmp "$tmp/plan" "$tmp/expected-plan" >/dev/null || exit 1
 WHP_DRIVER_PROFILE=all WHP_DRIVER_BOOTSTRAP=both "$tmp/build.sh" build
