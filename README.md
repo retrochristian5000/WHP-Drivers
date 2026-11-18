@@ -1276,6 +1276,68 @@ loadable NDIS miniport, firmware access, interrupt registration or DMA.
 PCI header offset and capability definitions:
 https://github.com/torvalds/linux/blob/master/include/uapi/linux/pci_regs.h
 
+### Pavilion p6-2310 AMD A55 SATA/RAID identification (2026-11-18)
+
+The HP Pavilion **p6-2310 (H3Y76AA)** uses the AMD A55/Hudson-D2
+FCH. A BIOS/UEFI hard-drive selection that offers **RAID** is an
+**observed setup option**, not proof that RAID mode is selected, that
+a RAID volume exists, or that a standalone RAID controller is fitted.
+The actual storage function PCI IDs, active subclass/PI and
+attached drives still need a read-only machine capture.
+
+A pure PCI-configuration decoder lives in
+`drivers/storage/fch_sata/identity.[ch]`; it recognizes mass-storage
+PCI class `01h` with IDE subclass `01h`, RAID subclass `04h`,
+or SATA subclass `06h` (AHCI programming interface `01h`).
+It reports actual class/PI separately from family ID expectations.
+AMD vendor `1022h` candidate family IDs:
+
+| Device ID | Family interpretation (not Pavilion-confirmed) |
+| --- | --- |
+| `7800h` | FCH/Hudson SATA IDE mode |
+| `7801h` | FCH/Hudson SATA AHCI mode |
+| `7802h` | FCH/Hudson SATA RAID mode |
+| `7803h` | FCH/Hudson SATA RAID5-related variant |
+| `7804h` | FCH/Hudson alternate AHCI mode |
+| `7805h` | FCH/Hudson alternate RAID mode |
+
+`780Ch` is separately listed as an FCH **IDE controller**:
+do not silently merge it into the six SATA mode IDs. Candidate
+IDs may be seen on other AMD FCH configurations and are not a
+verified inventory of this particular board.
+
+The existing `WHPPCI.EXE` now prints any detected IDE/SATA/RAID
+storage-class endpoint, including vendor/device, class/subclass/PI,
+revision, subsystem pair, command flags and IRQ line/pin. A family-ID
+versus PCI-class disagreement is a diagnostic clue, not permission
+to select a different driver. It **does not** read a disk sector,
+touch BARs/MMIO, inspect a RAID array or access Option ROM metadata.
+No Windows 95 storage driver, AHCI port initialization, DOS block
+driver or RAID volume assembly is implemented by this step.
+
+Do **not** toggle the firmware SATA mode on the existing Windows 95
+installation merely to test the candidate IDs; doing so could
+make the current boot volume inaccessible. First record the mode
+currently selected and capture the read-only PCI listing. In
+Windows 95, real-mode DOS disk access, `IOS.VXD`,
+`ESDI_506.PDR`, protected-mode controller binding and native RAID
+are different paths. Real-mode BIOS INT 13h access is not proof
+that Win95 RTM can drive this controller in protected mode.
+MS-DOS 6.22 versus 7.10 FAT support is another independent
+boundary and does not identify an active RAID configuration.
+
+Host-only, synthetic identity tests (no LLVM, OpenWatcom or disks):
+
+```sh
+./build test-fch-sata-identity
+WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
+```
+
+Research references:
+- [PCI ID ledger for AMD 1022:7800–7805 and 780C](https://kernel.googlesource.com/pub/scm/utils/pciutils/pciutils/+/be40c4738eef9d1283207e62f539c52a5315c10c/pci.ids)
+- [Hudson SATA firmware source, IDE/AHCI/RAID families](https://chromium.googlesource.com/chromiumos/third_party/coreboot/+/796af17f18554380a49d69d7768ac18ee039d711/src/southbridge/amd/agesa/hudson/Kconfig)
+- [HP information about SATA mode and boot implications](https://support.hp.com/my-en/document/ish_9631042-9631101-16)
+
 ### DOS PCI BIOS diagnostics (2026-11-18)
 
 A **separate 16-bit real-mode MS-DOS target** now provides a bridge
