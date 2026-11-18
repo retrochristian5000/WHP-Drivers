@@ -126,6 +126,47 @@ probe is *not* permission to load the result in a Windows 95 RTM guest.
 LLVM remains the default toolchain. Neither OpenWatcom nor Water adds
 implicit runtime libraries to VxD links.
 
+### OpenWatcom fork reliability audit (2026-11-18)
+
+The pinned secondary toolchain remains explicitly selected and never
+silently replaces the LLVM path. Two bootstrap failures were corrected
+in the OpenWatcom fork before updating the `toolchains/openwatcom`
+gitlink:
+
+1. POSIX `ci/buildx.sh` once discarded the exit status of
+   `builder -i test` after printing `result.log`, and continued
+   across failed documentation sub-bootstraps. It now preserves the
+   first stage failure, rejects unknown stage names, and makes
+   bootstrap output directory creation repeatable.
+2. `cmnvars.sh` could report an old or zero compiler version after
+   failed Clang/GCC/Watcom host version probing. Failed preprocessors
+   and invalid versions now fail closed instead of giving later driver
+   builds ambiguous compiler provenance.
+
+The fork carries isolated POSIX mock tests for both failure classes,
+and its own lightweight GitHub Actions job passed. WHP-Drivers now
+also fetches **only four shell source files** at the pinned OpenWatcom
+commit for a separate host-only regression run. This adds no LLVM,
+OpenWatcom binaries, source checkout, or release-build expense to
+ordinary CI.
+
+The following remain separate and **unverified**: actual macOS A18
+Pro OpenWatcom bootstrap, 16-bit DOS MZ linking, Win16 audio or
+display `.DRV` objects, Win95 VxD **LE** output, and real Windows
+95 RTM driver loading. The historical OpenWatcom
+`FORMAT WINDOWS VXD DYNAMIC` issue cannot be declared fixed from
+shell-script tests alone; the independent `verify_vxd.py` LE
+structural gate is still mandatory.
+
+Source-level checks are cheap; full compiler bootstrap is an
+explicit second stage:
+
+```sh
+git submodule update --init toolchains/openwatcom
+./build watcom-check          # requires existing built host tools
+./build watcom-smoke-vxd      # only if a built Watcom linker exists
+```
+
 ### Bootstrapping OpenWatcom independently
 
 The OpenWatcom build uses the pinned fork's CI stages directly:
