@@ -1076,6 +1076,65 @@ loadable NDIS miniport, firmware access, interrupt registration or DMA.
 PCI header offset and capability definitions:
 https://github.com/torvalds/linux/blob/master/include/uapi/linux/pci_regs.h
 
+### AMD A55 / Windows 95 PCI-to-PCI bridge preflight (2026-11-18)
+
+The HP Pavilion p6-2310 H3Y76AA specification identifies the **AMD A55
+FCH** and PCI Express expansion slots, but this does **not** identify
+each PCI root port or PCI-to-PCI bridge in the actual machine. Root
+complex/host bridges, type-1 downstream bridges, and endpoint devices
+have different configuration layouts and must not be conflated.
+
+The new independent `drivers/bus/pci95/pci_bridge.[ch]` module decodes
+**caller-supplied PCI configuration snapshots only**. It validates a
+64-byte type-1 PCI-to-PCI bridge header (class 06:04), records primary,
+secondary and subordinate bus numbers, read-only PCI command bits,
+BAR0/1 raw values, legacy interrupt pin/line, bridge control, and
+assigned I/O, non-prefetchable and prefetchable memory windows (including
+32-bit I/O and 64-bit prefetchable ranges). It also checks advertised
+standard PCI capabilities using a bounded and cycle-resistant parser.
+The results distinguish declared bus-range membership from real endpoint
+enumeration. A reported resource window does **not** prove that decoding
+is enabled or that memory is accessible; the command register must be
+examined separately. No PCI writes, BAR-sizing probes, IRQ routing,
+physical memory mapping or firmware calls are made.
+
+```sh
+./build test-pci95-bridge
+WHP_DRIVER_PROFILE=rtl8111e ./build.sh test-fast
+./build smoke-rtl8111e    # also checks PCI95 as i386 COFF, needs pinned LLVM
+```
+
+The first command uses a normal native C compiler; there is no LLVM
+bootstrap, historical DDK, Windows 95 guest, or real device access.
+Synthetic tests cover BIOS-unassigned child buses, invalid range
+membership, inaccessible windows, 64-bit prefetchable windows and
+malformed or truncated PCI capability chains. These tests are a
+**research and regression baseline, not an installable PCI controller
+driver**. The test's AMD vendor and synthetic device ID are fabricated
+input, not an HP Pavilion hardware inventory.
+
+**Windows 95 version boundary:** retail Windows 95 4.00.950 relies on
+the firmware to configure devices downstream of PCI-to-PCI bridges.
+Retail and OSR1 also lack OSR2 PCI IRQ steering. A bridge whose child bus
+is missing from Device Manager therefore requires a real read-only
+PCI topology comparison before we can attribute the cause to either
+firmware initialization, PCI.VXD enumeration or the RTL8111E miniport.
+A loadable bus enumerator/VxD would additionally require authenticated
+Win95 RTM Configuration Manager and PCI BIOS interfaces, resource
+ownership/interrupt routing, correct LE linking, and disposable-guest
+testing. Do not replace system PCI.VXD, update the chipset registers,
+enable bridge decoding or bind the RTL8111E on the strength of this
+decoder.
+
+References:
+- HP p6-2310 specification (AMD A55 FCH): https://images-na.ssl-images-amazon.com/images/G/15/electronics/detail-page/B009O6TU8Y.pdf
+- Historical Windows 95 PCI-to-PCI bridge behavior (Microsoft KB159038):
+  https://www.betaarchive.com/wiki/index.php/Microsoft_KB_Archive/159038
+- Historical PCI IRQ steering behavior (Microsoft KB182604):
+  https://helparchive.huntertur.net/document/105286
+- PCI type-1 header constants:
+  https://kernel.googlesource.com/pub/scm/linux/kernel/git/hpa/linux-extable/+/refs/heads/master/include/linux/pci_regs.h
+
 ### RTL8111E DMA descriptor and ring core (2026-10-23)
 
 The project now has an actual descriptor/ring **software implementation** in
