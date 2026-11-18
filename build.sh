@@ -161,6 +161,7 @@ run_fast_tests() {
     fi
     if [ "$profile" = dos-pci ]; then
         step test-dos-version
+        step test-fch-sata-identity
         step test-hda-probe
         step test-pci95-bridge
         step test-pci95-bios-read
