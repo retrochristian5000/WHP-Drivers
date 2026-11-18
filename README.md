@@ -1505,10 +1505,11 @@ or Windows 95 restarted into MS-DOS Mode:
 WHPPCI.EXE > PCI.TXT
 ```
 
-Examine whether a type-1 bridge declares a valid path through bus 3
-and whether the Realtek endpoint appears. Compare the result against
-historical LISTPCI and Windows 95 Device Manager **without treating
-the bus-3 observation as an independently verified current address**.
+Examine each type-1 bridge's observed primary/secondary/subordinate
+bus range and compare it with the bus where the Realtek endpoint is
+actually enumerated. Do not assume bus 3 (or any other fixed bus
+number) from a past observation. Compare the read-only snapshot with
+historical LISTPCI and Windows 95 Device Manager evidence.
 `TxConfig` offset `0x40` belongs to the Realtek NIC's **device
 register map**, *not* to PCI configuration offset `0x40` and is never
 read by this program. A `10EC:8168` identity or PCI revision byte
@@ -1533,6 +1534,79 @@ Historical contracts:
 - OpenWatcom 16-bit DOS tools: https://open-watcom.github.io/open-watcom-v2-wikidocs/cguide.html
 - Windows 95 Restart in MS-DOS Mode: https://www.betaarchive.com/wiki/index.php/Microsoft_KB_Archive/138996
 - NDIS 2 real-mode compatibility via NDIS2SUP.VXD: https://techshelps.github.io/MSDN/DNWIN95/HTML/S637B.HTM
+
+### AMD Family 12h PCIe root complex and Hudson FCH topology (2026-11-18)
+
+AMD's own primary source resolves the main architecture boundary:
+**BIOS and Kernel Developer's Guide for AMD Family 12h Processors**,
+document **41131**, revision **3.02**, October 6, 2011, section 2.11
+("Root complex"), especially **Figure 11** (printed p. 124).
+The Llano APU includes a PCIe Gen 2 root complex. Its advertised bus 0
+PCI device positions are:
+
+| Bus:device.function | AMD Family 12h function |
+| --- | --- |
+| `00:02.0` | GFX0 root port (can combine with GFX1) |
+| `00:03.0` | GFX1 root port |
+| `00:04.0` | GPP0 root port |
+| `00:05.0` | GPP1 root port |
+| `00:06.0` | GPP2 root port |
+| `00:07.0` | GPP3 root port |
+| `00:08.0` | UMI bridge to FCH; **hidden by default** |
+
+AMD's BKDG says the GFX links can be two x8 links or one x16
+and the GPP group includes four general-purpose ports plus the
+separate **x4 UMI interconnect** to the FCH. Thus UMI, GPU,
+network endpoint, PCIe root port, and FCH bridge must not be blurred
+into one "PCIe controller". The described BDF layout is a *processor
+family topology*, not a promise that every bridge appears on the
+Holly2 motherboard.
+
+The related **Hudson-family FCH** has its *own* PCIe port family,
+with PCI IDs `1022:43A0`–`1022:43A3`. They correspond to
+FCH GPP0–GPP3 at `00:15.0`–`00:15.3` on documented
+Hudson/Bolton-family configurations. The 2014 AMD Bolton FCH
+BIOS Developer's Guide confirms these functions, but because Bolton
+is later than Hudson-D2, it is **corroborating family-level evidence,
+not an A55-specific register programming mandate**.
+
+`drivers/bus/pci95/amd12_topology.[ch]` identifies only observed,
+matching **AMD `1022h` type-1 PCI-to-PCI bridge headers** at
+these family locations. The APU family-ID range used for matching
+is `1706h`–`170Dh`; the FCH functions require their matching
+`43A0h`–`43A3h` IDs. IDs and locations are diagnostic
+filters, *not* proof of the actual physical link routing.
+
+Where a valid standard PCIe capability is already available in the
+bounded 64–256 byte PCI snapshot, the decoder reports the
+**Link Status** register's negotiated speed code, negotiated width
+and Data Link Layer Link Active status bit. For the Family 12h Gen 2
+hardware, speed code `1` corresponds to 2.5 GT/s and `2` to
+5 GT/s. A zero or absent result is **not** evidence that a physical
+slot or controller is missing; link-status capability/firmware
+availability and negotiated link state are separate observations.
+A reported link-active bit also does not verify a working driver.
+
+The existing `WHPPCI.EXE` bridge report now labels these
+documented port-family candidates without writing AMD indexed
+configuration registers (including `D[8:2]F0xE0/E4`), altering
+link training or changing bus numbers. The earlier hardcoded
+"bus 3" diagnostic has been removed in favor of each observed
+bridge's declared bus range. No Windows 95 PCI.VXD, PCI IRQ steering,
+root-port initialization or PCIe resource reassignment is implemented.
+
+```sh
+./build test-amd12-pcie-topology
+WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
+```
+
+Primary/secondary evidence:
+- AMD Family 12h BKDG, section 2.11, rev. 3.02:
+  https://www.amd.com/content/dam/amd/en/documents/archived-tech-docs/programmer-references/12h_bkdg_pub.pdf
+- AMD Bolton FCH BIOS Developer's Guide, section 2.1 (later-family corroboration):
+  https://www.amd.com/content/dam/amd/en/documents/archived-tech-docs/programmer-references/51205_Bolton_FCH_BIOS_Dev_Guide.pdf
+- PCI IDs for AMD Family 12h root ports and Hudson FCH bridges:
+  https://kernel.googlesource.com/pub/scm/utils/pciutils/pciutils/+/e2d9340ba416ef0856fb8198e16ffd255225952c/pci.ids
 
 ### AMD A55 / Windows 95 PCI-to-PCI bridge preflight (2026-11-18)
 
