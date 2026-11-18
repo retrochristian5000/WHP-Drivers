@@ -155,7 +155,7 @@ static void print_memory_window(const char *kind, uint64_t base,
         base, limit, conventional_kb, memory_decode_enabled);
     if (!(flags & WHP_PCI_DOS_WINDOW_PRESENT))
         return;
-    printf("    %s MMIO window %08lX%08lX-%08lX%08lX; decode %s\\n",
+    printf("    %s MMIO window %08lX%08lX-%08lX%08lX; decode %s\n",
            kind,
            (unsigned long)(uint32_t)(base >> 32),
            (unsigned long)(uint32_t)base,
@@ -184,13 +184,13 @@ static void print_bar_memory(const uint8_t *cfg, size_t cfg_size,
         int status = whp_pci_dos_read_bar(cfg, cfg_size, index, &pci_bar);
         enum whp_pci_dos_bar_region region;
         if (status < 0) {
-            printf("    BAR%u: invalid/unsupported descriptor; not mapped\\n", index);
+            printf("    BAR%u: invalid/unsupported descriptor; not mapped\n", index);
             continue;
         }
         if (status == 0)
             continue;
         region = whp_pci_dos_bar_region_of(&pci_bar, conventional_kb);
-        printf("    BAR%u %s%s base=%08lX%08lX; decode %s\\n",
+        printf("    BAR%u %s%s base=%08lX%08lX; decode %s\n",
                index, pci_bar.is_io ? "I/O" : "MMIO",
                pci_bar.is_64 ? " 64-bit" : "",
                (unsigned long)(uint32_t)(pci_bar.base >> 32),
@@ -234,7 +234,7 @@ int main(void)
     report_dos_version();
     conventional_kb = bios_conventional_memory_kb();
     if (conventional_kb)
-        printf("WHPPCI: BIOS conventional-memory boundary=%u KiB (not free RAM)\\n",
+        printf("WHPPCI: BIOS conventional-memory boundary=%u KiB (not free RAM)\n",
                conventional_kb);
     else
         puts("WHPPCI: BIOS conventional-memory boundary unavailable.");
