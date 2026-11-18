@@ -231,6 +231,22 @@ smoke_radeon6410d() {
     printf '%s\n' "WHP-Drivers: Radeon HD 6410D PCI + EDID smoke passed (no DDC or GPU accessed)"
 }
 
+# Pure read-only PCI bridge topology regression: native host compiler only.
+# It does not enumerate PCI, reassign BARs, change bus numbers or load VxDs.
+test_pci95_bridge() {
+    need cc
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    cc -std=c11 -Wall -Wextra -Werror \
+        -I"$root/drivers/bus/pci95" \
+        "$root/drivers/bus/pci95/pci_bridge.c" \
+        "$root/tests/pci95-bridge.c" \
+        -o "$out_dir/pci95-bridge-host-test" ||
+        die "PCI95 bridge host test compilation failed"
+    "$out_dir/pci95-bridge-host-test" ||
+        die "PCI95 bridge synthetic regressions failed"
+}
+
 # Hardware-free PCI configuration snapshot preflight, using the native
 # host compiler; never bootstraps LLVM or touches a PCI device.
 test_rtl8111e_pci_snapshot() {
@@ -267,6 +283,16 @@ smoke_rtl8111e() {
     "$out_dir/rtl8111e-identity-host-test" ||
         die "RTL8111E identity tests failed"
     test_rtl8111e_pci_snapshot
+    # Bridge diagnosis remains independent of NDIS and live PCI access.
+    bridge_dir="$root/drivers/bus/pci95"
+    "$bin_dir/clang" --target=i386-pc-windows-msvc \
+        -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
+        -Wall -Wextra -Werror -I"$bridge_dir" -c \
+        "$bridge_dir/pci_bridge.c" -o "$out_dir/pci95-bridge.obj"
+    "$bin_dir/llvm-readobj" --file-headers "$out_dir/pci95-bridge.obj" |
+        grep -q 'Machine: IMAGE_FILE_MACHINE_I386' ||
+        die "PCI95 bridge object is not i386 COFF"
+    test_pci95_bridge
     # Host-only miniport state/queue accounting: no NDIS, MMIO, IRQ or DMA.
     "$bin_dir/clang" --target=i386-pc-windows-msvc \
         -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
@@ -673,6 +699,7 @@ case "${1:-}" in
     smoke-radeon6410d) smoke_radeon6410d ;;
     smoke-rtl8111e) smoke_rtl8111e ;;
     test-rtl8111e-pci-snapshot) test_rtl8111e_pci_snapshot ;;
+    test-pci95-bridge) test_pci95_bridge ;;
     rtl8111e-inf-check) rtl8111e_inf_check ;;
     inf-check) radeon_inf_check; rtl8111e_inf_check ;;
     verify-vxd)
@@ -686,5 +713,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|test-rtl8111e-pci-snapshot|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
