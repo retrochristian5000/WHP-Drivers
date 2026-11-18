@@ -12,10 +12,12 @@
 #include "pci_bridge.h"
 #include "rtl8111e.h"
 #include "dos_version.h"
+#include "identity.h" /* storage mode evidence only */
 
 static uint8_t config_bytes[WHP_PCI95_BIOS_CONFIG_SIZE];
 static struct whp_pci95_bridge bridge_info;
 static struct whp_rtl8111e_pci_snapshot nic_info;
+static struct whp_storage_pci_identity storage_info;
 
 static int bios_word(void *ctx, uint8_t bus, uint8_t devfn,
                      uint8_t offset, uint16_t *value)
@@ -129,10 +131,10 @@ int main(void)
     struct whp_pci95_bios_reader reader;
     enum whp_pci95_bios_result result;
     unsigned int last_bus, version, bus, dev, fn, multifn;
-    unsigned int found_bridges = 0, found_nics = 0, found_hda = 0, read_errors = 0;
+    unsigned int found_bridges = 0, found_nics = 0, found_hda = 0, found_storage = 0, read_errors = 0;
     unsigned int snapshot_size, devfn;
     unsigned int id_vendor, id_device, cls, subclass;
-    int wanted_bridge, wanted_nic, wanted_hda;
+    int wanted_bridge, wanted_nic, wanted_hda, wanted_storage;
 
     report_dos_version();
     if (!pci_bios_installed(&last_bus, &version)) {
@@ -183,7 +185,14 @@ int main(void)
                 wanted_hda = cls == 0x04u && subclass == 0x03u &&
                              config_bytes[9] == 0u &&
                              (config_bytes[0x0eu] & 0x7fu) == 0u;
-                if (!wanted_bridge && !wanted_nic && !wanted_hda) {
+                /* PCI mass-storage: IDE, RAID or SATA controller class.
+                 * This does not prove that any RAID volume exists.
+                 */
+                wanted_storage = cls == 0x01u &&
+                      (subclass == 0x01u || subclass == 0x04u ||
+                       subclass == 0x06u);
+                if (!wanted_bridge && !wanted_nic && !wanted_hda &&
+                    !wanted_storage) {
                     if (cls == 0x06u && subclass == 0u)
                         printf("%u:%02u.%u host bridge %04X:%04X (not PCI type-1)\n",
                                bus, dev, fn, id_vendor, id_device);
@@ -203,6 +212,32 @@ int main(void)
                         ++read_errors;
                         continue; /* Device was not stable during read. */
                     }
+                }
+                if (wanted_storage &&
+                    whp_storage_decode_pci(config_bytes, snapshot_size,
+                                           &storage_info)) {
+                    ++found_storage;
+                    printf("%u:%02u.%u STORAGE %04X:%04X class=01:%02X:%02X mode=%s\n",
+                           bus, dev, fn,
+                           (unsigned int)storage_info.vendor,
+                           (unsigned int)storage_info.device,
+                           (unsigned int)storage_info.subclass,
+                           (unsigned int)storage_info.prog_if,
+                           whp_storage_mode_name(storage_info.pci_mode));
+                    printf("    PCI-rev=%02Xh subsystem=%04X:%04X command=%04Xh IRQ=%u/%u\n",
+                           (unsigned int)storage_info.revision,
+                           (unsigned int)storage_info.subsystem_vendor,
+                           (unsigned int)storage_info.subsystem_device,
+                           (unsigned int)storage_info.command,
+                           (unsigned int)storage_info.irq_line,
+                           (unsigned int)storage_info.irq_pin);
+                    if (storage_info.amd_fch_id_hint != WHP_STORAGE_MODE_UNKNOWN) {
+                        printf("    AMD FCH SATA ID hints %s%s\n",
+                               whp_storage_mode_name(storage_info.amd_fch_id_hint),
+                               storage_info.mode_disagrees ?
+                               "; PCI class/PI differs: investigate" : "");
+                    }
+                    puts("    Firmware selection and RAID array state NOT verified.");
                 }
                 if (wanted_bridge &&
                     whp_pci95_decode_bridge(config_bytes, snapshot_size,
@@ -258,8 +293,8 @@ int main(void)
             }
         }
     }
-    printf("WHPPCI: %u bridge(s), %u RTL8168/8111 candidate(s), %u HDA candidate(s), %u read error(s).\n",
-           found_bridges, found_nics, found_hda, read_errors);
+    printf("WHPPCI: %u bridge(s), %u RTL8168/8111 candidate(s), %u HDA candidate(s), %u storage controller(s), %u read error(s).\n",
+           found_bridges, found_nics, found_hda, found_storage, read_errors);
     puts("A DOS PCI BIOS result is not Windows 95 PCI.VXD/NDIS validation.");
     return read_errors ? 1 : 0;
 }
