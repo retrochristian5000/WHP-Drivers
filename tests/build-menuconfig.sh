@@ -38,6 +38,21 @@ cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=all "$tmp/build.sh" build
 printf 'smoke\ntest-format\ntest-le\nwatcom-smoke-vxd\nsmoke-radeon6410d\nsmoke-rtl8111e\n' > "$tmp/expected"
+
+# DOS is a separate opt-in profile; it must not force a toolchain bootstrap.
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=dos-pci "$tmp/build.sh" build
+printf 'dos-pci-build\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=dos-pci "$tmp/build.sh" test-fast
+printf 'test-pci95-bridge\ntest-pci95-bios-read\ntest-rtl8111e-pci-snapshot\ntest-dos-mz\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=dos-pci "$tmp/build.sh" plan > "$tmp/dos-plan"
+[ ! -s "$WHP_TEST_LOG" ] || exit 1
+grep -Fx '  ./build dos-pci-build' "$tmp/dos-plan" >/dev/null || exit 1
+
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 
 cp "$tmp/.whpconfig" "$tmp/expected-config"
@@ -106,11 +121,11 @@ cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 # dispatch: the fake backend must see exact order and NO duplicate tests.
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=rtl8111e "$tmp/build.sh" test-fast
-printf 'test-format\ninf-check\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\ntest-ndis31-llvm\n' > "$tmp/expected"
+printf 'test-format\ninf-check\ntest-pci95-bridge\ntest-pci95-bios-read\ntest-rtl8111e-pci-snapshot\ntest-dos-mz\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\ntest-ndis31-llvm\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=rtl8111e "$tmp/build.sh" test
-printf 'inf-check\ntest-format\ntest-le\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\ntest-ndis31-llvm\nsmoke-rtl8111e\n' > "$tmp/expected"
+printf 'inf-check\ntest-format\ntest-le\ntest-pci95-bios-read\ntest-dos-mz\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\ntest-ndis31-llvm\nsmoke-rtl8111e\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=radeon6410d "$tmp/build.sh" test-fast
@@ -118,7 +133,7 @@ printf 'test-format\ninf-check\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=all "$tmp/build.sh" test
-printf 'inf-check\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\ntest-ndis31-llvm\nsmoke\ntest-format\ntest-le\nsmoke-vxd\nsmoke-radeon6410d\nsmoke-rtl8111e\n' > "$tmp/expected"
+printf 'inf-check\ntest-pci95-bios-read\ntest-dos-mz\ntest-ndis31-audit\ntest-ndis31-libs\ntest-ndis31-adapter\ntest-ndis31-llvm\nsmoke\ntest-format\ntest-le\nsmoke-vxd\nsmoke-radeon6410d\nsmoke-rtl8111e\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 
 # The read-only build plan and real backend execution share target order.
@@ -167,6 +182,20 @@ if "$tmp/build.sh" clean-tests >/dev/null 2>&1; then
 fi
 [ -f "$tmp/victim" ] || exit 1
 rm "$tmp/.build/llvm-native/whp-tests"
+
+# DOS cleanup must not touch separate LLVM data or follow a symlink.
+mkdir -p "$tmp/.build/dos-pci"
+touch "$tmp/.build/dos-pci/WHPPCI.EXE"
+"$tmp/build.sh" clean-dos-pci >/dev/null
+[ ! -e "$tmp/.build/dos-pci" ] || exit 1
+[ -f "$tmp/.build/llvm-native/keep" ] || exit 1
+ln -s "$tmp/victim" "$tmp/.build/dos-pci"
+if "$tmp/build.sh" clean-dos-pci >/dev/null 2>&1; then
+    printf '%s\n' 'DOS cleanup followed a symlink' >&2
+    exit 1
+fi
+rm "$tmp/.build/dos-pci"
+
 if WHP_LLVM_BUILD_DIR="$tmp/custom" "$tmp/build.sh" clean-tests >/dev/null 2>&1; then
     printf '%s\n' 'clean-tests accepted an external build tree' >&2
     exit 1
