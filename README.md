@@ -1076,6 +1076,99 @@ loadable NDIS miniport, firmware access, interrupt registration or DMA.
 PCI header offset and capability definitions:
 https://github.com/torvalds/linux/blob/master/include/uapi/linux/pci_regs.h
 
+### DOS PCI BIOS diagnostics (2026-11-18)
+
+A **separate 16-bit real-mode MS-DOS target** now provides a bridge
+between our portable PCI decoders and a machine's firmware. It is
+`tools/dos/pci95dos.c`, linked as `WHPPCI.EXE` using the explicitly
+selected, pinned OpenWatcom 16-bit DOS compiler and DOS runtime.
+It is **not** a TSR, DOS device driver, PCI.VXD replacement, NIC
+miniport or chipset initialization code.
+
+The utility checks the historical PCI BIOS installation function
+`INT 1Ah, AX=B101h` and uses the **read-only** configuration-word
+function `AX=B109h` to enumerate functions up through the BIOS-reported
+last PCI bus. It reconstructs standard PCI configuration snapshots in
+little-endian order and reuses the existing type-1 bridge and RTL8111E
+identity parsers. It prints host bridge identities, PCI-to-PCI bridge
+primary/secondary/subordinate bus numbers and declared resource
+windows, and `10EC:8168` Ethernet-family endpoint evidence. PCIe
+standard capability offsets are checked when the firmware supports
+the full standard 256-byte configuration range. No direct config I/O
+ports (CF8/CFC), bus-number or BAR writes, DMA, MMIO, interrupt
+initialization or device installation are performed. The 16-bit
+installation preflight sees only the lower half of the 32-bit PCI BIOS
+signature, along with firmware status and version: it does not
+authenticate firmware. The full PCIe **extended** 4096-byte
+configuration space is not examined.
+
+**Why DOS first?** Testing from Windows 95's **Restart in MS-DOS Mode**
+can show whether the firmware exposes the NIC and its upstream bridges
+independently of Windows 95 protected-mode PCI.VXD and NDIS. A DOS
+prompt *inside* a running Windows 95 desktop is not equivalent.
+A DOSBox guest examines the emulator's virtual firmware and PCI bus,
+not the physical Pavilion. A PCI BIOS failure does not prove there
+is no PCIe hardware: a firmware implementation may omit this legacy
+interface. Successful DOS visibility also does not establish that
+Windows 95 RTM enumerates the device or has working IRQ/resource routing.
+
+To test the host-side decoder and format regressions **without**
+OpenWatcom or LLVM:
+
+```sh
+WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
+./build test-pci95-bios-read
+./build test-dos-mz
+```
+
+To build the **DOS MZ executable** after preparing the pinned
+OpenWatcom source and compiler (see the existing independent
+`bootstrap-watcom` section):
+
+```sh
+./build.sh bootstrap-watcom            # explicit, potentially costly
+WHP_DRIVER_PROFILE=dos-pci ./build.sh plan
+WHP_DRIVER_PROFILE=dos-pci ./build.sh incremental
+# generated: .build/dos-pci/WHPPCI.EXE
+./build.sh clean-dos-pci              # cleans only DOS output artifacts
+```
+
+With a DOS-compatible, BIOS-based Pavilion boot environment,
+**copy** `WHPPCI.EXE` to removable media, then run from genuine DOS
+or Windows 95 restarted into MS-DOS Mode:
+
+```text
+WHPPCI.EXE > PCI.TXT
+```
+
+Examine whether a type-1 bridge declares a valid path through bus 3
+and whether the Realtek endpoint appears. Compare the result against
+historical LISTPCI and Windows 95 Device Manager **without treating
+the bus-3 observation as an independently verified current address**.
+`TxConfig` offset `0x40` belongs to the Realtek NIC's **device
+register map**, *not* to PCI configuration offset `0x40` and is never
+read by this program. A `10EC:8168` identity or PCI revision byte
+therefore does not by itself establish an RTL8111E silicon revision.
+
+The read transport (`pci_bios_read.[ch]`) accepts a mockable word
+reader. Its synthetic host regressions cover success, missing
+devices, unsupported sizes, little-endian decoding, partial failures
+and output preservation; the independent MZ checker rejects
+structurally invalid DOS executables. An actual DOS target build
+requires pinned native OpenWatcom binaries **and** DOS runtime
+libraries; a source checkout does not suffice. No successful
+Pavilion DOS run or authentic Win95 PCI bridge driver is claimed.
+
+The default ABI/RTL/ALL workflows retain their previous software
+targets; the DOS executable build is **opt-in** so an ordinary `all`
+build does not silently incur the OpenWatcom DOS toolchain cost.
+
+Historical contracts:
+- PCI BIOS v2.x INT 1Ah: https://fd.lod.bz/rbil/interrup/bios_expansion/1ab101.html
+- Read Configuration Word B109h: https://www.delorie.com/djgpp/doc/rbinter/id/86/23.html
+- OpenWatcom 16-bit DOS tools: https://open-watcom.github.io/open-watcom-v2-wikidocs/cguide.html
+- Windows 95 Restart in MS-DOS Mode: https://www.betaarchive.com/wiki/index.php/Microsoft_KB_Archive/138996
+
 ### AMD A55 / Windows 95 PCI-to-PCI bridge preflight (2026-11-18)
 
 The HP Pavilion p6-2310 H3Y76AA specification identifies the **AMD A55
