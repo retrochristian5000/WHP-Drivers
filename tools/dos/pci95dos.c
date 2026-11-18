@@ -13,11 +13,13 @@
 #include "rtl8111e.h"
 #include "dos_version.h"
 #include "identity.h" /* storage mode evidence only */
+#include "pci_hci.h" /* USB HCI evidence only */
 
 static uint8_t config_bytes[WHP_PCI95_BIOS_CONFIG_SIZE];
 static struct whp_pci95_bridge bridge_info;
 static struct whp_rtl8111e_pci_snapshot nic_info;
 static struct whp_storage_pci_identity storage_info;
+static struct whp_usb_pci_hci usb_info;
 
 static int bios_word(void *ctx, uint8_t bus, uint8_t devfn,
                      uint8_t offset, uint16_t *value)
@@ -131,10 +133,10 @@ int main(void)
     struct whp_pci95_bios_reader reader;
     enum whp_pci95_bios_result result;
     unsigned int last_bus, version, bus, dev, fn, multifn;
-    unsigned int found_bridges = 0, found_nics = 0, found_hda = 0, found_storage = 0, read_errors = 0;
+    unsigned int found_bridges = 0, found_nics = 0, found_hda = 0, found_storage = 0, found_usb = 0, read_errors = 0;
     unsigned int snapshot_size, devfn;
     unsigned int id_vendor, id_device, cls, subclass;
-    int wanted_bridge, wanted_nic, wanted_hda, wanted_storage;
+    int wanted_bridge, wanted_nic, wanted_hda, wanted_storage, wanted_usb;
 
     report_dos_version();
     if (!pci_bios_installed(&last_bus, &version)) {
@@ -191,8 +193,14 @@ int main(void)
                 wanted_storage = cls == 0x01u &&
                       (subclass == 0x01u || subclass == 0x04u ||
                        subclass == 0x06u);
+                /* 0C:03 is USB; PI identifies UHCI/OHCI/EHCI/xHCI.
+                 * FEh is a USB device, not a host controller.
+                 */
+                wanted_usb = cls == 0x0cu && subclass == 0x03u &&
+                             config_bytes[9] != 0xfeu &&
+                             (config_bytes[0x0eu] & 0x7fu) == 0u;
                 if (!wanted_bridge && !wanted_nic && !wanted_hda &&
-                    !wanted_storage) {
+                    !wanted_storage && !wanted_usb) {
                     if (cls == 0x06u && subclass == 0u)
                         printf("%u:%02u.%u host bridge %04X:%04X (not PCI type-1)\n",
                                bus, dev, fn, id_vendor, id_device);
@@ -212,6 +220,31 @@ int main(void)
                         ++read_errors;
                         continue; /* Device was not stable during read. */
                     }
+                }
+                if (wanted_usb &&
+                    whp_usb_pci_hci_decode(config_bytes, snapshot_size,
+                                           &usb_info)) {
+                    ++found_usb;
+                    printf("%u:%02u.%u USB %04X:%04X class=0C:03:%02X HCI=%s\n",
+                           bus, dev, fn,
+                           (unsigned int)usb_info.vendor,
+                           (unsigned int)usb_info.device,
+                           (unsigned int)usb_info.prog_if,
+                           whp_usb_hci_name(usb_info.hci));
+                    printf("    PCI-rev=%02Xh subsystem=%04X:%04X command=%04Xh IRQ=%u/%u\n",
+                           (unsigned int)usb_info.revision,
+                           (unsigned int)usb_info.subsystem_vendor,
+                           (unsigned int)usb_info.subsystem_device,
+                           (unsigned int)usb_info.command,
+                           (unsigned int)usb_info.irq_line,
+                           (unsigned int)usb_info.irq_pin);
+                    printf("    %s\n", whp_usb_hci_speed_context(usb_info.hci));
+                    if (usb_info.amd_family_id_hint != WHP_USB_HCI_UNKNOWN)
+                        printf("    AMD FCH family ID hints %s%s\n",
+                               whp_usb_hci_name(usb_info.amd_family_id_hint),
+                               usb_info.id_pi_conflict ?
+                               "; PCI PI disagrees: investigate" : "");
+                    puts("    Physical ports, devices, routing and active speeds NOT verified.");
                 }
                 if (wanted_storage &&
                     whp_storage_decode_pci(config_bytes, snapshot_size,
@@ -293,8 +326,8 @@ int main(void)
             }
         }
     }
-    printf("WHPPCI: %u bridge(s), %u RTL8168/8111 candidate(s), %u HDA candidate(s), %u storage controller(s), %u read error(s).\n",
-           found_bridges, found_nics, found_hda, found_storage, read_errors);
+    printf("WHPPCI: %u bridge(s), %u RTL8168/8111 candidate(s), %u HDA candidate(s), %u storage controller(s), %u USB HCI(s), %u read error(s).\n",
+           found_bridges, found_nics, found_hda, found_storage, found_usb, read_errors);
     puts("A DOS PCI BIOS result is not Windows 95 PCI.VXD/NDIS validation.");
     return read_errors ? 1 : 0;
 }
