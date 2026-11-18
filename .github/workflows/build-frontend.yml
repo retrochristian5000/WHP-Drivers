@@ -19,6 +19,7 @@ on:
       - tests/hda-water-header.c
       - tests/win95-hda-vxd-header.c
       - third_party/water
+      - toolchains/openwatcom
       - tests/pci95-bridge.c
       - drivers/network/rtl8111e/identity.c
       - drivers/network/rtl8111e/rtl8111e.h
@@ -45,6 +46,7 @@ on:
       - tests/hda-water-header.c
       - tests/win95-hda-vxd-header.c
       - third_party/water
+      - toolchains/openwatcom
       - tests/pci95-bridge.c
       - drivers/network/rtl8111e/identity.c
       - drivers/network/rtl8111e/rtl8111e.h
@@ -108,3 +110,26 @@ jobs:
              drivers/audio/hda/hda_probe.c tests/hda-water-header.c \
              -o "$tmp/hda-water-contract"
           "$tmp/hda-water-contract"
+      - name: Pinned OpenWatcom build-stage regressions (source only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned="$(git rev-parse HEAD:toolchains/openwatcom)"
+          [[ "$pinned" =~ ^[0-9a-f]{40}$ ]]
+          upstream="$(git config -f .gitmodules --get submodule.toolchains/openwatcom.url)"
+          [ "$upstream" = "https://github.com/retrochristian5000/openwatcomfork.git" ]
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          mkdir -p "$tmp/ci/tests"
+          for path in ci/buildx.sh cmnvars.sh ci/tests/buildx-stage.sh ci/tests/cmnvars-version.sh; do
+            curl --fail --silent --show-error --location \
+                 --retry 2 --connect-timeout 10 --max-time 30 \
+                 "https://raw.githubusercontent.com/retrochristian5000/openwatcomfork/$pinned/$path" \
+                 -o "$tmp/$path"
+          done
+          sh -n "$tmp/ci/buildx.sh"
+          sh -n "$tmp/cmnvars.sh"
+          sh -n "$tmp/ci/tests/buildx-stage.sh"
+          sh -n "$tmp/ci/tests/cmnvars-version.sh"
+          sh "$tmp/ci/tests/buildx-stage.sh"
+          sh "$tmp/ci/tests/cmnvars-version.sh"
