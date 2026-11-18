@@ -658,6 +658,48 @@ COFF object** using the already built, pinned WHP LLVM:
 WHP_DRIVER_PROFILE=hda ./build.sh incremental
 ```
 
+### Pinned Water audio/HDA header integration (2026-11-18)
+
+The existing `third_party/water` submodule is the authoritative
+source for Windows 95 RTM **compile-time** driver reference headers.
+The gitlink is advanced to include:
+- `include/ddk/win95rtm/audio/hda_regs.h`: standard HDA controller
+  PCI class tuple, GCAP/GCTL/STATESTS, CORB/RIRB offset and bit-mask
+  references, with no fabricated Windows 95 HDA driver services
+- `include/ddk/win95rtm/win16_abi.h`: neutral
+  `WHP_WIN95_RTM_VERSION` for audio and display, preserving
+  `WHP_WIN95_RTM_DISPLAY_VERSION` as an alias
+- The unchanged `audio/ddk_audio.h` Win16 boundary and
+  `vmm.h` i386 DDB reference; neither is a complete historical DDK
+
+The HDA *software* decoder remains standalone, so cheap unit tests
+are unaffected by a missing Water checkout. The targeted opt-in
+contract uses `tests/hda-water-header.c` and requires the pinned Water
+checkout, never arbitrary host headers or a moving `master` fallback:
+
+```sh
+git submodule update --init third_party/water
+./build test-hda-water          # native C cross-header check, no LLVM
+WHP_DRIVER_PROFILE=hda ./build.sh test-fast   # standalone HDA data tests
+WHP_DRIVER_PROFILE=hda ./build.sh incremental # pinned LLVM + Water checks
+```
+
+The full HDA smoke additionally compiles
+`tests/win95-hda-vxd-header.c` with Water's `vmm.h` and
+`audio/hda_regs.h` into **i386 Windows COFF only**. This proves
+the source can share relevant i386 types and header constants; it
+does not link or load a VxD, verify Win95 services, or test HDA
+hardware. `tests/win95-audio-win16-abi.c` separately checks the
+new shared version alias with the **16-bit** OpenWatcom path.
+The two checks are deliberately distinct: a Win16 `.DRV` cannot
+be compiled as a 32-bit VxD merely because both can refer to HDA.
+
+The Water update includes other upstream source changes beyond these
+two small header additions. Review the pinned gitlink and validate
+required tools in an existing checkout; **do not force a full Water
+or LLVM bootstrap just to test an HDA register bitfield**. The project
+never automatically rewrites submodule revisions.
+
 The new HDA profile is included in `all` as a small compile-only
 smoke check, but is never considered an installable Win95 driver.
 The existing `WHPPCI.EXE` DOS PCI BIOS inventory has also been
