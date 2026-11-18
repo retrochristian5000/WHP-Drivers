@@ -10,6 +10,7 @@
 #include <string.h>
 #include "pci_bios_read.h"
 #include "pci_bridge.h"
+#include "amd12_topology.h"
 #include "rtl8111e.h"
 #include "dos_version.h"
 #include "identity.h" /* storage mode evidence only */
@@ -17,6 +18,7 @@
 
 static uint8_t config_bytes[WHP_PCI95_BIOS_CONFIG_SIZE];
 static struct whp_pci95_bridge bridge_info;
+static struct whp_amd12_pcie_port_info root_info;
 static struct whp_rtl8111e_pci_snapshot nic_info;
 static struct whp_storage_pci_identity storage_info;
 static struct whp_usb_pci_hci usb_info;
@@ -281,14 +283,31 @@ int main(void)
                            (unsigned int)bridge_info.primary,
                            (unsigned int)bridge_info.secondary,
                            (unsigned int)bridge_info.subordinate);
-                    printf("    PCI command %04Xh; memory window %s; bus 3 %s\n",
+                    printf("    PCI command %04Xh; memory window %s\n",
                            (unsigned int)bridge_info.command,
-                           bridge_info.mem_window_present ? "declared" : "disabled/invalid",
-                           whp_pci95_check_bus_range(&bridge_info, bus, 3u) ==
-                               WHP_PCI95_ROUTE_IN_DECLARED_RANGE ?
-                               "in reported range" : "not in reported range");
+                           bridge_info.mem_window_present ? "declared" :
+                                                            "disabled/invalid");
                     print_caps("bridge", (int)bridge_info.caps,
                                (unsigned int)bridge_info.pcie_cap_offset);
+                    /* AMD BKDG Family 12h section 2.11: port location is
+                     * an identity clue, not proof of a populated link.
+                     * Never change indexed NB/PCIe configuration registers.
+                     */
+                    if (whp_amd12_pcie_decode(config_bytes, snapshot_size,
+                              bus, dev, fn, bridge_info.pcie_cap_offset,
+                              &root_info)) {
+                        printf("    %s: %s (documented topology candidate)\n",
+                               whp_amd12_pcie_origin_name(root_info.origin),
+                               whp_amd12_pcie_port_name(root_info.port));
+                        if (root_info.pcie_link_status_valid)
+                            printf("    PCIe negotiated speed-code=%u width=x%u DLL-active-bit=%u\n",
+                                   (unsigned int)root_info.negotiated_speed_code,
+                                   (unsigned int)root_info.negotiated_width,
+                                   (unsigned int)root_info.link_active);
+                        else
+                            puts("    PCIe Link Status not in validated snapshot.");
+                        puts("    Link training, physical wiring and driver binding NOT verified.");
+                    }
                 }
                 if (wanted_hda) {
                     unsigned int subsystem_vendor =
