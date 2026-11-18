@@ -11,6 +11,7 @@
 #include "pci_bios_read.h"
 #include "pci_bridge.h"
 #include "rtl8111e.h"
+#include "dos_version.h"
 
 static uint8_t config_bytes[WHP_PCI95_BIOS_CONFIG_SIZE];
 static struct whp_pci95_bridge bridge_info;
@@ -70,6 +71,59 @@ static void print_caps(const char *label, int status, unsigned int pcie)
     }
 }
 
+/* Version reporting is separate from PCI BIOS availability and must
+ * never enable FAT32, long filename or protected-mode calls by itself.
+ */
+static void report_dos_version(void)
+{
+    union REGS inregs, outregs;
+    struct whp_dos_version dos;
+    unsigned int reported_major, reported_minor, true_major, true_minor;
+    int true_valid;
+
+    memset(&inregs, 0, sizeof(inregs));
+    memset(&outregs, 0, sizeof(outregs));
+    inregs.h.ah = 0x30u; /* Reported version; SETVER may override it. */
+    int86(0x21, &inregs, &outregs);
+    reported_major = outregs.h.al;
+    reported_minor = outregs.h.ah;
+
+    memset(&inregs, 0, sizeof(inregs));
+    memset(&outregs, 0, sizeof(outregs));
+    inregs.w.ax = 0x3306u; /* DOS 5+ true version where available. */
+    int86(0x21, &inregs, &outregs);
+    true_major = outregs.h.bl;
+    true_minor = outregs.h.bh;
+    true_valid = !outregs.w.cflag && outregs.h.al != 0xffu &&
+                 true_major >= 5u && true_minor < 100u;
+
+    whp_dos_version_classify(reported_major, reported_minor, true_valid,
+                             true_major, true_minor, &dos);
+    printf("WHPPCI: reported DOS %u.%02u", (unsigned int)dos.reported_major,
+           (unsigned int)dos.reported_minor);
+    if (dos.true_known)
+        printf("; true DOS %u.%02u\n", (unsigned int)dos.true_major,
+               (unsigned int)dos.true_minor);
+    else
+        puts("; true DOS version unavailable (reported value may be spoofed)");
+
+    switch (dos.profile) {
+    case WHP_DOS_PROFILE_622:
+        puts("DOS 6.22 profile: use legacy 8.3/FAT12/FAT16 assumptions.");
+        break;
+    case WHP_DOS_PROFILE_700:
+        puts("DOS 7.00 profile: do not assume native FAT32 support.");
+        break;
+    case WHP_DOS_PROFILE_710:
+        puts("DOS 7.10 profile: FAT32 possible, LFN APIs still require probing.");
+        break;
+    default:
+        puts("DOS API profile unknown/other: no extended APIs assumed.");
+        break;
+    }
+    puts("PCI BIOS discovery is independent of DOS filesystem services.");
+}
+
 int main(void)
 {
     struct whp_pci95_bios_reader reader;
@@ -80,6 +134,7 @@ int main(void)
     unsigned int id_vendor, id_device, cls, subclass;
     int wanted_bridge, wanted_nic, wanted_hda;
 
+    report_dos_version();
     if (!pci_bios_installed(&last_bus, &version)) {
         puts("WHPPCI: no usable INT 1Ah PCI BIOS (B101h).");
         puts("No hardware probing was attempted. This does not prove PCIe is absent.");
