@@ -1033,6 +1033,49 @@ verified Windows 95 RTM bus-enumeration path. Do not substitute NDIS 2
 DOS, NDIS 5, an NT `.SYS`, or later Win9x headers without an explicit
 compatibility analysis.
 
+### RTL8111E read-only PCI configuration snapshot gate (2026-11-18)
+
+The RTL8111E identity core now provides
+`whp_rtl8111e_decode_pci_snapshot()`, a hardware-free decoder for a
+caller-supplied **raw little-endian** PCI configuration-space byte dump.
+It needs at least the 64-byte type-0 endpoint header; up to the first
+256 bytes are relevant when interpreting standard PCI capabilities.
+It records vendor/device ID, PCI revision (not chip XID), class and
+programming interface, multifunction bit, PCI command/status, raw six
+BAR slots, subsystem IDs, and legacy interrupt pin/line. BAR slots are
+**not** decoded as validated physical mappings or written/probed for size.
+PCI command bus-master/memory-decode flags are observed, not enabled.
+A type-1 PCI bridge is rejected as a NIC endpoint, not misread as a
+type-0 subsystem/BAR layout.
+
+A bounded, cycle-checking parser follows the standard capability-list
+pointers and reports PCIe, PM, MSI and MSI-X offsets only after the
+entire chain is available and structurally valid. A 64-byte-only
+snapshot with an advertised capability list is reported as **truncated**,
+not falsely interpreted as lacking PCIe. Missing devices, malformed
+pointers, cycles and unsupported header types have explicit outcomes.
+These offsets indicate advertised capability structures, **not**
+working legacy Win95 interrupt routing, MSI support or an authenticated
+RTL8111E revision. Existing `TxConfig` E1/E2/EVL classification remains
+separate because PCI revision IDs are not Realtek MAC XID signatures.
+
+```sh
+./build test-rtl8111e-pci-snapshot
+WHP_DRIVER_PROFILE=rtl8111e ./build.sh test-fast
+```
+
+The new host-only test target compiles the pure decoder with a native
+C compiler and exercises fabricated valid, truncated and malformed
+configuration snapshots. It never bootstraps LLVM or accesses PCI.
+`smoke-rtl8111e` additionally includes it after i386 COFF identity
+compilation. Supply an actual configuration snapshot from an
+independently trusted read-only inventory source **before** deriving
+machine-specific claims. This does not add a PCI enumeration interface,
+loadable NDIS miniport, firmware access, interrupt registration or DMA.
+
+PCI header offset and capability definitions:
+https://github.com/torvalds/linux/blob/master/include/uapi/linux/pci_regs.h
+
 ### RTL8111E DMA descriptor and ring core (2026-10-23)
 
 The project now has an actual descriptor/ring **software implementation** in
