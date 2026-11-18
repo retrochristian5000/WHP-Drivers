@@ -16,22 +16,22 @@ Use `./build.sh` as the new top-level entry point; the historical executable
 ./build.sh test-fast          # host regressions; does not build LLVM
 ./build.sh test               # full format, LE, and selected driver checks
 ./build.sh clean-tests        # remove generated test outputs, not toolchains
-./build.sh clean-dos-pci      # remove only DOS PCI build outputs
+./build.sh clean-dos-probe      # remove only DOS PCI build outputs
 ./build.sh test-menuconfig    # isolated shell-menu regression checks
 ./build.sh bootstrap          # explicitly compile the pinned LLVM fork
 ./build.sh bootstrap-watcom   # bootstrap pinned OpenWatcom host + release tools
 ./build.sh bootstrap-all      # build both pinned toolchains
-WHP_DRIVER_PROFILE=dos-pci ./build.sh plan      # DOS-only plan
-WHP_DRIVER_PROFILE=dos-pci ./build.sh build     # opt-in DOS MZ executable
+WHP_DRIVER_PROFILE=dos-probe ./build.sh plan      # DOS-only plan
+WHP_DRIVER_PROFILE=dos-probe ./build.sh build     # opt-in DOS MZ executable
 WHP_DRIVER_PROFILE=hda ./build.sh test-fast  # HDA PCI/GCAP host-only checks
 ```
 
-The menu selects one workflow (`abi`, `vxd`, `radeon6410d`, `rtl8111e`, `hda`, `dos-pci`, or `all`),
+The menu selects one workflow (`abi`, `vxd`, `radeon6410d`, `rtl8111e`, `hda`, `dos-probe`, or `all`),
 the VxD backend (`llvm` or optional `openwatcom`), and **independent**
 toolchain bootstrap (`off`, `llvm`, `openwatcom`, or `both`), plus LLVM
 parallel jobs (1–16, default 2). Earlier `WHP_DRIVER_BOOTSTRAP=on` profiles
 are accepted and interpreted as `llvm`; `off` remains the default.
-The `dos-pci` profile uses pinned OpenWatcom's 16-bit DOS compiler and is
+The `dos-probe` profile uses pinned OpenWatcom's 16-bit DOS compiler and is
 not implicitly added to the existing `all` profile. Ordinary
 `test-fast` DOS checks use only host C/Python, not a DOS emulator or LLVM.
 The Radeon identity profile remains LLVM-based; the backend choice affects
@@ -758,7 +758,7 @@ never automatically rewrites submodule revisions.
 
 The new HDA profile is included in `all` as a small compile-only
 smoke check, but is never considered an installable Win95 driver.
-The existing `WHPPCI.EXE` DOS PCI BIOS inventory has also been
+The existing `WHPPROBE.EXE` DOS PCI BIOS inventory has also been
 extended to *report* `04:03:00` HDA-class endpoints and flag
 `1022:780D` as an AMD FCH candidate. It performs **no HDA MMIO
 reads**. A DOS PCI listing, Windows 95 DOS prompt and real Windows
@@ -1307,7 +1307,7 @@ classified as USB from the numeric ID alone. If observed PCI class
 and family ID expectations disagree, preserve both in the report.
 
 `drivers/usb/pci_hci.[ch]` contains a 64-byte, pure PCI-header
-decoder. The DOS `WHPPCI.EXE` front end now reports all matching
+decoder. The DOS `WHPPROBE.EXE` front end now reports all matching
 USB host-controller functions (including non-AMD UHCI and xHCI)
 without enabling ports, reading memory-mapped registers, moving
 OHCI/EHCI ownership, accessing devices, changing IRQ or DMA state,
@@ -1315,7 +1315,7 @@ or invoking the Windows USB driver stack. Test with:
 
 ```sh
 ./build test-usb-pci-hci
-WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
+WHP_DRIVER_PROFILE=dos-probe ./build.sh test-fast
 ```
 
 **Historical Windows split:** Windows 95 RTM lacks the later USB
@@ -1365,7 +1365,7 @@ do not silently merge it into the six SATA mode IDs. Candidate
 IDs may be seen on other AMD FCH configurations and are not a
 verified inventory of this particular board.
 
-The existing `WHPPCI.EXE` now prints any detected IDE/SATA/RAID
+The existing `WHPPROBE.EXE` now prints any detected IDE/SATA/RAID
 storage-class endpoint, including vendor/device, class/subclass/PI,
 revision, subsystem pair, command flags and IRQ line/pin. A family-ID
 versus PCI-class disagreement is a diagnostic clue, not permission
@@ -1391,7 +1391,7 @@ Host-only, synthetic identity tests (no LLVM, OpenWatcom or disks):
 
 ```sh
 ./build test-fch-sata-identity
-WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
+WHP_DRIVER_PROFILE=dos-probe ./build.sh test-fast
 ```
 
 Research references:
@@ -1399,11 +1399,77 @@ Research references:
 - [Hudson SATA firmware source, IDE/AHCI/RAID families](https://chromium.googlesource.com/chromiumos/third_party/coreboot/+/796af17f18554380a49d69d7768ac18ee039d711/src/southbridge/amd/agesa/hudson/Kconfig)
 - [HP information about SATA mode and boot implications](https://support.hp.com/my-en/document/ish_9631042-9631101-16)
 
-### DOS PCI BIOS diagnostics (2026-11-18)
+### DOS system probe: PCI/PCIe and legacy BIOS resources (2026-11-18)
+
+**Tool name:** `WHPPROBE.EXE` (8.3-compatible). The program remains a
+single, read-only DOS MZ executable with separate PCI and BIOS legacy
+probe paths. The original `WHPPCI.EXE` is no longer generated,
+but existing saved `dos-pci` profiles and `./build dos-pci-build`
+are accepted as compatibility aliases. The canonical new
+profile/command is `dos-probe` / `./build dos-probe-build`.
+The generated artifacts retain the existing
+`.build/dos-pci/` directory, avoiding a duplicate build tree.
+Previously built `WHPPCI.EXE` files in that folder are historical
+artifacts, not aliases for the current executable; the build does not
+silently delete them.
+
+#### ISA and legacy PC-compatible probing
+
+The first ISA-related stage uses two independent, read-only mechanisms:
+
+- **BIOS `INT 11h`** equipment word: BIOS-reported serial/parallel
+  counts, floppy count, mathematics coprocessor flag, game-port bit,
+  and initial video-mode code. Values are historical flags, may be
+  absent or stale on newer systems, and are not a definitive hardware
+  inventory.
+- **BIOS Data Area `0040:0000`**: four 16-bit COM base-address
+  fields at offsets `00h`–`06h`; three LPT base-address fields
+  at `08h`–`0Ch`. Zero is reported as no firmware address,
+  not as proof of no serial/parallel hardware. The executable reads
+  those words using real-mode Watcom `MK_FP`; it never accesses the
+  listed I/O ports.
+- **PCI bridge class `06:01`**: displays ISA-compatible or LPC
+  bridge *candidates* when visible via PCI BIOS, without assuming
+  that a physical ISA slot exists or that the bridge routes a
+  particular legacy address. This is distinct from a type-1 PCI
+  bridge (class `06:04`).
+
+The BIOS legacy section runs **before** the optional PCI BIOS preflight,
+so an absent `INT 1Ah` PCI BIOS does not erase those observations.
+The existing nonzero exit code **2** still reports PCI BIOS
+unavailability, meaning the combined scan was **incomplete**, rather
+than indicating absence of every bus. Existing PCIe, USB, storage,
+Radeon/Realtek and bridge decoders remain read-only.
+
+**Not yet implemented:** ISA Plug and Play BIOS node enumeration,
+CSN/resource isolation, direct 8237 DMA/8259 PIC/8042 probes, EISA
+slot configuration, PCMCIA, ACPI tables, SMBus transactions and
+verified physical slot/card identification. Never try ISA cards
+by writing to unassigned ports or by assuming fixed IRQ/DMA values:
+these actions can collide with integrated southbridge functions.
+Real-mode Windows 95 DOS and pure MS-DOS may expose different firmware
+services; neither a BIOS resource flag nor a PCI function guarantees
+a working Windows driver.
+
+Use host-only synthetic tests and the shared profile:
+
+```sh
+./build test-dos-legacy-bios
+WHP_DRIVER_PROFILE=dos-probe ./build.sh test-fast
+./build.sh test-menuconfig
+```
+
+Evidence: BIOS equipment list and BDA mapping are documented in
+[Ralf Brown's Interrupt List](https://www.delorie.com/djgpp/doc/rbinter/it/26/2.html)
+and its [BIOS data segment layout](https://dose.0wnz.at/ng/rbrown/ng19b2.php);
+Watcom's [`MK_FP` interface](https://openwatcom.github.io/open-watcom-v2-wikidocs/cpguide.html)
+is confined to the low-memory BIOS Data Area in the DOS-specific
+entrypoint. Pure decoding in `tools/dos/legacy_bios.[ch]` is
+host-testable without Watcom or a physical ISA device.
 
 A **separate 16-bit real-mode MS-DOS target** now provides a bridge
 between our portable PCI decoders and a machine's firmware. It is
-`tools/dos/pci95dos.c`, linked as `WHPPCI.EXE` using the explicitly
+`tools/dos/whpprobe.c`, linked as `WHPPROBE.EXE` using the explicitly
 selected, pinned OpenWatcom 16-bit DOS compiler and DOS runtime.
 It is **not** a TSR, DOS device driver, PCI.VXD replacement, NIC
 miniport or chipset initialization code.
@@ -1412,7 +1478,7 @@ for the C runtime and BIOS calls; that footprint is a deliberate cost.
 
 #### DOS kernel version and API boundary (6.22 / 7.00 / 7.10)
 
-`WHPPCI.EXE` now prints both the version reported by
+`WHPPROBE.EXE` now prints both the version reported by
 `INT 21h, AH=30h` (subject to `SETVER`) and, where the call is
 credible, the kernel version returned by `INT 21h, AX=3306h`.
 The small pure-C classifier lives in `tools/dos/dos_version.[ch]`,
@@ -1442,12 +1508,12 @@ instrumentation, not a claim that PCIe, HDA or the RTL8111E work.
 
 ```sh
 ./build test-dos-version                  # host-only; no DOS interrupt
-WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
+WHP_DRIVER_PROFILE=dos-probe ./build.sh test-fast
 ```
 
 #### DOS PCIe memory preflight (read-only)
 
-`WHPPCI.EXE` can discover PCIe endpoints via firmware's **standard**
+`WHPPROBE.EXE` can discover PCIe endpoints via firmware's **standard**
 PCI configuration space but **does not provide a protected-mode driver
 or access to their memory-mapped registers**. The new
 `drivers/bus/pci95/pci_dos_memory.[ch]` logic inspects BAR base
@@ -1480,7 +1546,7 @@ diagnostic clue, not proof of corruption.
   does not claim that a reported bridge window's range is currently
   accessible from DOS.
 
-The existing `WHPPCI.EXE` MZ image reserves an 8-KiB stack.
+The existing `WHPPROBE.EXE` MZ image reserves an 8-KiB stack.
 Ralf Brown's Interrupt List notes that a PCI BIOS `INT 1Ah, AX=B109h`
 read can consume up to **1,024 bytes** of stack; the real-mode runtime,
 compiler-generated frames and any resident software must still be
@@ -1491,7 +1557,7 @@ Use the light host-only checks:
 
 ```sh
 ./build test-pci-dos-memory
-WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
+WHP_DRIVER_PROFILE=dos-probe ./build.sh test-fast
 ```
 
 **Boundary:** PCI BIOS `B109h` reads only standard configuration
@@ -1548,7 +1614,7 @@ To test the host-side decoder and format regressions **without**
 OpenWatcom or LLVM:
 
 ```sh
-WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
+WHP_DRIVER_PROFILE=dos-probe ./build.sh test-fast
 ./build test-pci95-bios-read
 ./build test-dos-mz
 ```
@@ -1559,18 +1625,18 @@ OpenWatcom source and compiler (see the existing independent
 
 ```sh
 ./build.sh bootstrap-watcom            # explicit, potentially costly
-WHP_DRIVER_PROFILE=dos-pci ./build.sh plan
-WHP_DRIVER_PROFILE=dos-pci ./build.sh incremental
-# generated: .build/dos-pci/WHPPCI.EXE
-./build.sh clean-dos-pci              # cleans only DOS output artifacts
+WHP_DRIVER_PROFILE=dos-probe ./build.sh plan
+WHP_DRIVER_PROFILE=dos-probe ./build.sh incremental
+# generated: .build/dos-pci/WHPPROBE.EXE
+./build.sh clean-dos-probe              # cleans only DOS output artifacts
 ```
 
 With a DOS-compatible, BIOS-based Pavilion boot environment,
-**copy** `WHPPCI.EXE` to removable media, then run from genuine DOS
+**copy** `WHPPROBE.EXE` to removable media, then run from genuine DOS
 or Windows 95 restarted into MS-DOS Mode:
 
 ```text
-WHPPCI.EXE > PCI.TXT
+WHPPROBE.EXE > PCI.TXT
 ```
 
 Examine each type-1 bridge's observed primary/secondary/subordinate
@@ -1655,7 +1721,7 @@ slot or controller is missing; link-status capability/firmware
 availability and negotiated link state are separate observations.
 A reported link-active bit also does not verify a working driver.
 
-The existing `WHPPCI.EXE` bridge report now labels these
+The existing `WHPPROBE.EXE` bridge report now labels these
 documented port-family candidates without writing AMD indexed
 configuration registers (including `D[8:2]F0xE0/E4`), altering
 link training or changing bus numbers. The earlier hardcoded
@@ -1665,7 +1731,7 @@ root-port initialization or PCIe resource reassignment is implemented.
 
 ```sh
 ./build test-amd12-pcie-topology
-WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
+WHP_DRIVER_PROFILE=dos-probe ./build.sh test-fast
 ```
 
 Primary/secondary evidence:
