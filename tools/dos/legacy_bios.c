@@ -31,7 +31,9 @@ int whp_dos_legacy_decode(const struct whp_dos_legacy_snapshot *snapshot,
 int whp_dos_legacy_pci_isa_bridge(const uint8_t *cfg,
                                   unsigned int length)
 {
-    if (cfg == 0 || length < 64u || (cfg[0] == 0xffu && cfg[1] == 0xffu))
+    if (cfg == 0 || length < 64u ||
+        (cfg[0] == 0xffu && cfg[1] == 0xffu) ||
+        (cfg[0] == 0u && cfg[1] == 0u))
         return 0;
     return cfg[0x0bu] == 0x06u && cfg[0x0au] == 0x01u &&
            (cfg[0x0eu] & 0x7fu) == 0u;
