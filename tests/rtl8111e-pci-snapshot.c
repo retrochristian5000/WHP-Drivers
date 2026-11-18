@@ -4,7 +4,7 @@
 #include <string.h>
 
 #define CHECK(x) do { ++checks; if (!(x)) { \
-    fprintf(stderr, "PCI snapshot failed line %d: %s\\n", __LINE__, #x); \
+    fprintf(stderr, "PCI snapshot failed line %d: %s\n", __LINE__, #x); \
     return 1; } } while (0)
 
 static void put16(uint8_t *p, unsigned int off, uint16_t v)
@@ -103,6 +103,6 @@ int main(void)
     fixture(cfg);
     put16(cfg, 0, 0u);
     CHECK(whp_rtl8111e_decode_pci_snapshot(cfg, 256u, &s) == WHP_PCI_SNAPSHOT_NO_DEVICE);
-    printf("RTL8111E PCI snapshot: %d checks passed\\n", checks);
+    printf("RTL8111E PCI snapshot: %d checks passed\n", checks);
     return 0;
 }
