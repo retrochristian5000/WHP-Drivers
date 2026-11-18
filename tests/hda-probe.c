@@ -117,6 +117,13 @@ int main(void)
     CHECK(whp_hda_decode_regs(regs, 96, &v) == WHP_HDA_REGS_UNSUPPORTED_VERSION);
     CHECK(v.major == 1u); /* unchanged on unsupported version */
     regs_fixture(regs);
+    put16(regs, 0, 0x2215u); /* NSDO=10: four outputs. */
+    CHECK(whp_hda_decode_regs(regs, 96, &v) == WHP_HDA_REGS_OK);
+    CHECK(v.serial_data_outputs == 4u);
+    put16(regs, 0, 0x2217u); /* NSDO=11 reserved, not eight outputs. */
+    CHECK(whp_hda_decode_regs(regs, 96, &v) == WHP_HDA_REGS_RESERVED_CAPABILITY);
+    CHECK(v.serial_data_outputs == 4u); /* unchanged on rejection */
+    regs_fixture(regs);
     put16(regs, 0, 0u);
     CHECK(whp_hda_decode_regs(regs, 96, &v) == WHP_HDA_REGS_OK);
     CHECK(v.output_streams == 0u && v.input_streams == 0u);
