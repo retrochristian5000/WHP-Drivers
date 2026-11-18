@@ -16,6 +16,9 @@ on:
       - drivers/bus/pci95/**
       - drivers/audio/hda/**
       - tests/hda-probe.c
+      - tests/hda-water-header.c
+      - tests/win95-hda-vxd-header.c
+      - third_party/water
       - tests/pci95-bridge.c
       - drivers/network/rtl8111e/identity.c
       - drivers/network/rtl8111e/rtl8111e.h
@@ -39,6 +42,9 @@ on:
       - drivers/bus/pci95/**
       - drivers/audio/hda/**
       - tests/hda-probe.c
+      - tests/hda-water-header.c
+      - tests/win95-hda-vxd-header.c
+      - third_party/water
       - tests/pci95-bridge.c
       - drivers/network/rtl8111e/identity.c
       - drivers/network/rtl8111e/rtl8111e.h
@@ -77,3 +83,24 @@ jobs:
           WHP_DRIVER_PROFILE=rtl8111e sh ./build.sh test-fast
           WHP_DRIVER_PROFILE=dos-pci sh ./build.sh test-fast
           WHP_DRIVER_PROFILE=hda sh ./build.sh test-fast
+      - name: Pinned Water HDA header contract (header-only fetch)
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned="$(git rev-parse HEAD:third_party/water)"
+          [[ "$pinned" =~ ^[0-9a-f]{40}$ ]]
+          upstream="$(git config -f .gitmodules --get submodule.third_party/water.url)"
+          [ "$upstream" = "https://github.com/retrochristian5000/water.git" ]
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          mkdir -p "$tmp/ddk/win95rtm/audio"
+          curl --fail --silent --show-error --location \
+               --retry 2 --connect-timeout 10 --max-time 30 \
+               "https://raw.githubusercontent.com/retrochristian5000/water/$pinned/include/ddk/win95rtm/audio/hda_regs.h" \
+               -o "$tmp/ddk/win95rtm/audio/hda_regs.h"
+          cc -std=c11 -Wall -Wextra -Werror \
+             -DWHP_HDA_WATER_STANDALONE \
+             -I"$tmp" -Idrivers/audio/hda \
+             drivers/audio/hda/hda_probe.c tests/hda-water-header.c \
+             -o "$tmp/hda-water-contract"
+          "$tmp/hda-water-contract"
