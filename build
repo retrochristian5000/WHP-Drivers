@@ -198,6 +198,38 @@ watcom_smoke_vxd() {
     printf '%s\n' "WHP-Drivers: OpenWatcom LE format probe passed; Win95 RTM loading NOT verified"
 }
 
+# HDA PCI/GCAP evidence only: no interrupts, DMA, codec verbs, reset or
+# I/O on any real audio device. Host tests never bootstrap LLVM.
+test_hda_probe() {
+    need cc
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    hda_dir="$root/drivers/audio/hda"
+    cc -std=c11 -Wall -Wextra -Werror -I"$hda_dir" \
+        "$hda_dir/hda_probe.c" "$root/tests/hda-probe.c" \
+        -o "$out_dir/hda-probe-host-test" ||
+        die "HDA host probe compilation failed"
+    "$out_dir/hda-probe-host-test" ||
+        die "HDA synthetic PCI/GCAP tests failed"
+}
+
+smoke_hda() {
+    check_tools
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    hda_dir="$root/drivers/audio/hda"
+    "$bin_dir/clang" --target=i386-pc-windows-msvc \
+        -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
+        -Wall -Wextra -Werror -I"$hda_dir" -c \
+        "$hda_dir/hda_probe.c" -o "$out_dir/hda-probe.obj" ||
+        die "HDA i386 COFF compilation failed"
+    "$bin_dir/llvm-readobj" --file-headers "$out_dir/hda-probe.obj" |
+        grep -q 'Machine: IMAGE_FILE_MACHINE_I386' ||
+        die "HDA identity object is not i386 COFF"
+    test_hda_probe
+    printf '%s\n' "WHP-Drivers: HDA PCI and register probes passed (no sound driver loaded)"
+}
+
 smoke_radeon6410d() {
     check_tools
     out_dir="$build_dir/whp-tests"
@@ -768,6 +800,8 @@ case "${1:-}" in
     test-le) test_le ;;
     smoke-vxd) smoke_vxd ;;
     smoke-radeon6410d) smoke_radeon6410d ;;
+    smoke-hda) smoke_hda ;;
+    test-hda-probe) test_hda_probe ;;
     smoke-rtl8111e) smoke_rtl8111e ;;
     test-rtl8111e-pci-snapshot) test_rtl8111e_pci_snapshot ;;
     test-pci95-bridge) test_pci95_bridge ;;
@@ -787,5 +821,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-pci95-bios-read|test-dos-mz|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-pci95-bios-read|test-dos-mz|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
