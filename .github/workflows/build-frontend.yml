@@ -14,6 +14,8 @@ on:
       - tools/verify_*_inf.py
       - tests/test_*_inf.py
       - drivers/bus/pci95/**
+      - drivers/audio/hda/**
+      - tests/hda-probe.c
       - tests/pci95-bridge.c
       - drivers/network/rtl8111e/identity.c
       - drivers/network/rtl8111e/rtl8111e.h
@@ -35,6 +37,8 @@ on:
       - tools/verify_*_inf.py
       - tests/test_*_inf.py
       - drivers/bus/pci95/**
+      - drivers/audio/hda/**
+      - tests/hda-probe.c
       - tests/pci95-bridge.c
       - drivers/network/rtl8111e/identity.c
       - drivers/network/rtl8111e/rtl8111e.h
@@ -72,3 +76,4 @@ jobs:
           WHP_DRIVER_PROFILE=radeon6410d sh ./build.sh test-fast
           WHP_DRIVER_PROFILE=rtl8111e sh ./build.sh test-fast
           WHP_DRIVER_PROFILE=dos-pci sh ./build.sh test-fast
+          WHP_DRIVER_PROFILE=hda sh ./build.sh test-fast
