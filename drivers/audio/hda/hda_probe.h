@@ -52,6 +52,7 @@ enum whp_hda_pci_result whp_hda_decode_pci(
 enum whp_hda_regs_result {
     WHP_HDA_REGS_BAD_INPUT = 0,
     WHP_HDA_REGS_UNSUPPORTED_VERSION,
+    WHP_HDA_REGS_RESERVED_CAPABILITY,
     WHP_HDA_REGS_OK
 };
 
@@ -70,7 +71,7 @@ struct whp_hda_regs {
  * snapshot. These are NOT PCI configuration bytes and must not be
  * obtained by blindly dereferencing BAR0. Registers include W1C bits;
  * this function does not clear them or write anything.
- * Output unchanged on invalid or unsupported-version snapshots.
+ * Output unchanged on invalid, unsupported-version or reserved-capability snapshots.
  * A positive result does not prove a codec is present or playing audio.
  */
 enum whp_hda_regs_result whp_hda_decode_regs(
