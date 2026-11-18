@@ -18,8 +18,6 @@ on:
       - drivers/network/rtl8111e/identity.c
       - drivers/network/rtl8111e/rtl8111e.h
       - tests/rtl8111e-pci-snapshot.c
-      - drivers/bus/pci95/pci_bios_read.c
-      - drivers/bus/pci95/pci_bios_read.h
       - tools/dos/**
       - tools/verify_dos_mz.py
       - tests/pci95-bios-read.c
@@ -41,8 +39,6 @@ on:
       - drivers/network/rtl8111e/identity.c
       - drivers/network/rtl8111e/rtl8111e.h
       - tests/rtl8111e-pci-snapshot.c
-      - drivers/bus/pci95/pci_bios_read.c
-      - drivers/bus/pci95/pci_bios_read.h
       - tools/dos/**
       - tools/verify_dos_mz.py
       - tests/pci95-bios-read.c
