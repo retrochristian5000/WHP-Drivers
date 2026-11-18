@@ -231,6 +231,71 @@ smoke_radeon6410d() {
     printf '%s\n' "WHP-Drivers: Radeon HD 6410D PCI + EDID smoke passed (no DDC or GPU accessed)"
 }
 
+# Native-host transport regression: no INT calls, DOS, Watcom or PCI hardware.
+test_pci95_bios_read() {
+    need cc
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    cc -std=c11 -Wall -Wextra -Werror \
+        -I"$root/drivers/bus/pci95" \
+        "$root/drivers/bus/pci95/pci_bios_read.c" \
+        "$root/drivers/bus/pci95/pci_bridge.c" \
+        "$root/tests/pci95-bios-read.c" \
+        -o "$out_dir/pci95-bios-read-host-test" ||
+        die "PCI95 BIOS transport host compilation failed"
+    "$out_dir/pci95-bios-read-host-test" ||
+        die "PCI95 BIOS transport regression failed"
+}
+
+# Optional 16-bit DOS MZ .EXE. Never executes it on the build host.
+# Requires the pinned OpenWatcom DOS compiler/linker/runtime library.
+dos_pci_build() {
+    watcom_check
+    [ -x "$watcom_bin_dir/wcc" ] ||
+        die "OpenWatcom 16-bit DOS compiler missing: $watcom_bin_dir/wcc"
+    [ -d "$watcom_root/lib286/dos" ] ||
+        die "OpenWatcom 16-bit DOS runtime missing: $watcom_root/lib286/dos"
+    out_dir="$root/.build/dos-pci"
+    mkdir -p "$out_dir"
+    (
+        export WATCOM="$watcom_root"
+        export INCLUDE="$watcom_root/h"
+        export LIB="$watcom_root/lib286/dos"
+        for source in pci_bios_read pci_bridge; do
+            "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
+                "-i=$root/drivers/bus/pci95" \
+                "-fo=$out_dir/$source.obj" \
+                "$root/drivers/bus/pci95/$source.c" ||
+                die "DOS PCI source failed: $source.c"
+        done
+        "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
+            "-i=$root/drivers/network/rtl8111e" \
+            "-fo=$out_dir/identity.obj" \
+            "$root/drivers/network/rtl8111e/identity.c" ||
+            die "DOS RTL8111E identity compilation failed"
+        "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
+            "-i=$root/drivers/bus/pci95" \
+            "-i=$root/drivers/network/rtl8111e" \
+            "-fo=$out_dir/pci95dos.obj" \
+            "$root/tools/dos/pci95dos.c" ||
+            die "DOS PCI BIOS front end compilation failed"
+        "$watcom_bin_dir/wlink" "system dos" "option quiet" \
+            "libpath $watcom_root/lib286/dos" \
+            "file $out_dir/pci_bios_read.obj" \
+            "file $out_dir/pci_bridge.obj" \
+            "file $out_dir/identity.obj" \
+            "file $out_dir/pci95dos.obj" \
+            "name $out_dir/WHPPCI.EXE" ||
+            die "DOS PCI MZ EXE linking failed"
+    )
+    [ -s "$out_dir/WHPPCI.EXE" ] ||
+        die "DOS PCI linker did not produce WHPPCI.EXE"
+    need python3
+    python3 "$root/tools/verify_dos_mz.py" "$out_dir/WHPPCI.EXE" ||
+        die "DOS PCI output did not pass MZ structural preflight"
+    printf '%s\n' "WHP-Drivers: DOS PCI BIOS inventory built ($out_dir/WHPPCI.EXE; real hardware NOT tested)"
+}
+
 # Pure read-only PCI bridge topology regression: native host compiler only.
 # It does not enumerate PCI, reassign BARs, change bus numbers or load VxDs.
 test_pci95_bridge() {
@@ -700,6 +765,8 @@ case "${1:-}" in
     smoke-rtl8111e) smoke_rtl8111e ;;
     test-rtl8111e-pci-snapshot) test_rtl8111e_pci_snapshot ;;
     test-pci95-bridge) test_pci95_bridge ;;
+    test-pci95-bios-read) test_pci95_bios_read ;;
+    dos-pci-build) dos_pci_build ;;
     rtl8111e-inf-check) rtl8111e_inf_check ;;
     inf-check) radeon_inf_check; rtl8111e_inf_check ;;
     verify-vxd)
@@ -713,5 +780,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-pci95-bios-read|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
