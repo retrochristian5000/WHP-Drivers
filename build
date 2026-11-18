@@ -231,6 +231,22 @@ smoke_radeon6410d() {
     printf '%s\n' "WHP-Drivers: Radeon HD 6410D PCI + EDID smoke passed (no DDC or GPU accessed)"
 }
 
+# Hardware-free PCI configuration snapshot preflight, using the native
+# host compiler; never bootstraps LLVM or touches a PCI device.
+test_rtl8111e_pci_snapshot() {
+    need cc
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    cc -std=c11 -Wall -Wextra -Werror \
+        -I"$root/drivers/network/rtl8111e" \
+        "$root/drivers/network/rtl8111e/identity.c" \
+        "$root/tests/rtl8111e-pci-snapshot.c" \
+        -o "$out_dir/rtl8111e-pci-snapshot-host-test" ||
+        die "RTL8111E PCI snapshot host test compilation failed"
+    "$out_dir/rtl8111e-pci-snapshot-host-test" ||
+        die "RTL8111E PCI snapshot regressions failed"
+}
+
 # Realtek RTL8111E: data-only PCI/XID/MAC checks, no hardware operations.
 smoke_rtl8111e() {
     rtl8111e_inf_check
@@ -250,6 +266,7 @@ smoke_rtl8111e() {
         -o "$out_dir/rtl8111e-identity-host-test"
     "$out_dir/rtl8111e-identity-host-test" ||
         die "RTL8111E identity tests failed"
+    test_rtl8111e_pci_snapshot
     # Host-only miniport state/queue accounting: no NDIS, MMIO, IRQ or DMA.
     "$bin_dir/clang" --target=i386-pc-windows-msvc \
         -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
@@ -655,6 +672,7 @@ case "${1:-}" in
     smoke-vxd) smoke_vxd ;;
     smoke-radeon6410d) smoke_radeon6410d ;;
     smoke-rtl8111e) smoke_rtl8111e ;;
+    test-rtl8111e-pci-snapshot) test_rtl8111e_pci_snapshot ;;
     rtl8111e-inf-check) rtl8111e_inf_check ;;
     inf-check) radeon_inf_check; rtl8111e_inf_check ;;
     verify-vxd)
@@ -668,5 +686,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|test-rtl8111e-pci-snapshot|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
