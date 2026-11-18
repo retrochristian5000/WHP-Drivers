@@ -1287,6 +1287,41 @@ miniport or chipset initialization code.
 The DOS linker reserves an explicit 8 KiB conventional-memory stack
 for the C runtime and BIOS calls; that footprint is a deliberate cost.
 
+#### DOS kernel version and API boundary (6.22 / 7.00 / 7.10)
+
+`WHPPCI.EXE` now prints both the version reported by
+`INT 21h, AH=30h` (subject to `SETVER`) and, where the call is
+credible, the kernel version returned by `INT 21h, AX=3306h`.
+The small pure-C classifier lives in `tools/dos/dos_version.[ch]`,
+with hardware-free tests in `tests/dos-version.c`. An unavailable or
+suspicious true-version result is marked **unverified**; the reported
+number is not promoted to an API capability claim.
+
+Keep three historical boundaries distinct:
+
+- **MS-DOS 6.22**: FAT12/FAT16 and conventional 8.3 filename APIs;
+  no native FAT32 or Win9x `71xxh` long-filename services.
+- **MS-DOS 7.00**: Windows 95 RTM / SP1 real-mode kernel; do not
+  assume the later FAT32 functions of Windows 95 OSR2.
+- **MS-DOS 7.10**: Windows 95 OSR2 / Windows 98 real-mode kernel,
+  with FAT32 extensions; `INT 21h, AX=73xxh` support must still
+  be checked per service. The Windows DOS prompt and true MS-DOS
+  mode are different environments. `71xxh` long-filename calls
+  can be supplied by the running Windows IFSMgr and must be
+  feature-probed (unsupported `AX=7100h`), not inferred from 7.10.
+
+These are version profiles, **not proof of Microsoft OEM identity**.
+DOS 8.00 / Windows Me and alternative DOS kernels remain separate.
+No new FAT32, long-filename, disk-write or device-init calls were
+added to the PCI utility; it still uses read-only `INT 1Ah` PCI
+BIOS services regardless of DOS version. This is diagnostic
+instrumentation, not a claim that PCIe, HDA or the RTL8111E work.
+
+```sh
+./build test-dos-version                  # host-only; no DOS interrupt
+WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
+```
+
 The utility checks the historical PCI BIOS installation function
 `INT 1Ah, AX=B101h` and uses the **read-only** configuration-word
 function `AX=B109h` to enumerate functions up through the BIOS-reported
