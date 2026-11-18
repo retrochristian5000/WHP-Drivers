@@ -341,6 +341,21 @@ test_dos_version() {
         die "DOS version synthetic regression failed"
 }
 
+# Host-side SATA/AHCI/RAID identity test: synthetic PCI data only.
+test_fch_sata_identity() {
+    need cc
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    cc -std=c11 -Wall -Wextra -Werror \
+        -I"$root/drivers/storage/fch_sata" \
+        "$root/drivers/storage/fch_sata/identity.c" \
+        "$root/tests/fch-sata-identity.c" \
+        -o "$out_dir/fch-sata-identity-host-test" ||
+        die "FCH SATA PCI identity host compilation failed"
+    "$out_dir/fch-sata-identity-host-test" ||
+        die "FCH SATA PCI identity regression failed"
+}
+
 # Optional 16-bit DOS MZ .EXE. Never executes it on the build host.
 # Requires the pinned OpenWatcom DOS compiler/linker/runtime library.
 dos_pci_build() {
@@ -374,12 +389,18 @@ dos_pci_build() {
             "$root/drivers/network/rtl8111e/identity.c" ||
             die "DOS RTL8111E identity compilation failed"
         "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
+            "-i=$root/drivers/storage/fch_sata" \
+            "-fo=$out_dir/sata_identity.obj" \
+            "$root/drivers/storage/fch_sata/identity.c" ||
+            die "DOS FCH SATA identity compilation failed"
+        "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
             "-i=$root/tools/dos" \
             "-fo=$out_dir/dos_version.obj" \
             "$root/tools/dos/dos_version.c" ||
             die "DOS version classification compilation failed"
         "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
             "-i=$root/tools/dos" \
+            "-i=$root/drivers/storage/fch_sata" \
             "-i=$root/drivers/bus/pci95" \
             "-i=$root/drivers/network/rtl8111e" \
             "-fo=$out_dir/pci95dos.obj" \
@@ -390,6 +411,7 @@ dos_pci_build() {
             "file $out_dir/pci_bios_read.obj" \
             "file $out_dir/pci_bridge.obj" \
             "file $out_dir/identity.obj" \
+            "file $out_dir/sata_identity.obj" \
             "file $out_dir/dos_version.obj" \
             "file $out_dir/pci95dos.obj" \
             "name $out_dir/WHPPCI.EXE" ||
@@ -877,6 +899,7 @@ case "${1:-}" in
     test-pci95-bridge) test_pci95_bridge ;;
     test-pci95-bios-read) test_pci95_bios_read ;;
     test-dos-version) test_dos_version ;;
+    test-fch-sata-identity) test_fch_sata_identity ;;
     test-dos-mz) need python3; python3 -m unittest discover -s "$root/tests" -p 'test_dos_mz.py' ;;
     dos-pci-build) dos_pci_build ;;
     rtl8111e-inf-check) rtl8111e_inf_check ;;
@@ -892,5 +915,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-pci95-bios-read|test-dos-version|test-dos-mz|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-pci95-bios-read|test-dos-version|test-fch-sata-identity|test-dos-mz|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
