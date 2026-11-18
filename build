@@ -285,7 +285,7 @@ dos_pci_build() {
             "-fo=$out_dir/pci95dos.obj" \
             "$root/tools/dos/pci95dos.c" ||
             die "DOS PCI BIOS front end compilation failed"
-        "$watcom_bin_dir/wlink" "system dos" "option quiet" \
+        "$watcom_bin_dir/wlink" "system dos" "option quiet" "option stack=8192" \
             "libpath $watcom_root/lib286/dos" \
             "file $out_dir/pci_bios_read.obj" \
             "file $out_dir/pci_bridge.obj" \
