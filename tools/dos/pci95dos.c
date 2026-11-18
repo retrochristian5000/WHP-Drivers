@@ -10,6 +10,7 @@
 #include <string.h>
 #include "pci_bios_read.h"
 #include "pci_bridge.h"
+#include "pci_dos_memory.h"
 #include "amd12_topology.h"
 #include "rtl8111e.h"
 #include "dos_version.h"
@@ -22,6 +23,7 @@ static struct whp_amd12_pcie_port_info root_info;
 static struct whp_rtl8111e_pci_snapshot nic_info;
 static struct whp_storage_pci_identity storage_info;
 static struct whp_usb_pci_hci usb_info;
+static struct whp_pci_dos_bar pci_bar;
 
 static int bios_word(void *ctx, uint8_t bus, uint8_t devfn,
                      uint8_t offset, uint16_t *value)
@@ -130,6 +132,94 @@ static void report_dos_version(void)
     puts("PCI BIOS discovery is independent of DOS filesystem services.");
 }
 
+
+/* INT 12h reports a firmware conventional-memory boundary, not free RAM.
+ * No DOS allocator, upper-memory manager, or physical memory mapping calls.
+ */
+static unsigned int bios_conventional_memory_kb(void)
+{
+    union REGS inregs, outregs;
+    memset(&inregs, 0, sizeof(inregs));
+    memset(&outregs, 0, sizeof(outregs));
+    int86(0x12, &inregs, &outregs);
+    if (outregs.w.ax < 64u || outregs.w.ax > 1024u)
+        return 0u;
+    return (unsigned int)outregs.w.ax;
+}
+
+static void print_memory_window(const char *kind, uint64_t base,
+                                uint64_t limit, unsigned int conventional_kb,
+                                int memory_decode_enabled)
+{
+    unsigned int flags = whp_pci_dos_window_flags(
+        base, limit, conventional_kb, memory_decode_enabled);
+    if (!(flags & WHP_PCI_DOS_WINDOW_PRESENT))
+        return;
+    printf("    %s MMIO window %08lX%08lX-%08lX%08lX; decode %s\\n",
+           kind,
+           (unsigned long)(uint32_t)(base >> 32),
+           (unsigned long)(uint32_t)base,
+           (unsigned long)(uint32_t)(limit >> 32),
+           (unsigned long)(uint32_t)limit,
+           (flags & WHP_PCI_DOS_WINDOW_DECODE_ENABLED) ? "enabled" : "off");
+    if ((flags & WHP_PCI_DOS_WINDOW_DECODE_ENABLED) &&
+        (flags & WHP_PCI_DOS_WINDOW_TOUCHES_CONVENTIONAL))
+        puts("    WARNING: decoded window overlaps BIOS conventional-address range.");
+    else if (flags & WHP_PCI_DOS_WINDOW_TOUCHES_LOW_1M)
+        puts("    NOTE: window includes some low 1-MiB physical addresses.");
+    if (flags & WHP_PCI_DOS_WINDOW_SPANS_4G)
+        puts("    NOTE: window straddles 4 GiB; DOS cannot map it directly.");
+    if (flags & WHP_PCI_DOS_WINDOW_ABOVE_4G)
+        puts("    NOTE: window begins above 4 GiB; DOS cannot map it directly.");
+}
+
+static void print_bar_memory(const uint8_t *cfg, size_t cfg_size,
+                             unsigned int conventional_kb)
+{
+    unsigned int index, max_bars;
+    unsigned int command = (unsigned int)cfg[4] |
+                           ((unsigned int)cfg[5] << 8);
+    max_bars = (cfg[0x0e] & 0x7fu) == 1u ? 2u : 6u;
+    for (index = 0u; index < max_bars; ++index) {
+        int status = whp_pci_dos_read_bar(cfg, cfg_size, index, &pci_bar);
+        enum whp_pci_dos_bar_region region;
+        if (status < 0) {
+            printf("    BAR%u: invalid/unsupported descriptor; not mapped\\n", index);
+            continue;
+        }
+        if (status == 0)
+            continue;
+        region = whp_pci_dos_bar_region_of(&pci_bar, conventional_kb);
+        printf("    BAR%u %s%s base=%08lX%08lX; decode %s\\n",
+               index, pci_bar.is_io ? "I/O" : "MMIO",
+               pci_bar.is_64 ? " 64-bit" : "",
+               (unsigned long)(uint32_t)(pci_bar.base >> 32),
+               (unsigned long)(uint32_t)pci_bar.base,
+               (command & (pci_bar.is_io ? 1u : 2u)) ? "enabled" : "off");
+        switch (region) {
+        case WHP_PCI_DOS_BAR_IO_OUTSIDE_16BIT:
+            puts("    NOTE: I/O BAR base is outside x86 16-bit port space.");
+            break;
+        case WHP_PCI_DOS_BAR_CONVENTIONAL_BASE:
+            puts("    WARNING: MMIO BAR base lies within reported conventional RAM.");
+            break;
+        case WHP_PCI_DOS_BAR_LEGACY_BASE:
+            puts("    NOTE: MMIO BAR base lies below 1 MiB (legacy physical region).");
+            break;
+        case WHP_PCI_DOS_BAR_PHYSICAL_MAPPING_REQUIRED:
+            puts("    NOTE: MMIO base requires a verified physical-memory mapping.");
+            break;
+        case WHP_PCI_DOS_BAR_ABOVE_4G:
+            puts("    NOTE: MMIO base above 4 GiB is not DOS directly mappable.");
+            break;
+        default:
+            break; /* In-range I/O port address is not a safe-use claim. */
+        }
+        if (pci_bar.slots == 2u)
+            ++index; /* Upper half belongs to this 64-bit BAR. */
+    }
+}
+
 int main(void)
 {
     struct whp_pci95_bios_reader reader;
@@ -139,8 +229,15 @@ int main(void)
     unsigned int snapshot_size, devfn;
     unsigned int id_vendor, id_device, cls, subclass;
     int wanted_bridge, wanted_nic, wanted_hda, wanted_storage, wanted_usb;
+    unsigned int conventional_kb;
 
     report_dos_version();
+    conventional_kb = bios_conventional_memory_kb();
+    if (conventional_kb)
+        printf("WHPPCI: BIOS conventional-memory boundary=%u KiB (not free RAM)\\n",
+               conventional_kb);
+    else
+        puts("WHPPCI: BIOS conventional-memory boundary unavailable.");
     if (!pci_bios_installed(&last_bus, &version)) {
         puts("WHPPCI: no usable INT 1Ah PCI BIOS (B101h).");
         puts("No hardware probing was attempted. This does not prove PCIe is absent.");
@@ -289,6 +386,18 @@ int main(void)
                                                             "disabled/invalid");
                     print_caps("bridge", (int)bridge_info.caps,
                                (unsigned int)bridge_info.pcie_cap_offset);
+                    if (bridge_info.mem_window_present)
+                        print_memory_window("nonprefetchable",
+                                           (uint64_t)bridge_info.mem_base,
+                                           (uint64_t)bridge_info.mem_limit,
+                                           conventional_kb,
+                                           (bridge_info.command & 2u) != 0u);
+                    if (bridge_info.pref_window_present)
+                        print_memory_window("prefetchable",
+                                           bridge_info.pref_base,
+                                           bridge_info.pref_limit,
+                                           conventional_kb,
+                                           (bridge_info.command & 2u) != 0u);
                     /* AMD BKDG Family 12h section 2.11: port location is
                      * an identity clue, not proof of a populated link.
                      * Never change indexed NB/PCIe configuration registers.
@@ -342,6 +451,11 @@ int main(void)
                                (unsigned int)nic_info.pcie_cap_offset);
                     puts("    NOTE: PCI revision is NOT RTL8111E MAC TxConfig/XID.");
                 }
+                /* Inspect assigned BAR bases from the already-read PCI
+                 * header. Sizes and ownership are unknown: no sizing writes,
+                 * BIOS reconfiguration, physical dereferences, or DMA.
+                 */
+                print_bar_memory(config_bytes, snapshot_size, conventional_kb);
             }
         }
     }
