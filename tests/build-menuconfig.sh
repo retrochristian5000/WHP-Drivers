@@ -61,12 +61,28 @@ printf 'dos-pci-build\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=dos-pci "$tmp/build.sh" test-fast
-printf 'test-hda-probe\ntest-pci95-bridge\ntest-pci95-bios-read\ntest-rtl8111e-pci-snapshot\ntest-dos-mz\n' > "$tmp/expected"
+printf 'test-dos-version\ntest-dos-legacy-bios\ntest-fch-sata-identity\ntest-usb-pci-hci\ntest-hda-probe\ntest-pci95-bridge\ntest-amd12-pcie-topology\ntest-pci-dos-memory\ntest-pci95-bios-read\ntest-rtl8111e-pci-snapshot\ntest-dos-mz\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=dos-pci "$tmp/build.sh" plan > "$tmp/dos-plan"
 [ ! -s "$WHP_TEST_LOG" ] || exit 1
 grep -Fx '  ./build dos-pci-build' "$tmp/dos-plan" >/dev/null || exit 1
+
+# Canonical DOS probe profile produces a broader executable while old
+# configurations retain their existing dos-pci backend contract.
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=dos-probe "$tmp/build.sh" build
+printf 'dos-probe-build\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=dos-probe "$tmp/build.sh" test-fast
+printf 'test-dos-version\ntest-dos-legacy-bios\ntest-fch-sata-identity\ntest-usb-pci-hci\ntest-hda-probe\ntest-pci95-bridge\ntest-amd12-pcie-topology\ntest-pci-dos-memory\ntest-pci95-bios-read\ntest-rtl8111e-pci-snapshot\ntest-dos-mz\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_PROFILE=dos-probe "$tmp/build.sh" plan > "$tmp/probe-plan"
+[ ! -s "$WHP_TEST_LOG" ] || exit 1
+grep -Fx '  ./build dos-probe-build' "$tmp/probe-plan" >/dev/null || exit 1
+
 
 cp "$tmp/.whpconfig" "$tmp/expected-config"
 printf '1\nq\n' | "$tmp/build.sh" menuconfig >/dev/null
