@@ -1276,6 +1276,65 @@ loadable NDIS miniport, firmware access, interrupt registration or DMA.
 PCI header offset and capability definitions:
 https://github.com/torvalds/linux/blob/master/include/uapi/linux/pci_regs.h
 
+### Pavilion p6-2310 USB host-controller inventory (2026-11-18)
+
+The **AMD A55/Hudson-D2** Pavilion model advertises USB 2.0 ports.
+The likely built-in controller arrangement is **OHCI + EHCI**:
+these are separate PCI USB controller functions even when they
+service different device speeds through the same physical port.
+Do not count host-controller functions as individual USB connectors.
+
+PCI class `0Ch`, subclass `03h` and programming-interface (PI)
+byte identify a USB controller: `00h` UHCI, `10h` OHCI,
+`20h` EHCI, `30h` xHCI, `80h` unspecified. PI `FEh` denotes
+a USB *device* rather than a host controller and is not inventoried.
+Unknown controller PIs are reported as unknown, not coerced to EHCI.
+
+Expected AMD FCH **family** PCI IDs (not Pavilion-observed IDs):
+
+| Vendor:device | Controller interface | Speed interpretation |
+| --- | --- | --- |
+| `1022:7807` | OHCI | low/full, 1.5/12 Mb/s |
+| `1022:7808` | EHCI | high, 480 Mb/s; companion routing needed for slower devices |
+| `1022:7809` | OHCI | low/full, 1.5/12 Mb/s |
+| `1022:7812`, `1022:7814` | xHCI family IDs | **not** evidence that this A55 board has USB 3.x |
+
+These numbers are *interface capability classes*, not actual USB
+device negotiation rates, throughput measurements, physical port
+topology, device identities, or OS driver support. In particular,
+`1022:780B` is catalogued as AMD FCH **SMBus** and is never
+classified as USB from the numeric ID alone. If observed PCI class
+and family ID expectations disagree, preserve both in the report.
+
+`drivers/usb/pci_hci.[ch]` contains a 64-byte, pure PCI-header
+decoder. The DOS `WHPPCI.EXE` front end now reports all matching
+USB host-controller functions (including non-AMD UHCI and xHCI)
+without enabling ports, reading memory-mapped registers, moving
+OHCI/EHCI ownership, accessing devices, changing IRQ or DMA state,
+or invoking the Windows USB driver stack. Test with:
+
+```sh
+./build test-usb-pci-hci
+WHP_DRIVER_PROFILE=dos-pci ./build.sh test-fast
+```
+
+**Historical Windows split:** Windows 95 RTM lacks the later USB
+Supplement; Windows 95 OSR2.1/2.5 can use their release-specific
+USB 1.x supplement. This does **not** turn EHCI into a native
+Windows 95 RTM USB 2.0 driver. Windows 98/98 SE also require
+appropriate EHCI drivers for high-speed transfers. Genuine DOS
+6.22 and 7.x may expose BIOS legacy keyboard/storage emulation
+without owning USB host-controller hardware. Firmware-mode handoff,
+host-controller driver, root hub, device enumeration and class
+driver remain distinct milestones. A DOS PCI BIOS listing proves
+none of these OS driver paths.
+
+References:
+- PCI IDs: https://kernel.googlesource.com/pub/scm/utils/pciutils/pciutils.git/+/5371aab4803635ddb5d1f53eeade17a598352593/pci.ids
+- USB interface/companion routing: https://learn.microsoft.com/en-us/windows-hardware/drivers/usbcon/usb-faq--introductory-level
+- Microsoft Windows 95 OSR2.x USB Supplement archival KB Q181661:
+  https://jeffpar.github.io/kbarchive/kb/181/Q181661/
+
 ### Pavilion p6-2310 AMD A55 SATA/RAID identification (2026-11-18)
 
 The HP Pavilion **p6-2310 (H3Y76AA)** uses the AMD A55/Hudson-D2
