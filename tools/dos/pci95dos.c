@@ -75,10 +75,10 @@ int main(void)
     struct whp_pci95_bios_reader reader;
     enum whp_pci95_bios_result result;
     unsigned int last_bus, version, bus, dev, fn, multifn;
-    unsigned int found_bridges = 0, found_nics = 0, read_errors = 0;
+    unsigned int found_bridges = 0, found_nics = 0, found_hda = 0, read_errors = 0;
     unsigned int snapshot_size, devfn;
     unsigned int id_vendor, id_device, cls, subclass;
-    int wanted_bridge, wanted_nic;
+    int wanted_bridge, wanted_nic, wanted_hda;
 
     if (!pci_bios_installed(&last_bus, &version)) {
         puts("WHPPCI: no usable INT 1Ah PCI BIOS (B101h).");
@@ -122,7 +122,13 @@ int main(void)
                           (config_bytes[0x0eu] & 0x7fu) == 1u;
                 wanted_nic = id_vendor == 0x10ecu && id_device == 0x8168u &&
                           cls == 0x02u && subclass == 0u;
-                if (!wanted_bridge && !wanted_nic) {
+                /* HDA is PCI class 04:03 / PI=00; this identifies only
+                 * a controller candidate, never a codec or DMA interface.
+                 */
+                wanted_hda = cls == 0x04u && subclass == 0x03u &&
+                             config_bytes[9] == 0u &&
+                             (config_bytes[0x0eu] & 0x7fu) == 0u;
+                if (!wanted_bridge && !wanted_nic && !wanted_hda) {
                     if (cls == 0x06u && subclass == 0u)
                         printf("%u:%02u.%u host bridge %04X:%04X (not PCI type-1)\n",
                                bus, dev, fn, id_vendor, id_device);
@@ -161,6 +167,23 @@ int main(void)
                     print_caps("bridge", (int)bridge_info.caps,
                                (unsigned int)bridge_info.pcie_cap_offset);
                 }
+                if (wanted_hda) {
+                    unsigned int subsystem_vendor =
+                        (unsigned int)(config_bytes[0x2cu] |
+                        ((unsigned int)config_bytes[0x2du] << 8));
+                    unsigned int subsystem_device =
+                        (unsigned int)(config_bytes[0x2eu] |
+                        ((unsigned int)config_bytes[0x2fu] << 8));
+                    ++found_hda;
+                    printf("%u:%02u.%u HDA controller candidate %04X:%04X\n",
+                           bus, dev, fn, id_vendor, id_device);
+                    printf("    PCI-rev=%02Xh subsystem=%04X:%04X%s\n",
+                           (unsigned int)config_bytes[8],
+                           subsystem_vendor, subsystem_device,
+                           id_vendor == 0x1022u && id_device == 0x780du ?
+                           " (AMD FCH Azalia family candidate)" : "");
+                    puts("    Codec identity, HDA MMIO and sound playback NOT tested.");
+                }
                 if (wanted_nic &&
                     whp_rtl8111e_decode_pci_snapshot(config_bytes,
                               snapshot_size, &nic_info) == WHP_PCI_SNAPSHOT_OK) {
@@ -180,8 +203,8 @@ int main(void)
             }
         }
     }
-    printf("WHPPCI: %u bridge(s), %u RTL8168/8111 candidate(s), %u read error(s).\n",
-           found_bridges, found_nics, read_errors);
+    printf("WHPPCI: %u bridge(s), %u RTL8168/8111 candidate(s), %u HDA candidate(s), %u read error(s).\n",
+           found_bridges, found_nics, found_hda, read_errors);
     puts("A DOS PCI BIOS result is not Windows 95 PCI.VXD/NDIS validation.");
     return read_errors ? 1 : 0;
 }
