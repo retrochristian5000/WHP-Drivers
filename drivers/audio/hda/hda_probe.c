@@ -14,7 +14,6 @@ enum whp_hda_pci_result whp_hda_decode_pci(
     const uint8_t *config, size_t length, struct whp_hda_pci *out)
 {
     struct whp_hda_pci s = {0};
-    uint32_t base;
     if (!config || !out || length < WHP_HDA_PCI_BYTES)
         return WHP_HDA_PCI_BAD_INPUT;
     s.vendor = read16(config);
