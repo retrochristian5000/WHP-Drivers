@@ -401,9 +401,24 @@ test_pci_dos_memory() {
         die "DOS PCI memory audit regression failed"
 }
 
+# BIOS/ISA-compatible legacy inventory from synthetic snapshots only.
+test_dos_legacy_bios() {
+    need cc
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    cc -std=c11 -Wall -Wextra -Werror \
+        -I"$root/tools/dos" \
+        "$root/tools/dos/legacy_bios.c" \
+        "$root/tests/dos-legacy-bios.c" \
+        -o "$out_dir/dos-legacy-bios-host-test" ||
+        die "DOS legacy BIOS host compilation failed"
+    "$out_dir/dos-legacy-bios-host-test" ||
+        die "DOS legacy BIOS synthetic regression failed"
+}
+
 # Optional 16-bit DOS MZ .EXE. Never executes it on the build host.
 # Requires the pinned OpenWatcom DOS compiler/linker/runtime library.
-dos_pci_build() {
+dos_probe_build() {
     watcom_check
     [ -x "$watcom_bin_dir/wcc" ] ||
         die "OpenWatcom 16-bit DOS compiler missing: $watcom_bin_dir/wcc"
@@ -416,7 +431,7 @@ dos_pci_build() {
         die "DOS output path exists but is not a directory"
     mkdir -p "$out_dir"
     # Do not leave a previous valid-looking EXE after a failed link.
-    rm -f "$out_dir/WHPPCI.EXE"
+    rm -f "$out_dir/WHPPROBE.EXE"
     (
         export WATCOM="$watcom_root"
         export INCLUDE="$watcom_root/h"
@@ -455,6 +470,11 @@ dos_pci_build() {
             die "DOS USB PCI HCI identity compilation failed"
         "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
             "-i=$root/tools/dos" \
+            "-fo=$out_dir/legacy_bios.obj" \
+            "$root/tools/dos/legacy_bios.c" ||
+            die "DOS legacy BIOS snapshot decoder compilation failed"
+        "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
+            "-i=$root/tools/dos" \
             "-fo=$out_dir/dos_version.obj" \
             "$root/tools/dos/dos_version.c" ||
             die "DOS version classification compilation failed"
@@ -464,9 +484,9 @@ dos_pci_build() {
             "-i=$root/drivers/storage/fch_sata" \
             "-i=$root/drivers/bus/pci95" \
             "-i=$root/drivers/network/rtl8111e" \
-            "-fo=$out_dir/pci95dos.obj" \
-            "$root/tools/dos/pci95dos.c" ||
-            die "DOS PCI BIOS front end compilation failed"
+            "-fo=$out_dir/whpprobe.obj" \
+            "$root/tools/dos/whpprobe.c" ||
+            die "DOS hardware probe compilation failed"
         "$watcom_bin_dir/wlink" "system dos" "option quiet" "option stack=8192" \
             "libpath $watcom_root/lib286/dos" \
             "file $out_dir/pci_bios_read.obj" \
@@ -477,16 +497,17 @@ dos_pci_build() {
             "file $out_dir/sata_identity.obj" \
             "file $out_dir/usb_pci_hci.obj" \
             "file $out_dir/dos_version.obj" \
-            "file $out_dir/pci95dos.obj" \
-            "name $out_dir/WHPPCI.EXE" ||
-            die "DOS PCI MZ EXE linking failed"
+            "file $out_dir/legacy_bios.obj" \
+            "file $out_dir/whpprobe.obj" \
+            "name $out_dir/WHPPROBE.EXE" ||
+            die "DOS hardware probe MZ EXE linking failed"
     )
-    [ -s "$out_dir/WHPPCI.EXE" ] ||
-        die "DOS PCI linker did not produce WHPPCI.EXE"
+    [ -s "$out_dir/WHPPROBE.EXE" ] ||
+        die "DOS probe linker did not produce WHPPROBE.EXE"
     need python3
-    python3 "$root/tools/verify_dos_mz.py" "$out_dir/WHPPCI.EXE" ||
+    python3 "$root/tools/verify_dos_mz.py" "$out_dir/WHPPROBE.EXE" ||
         die "DOS PCI output did not pass MZ structural preflight"
-    printf '%s\n' "WHP-Drivers: DOS PCI BIOS inventory built ($out_dir/WHPPCI.EXE; real hardware NOT tested)"
+    printf '%s\n' "WHP-Drivers: DOS hardware probe built ($out_dir/WHPPROBE.EXE; real hardware NOT tested)"
 }
 
 # Pure read-only PCI bridge topology regression: native host compiler only.
@@ -965,10 +986,11 @@ case "${1:-}" in
     test-pci-dos-memory) test_pci_dos_memory ;;
     test-pci95-bios-read) test_pci95_bios_read ;;
     test-dos-version) test_dos_version ;;
+    test-dos-legacy-bios) test_dos_legacy_bios ;;
     test-fch-sata-identity) test_fch_sata_identity ;;
     test-usb-pci-hci) test_usb_pci_hci ;;
     test-dos-mz) need python3; python3 -m unittest discover -s "$root/tests" -p 'test_dos_mz.py' ;;
-    dos-pci-build) dos_pci_build ;;
+    dos-probe-build|dos-pci-build) dos_probe_build ;;
     rtl8111e-inf-check) rtl8111e_inf_check ;;
     inf-check) radeon_inf_check; rtl8111e_inf_check ;;
     verify-vxd)
@@ -982,5 +1004,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-dos-version|test-fch-sata-identity|test-usb-pci-hci|test-dos-mz|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-dos-version|test-dos-legacy-bios|test-fch-sata-identity|test-usb-pci-hci|test-dos-mz|dos-probe-build|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
