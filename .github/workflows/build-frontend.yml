@@ -13,6 +13,11 @@ on:
       - packaging/win95rtm/*.INF
       - tools/verify_*_inf.py
       - tests/test_*_inf.py
+      - drivers/bus/pci95/**
+      - tests/pci95-bridge.c
+      - drivers/network/rtl8111e/identity.c
+      - drivers/network/rtl8111e/rtl8111e.h
+      - tests/rtl8111e-pci-snapshot.c
   pull_request:
     paths:
       - build.sh
@@ -25,6 +30,11 @@ on:
       - packaging/win95rtm/*.INF
       - tools/verify_*_inf.py
       - tests/test_*_inf.py
+      - drivers/bus/pci95/**
+      - tests/pci95-bridge.c
+      - drivers/network/rtl8111e/identity.c
+      - drivers/network/rtl8111e/rtl8111e.h
+      - tests/rtl8111e-pci-snapshot.c
   workflow_dispatch:
 
 permissions:
