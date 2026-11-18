@@ -201,7 +201,10 @@ static void print_bar_memory(const uint8_t *cfg, size_t cfg_size,
             puts("    NOTE: I/O BAR base is outside x86 16-bit port space.");
             break;
         case WHP_PCI_DOS_BAR_CONVENTIONAL_BASE:
-            puts("    WARNING: MMIO BAR base lies within reported conventional RAM.");
+            if (command & 2u)
+                puts("    WARNING: decoded MMIO BAR base is inside reported conventional RAM.");
+            else
+                puts("    NOTE: BAR base in conventional range, but PCI memory decode is off.");
             break;
         case WHP_PCI_DOS_BAR_LEGACY_BASE:
             puts("    NOTE: MMIO BAR base lies below 1 MiB (legacy physical region).");
