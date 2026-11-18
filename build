@@ -219,8 +219,10 @@ check_water_hda_headers() {
     check_water_revision
     [ -f "$water_inc/ddk/win95rtm/vmm.h" ] ||
         die "pinned Water lacks Windows 95 RTM VMM boundary"
+    [ -f "$water_inc/ddk/hda/hda_regs.h" ] ||
+        die "pinned Water lacks OS-neutral HDA reference (advance reviewed gitlink)"
     [ -f "$water_inc/ddk/win95rtm/audio/hda_regs.h" ] ||
-        die "pinned Water lacks HDA register reference (advance reviewed gitlink)"
+        die "pinned Water lacks legacy Win95 HDA alias wrapper"
     [ -f "$water_inc/ddk/win95rtm/audio/ddk_audio.h" ] ||
         die "pinned Water lacks independent Win16 audio boundary"
     [ -f "$water_inc/ddk/win95rtm/win16_abi.h" ] ||
