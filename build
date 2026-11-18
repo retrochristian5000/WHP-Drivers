@@ -386,6 +386,21 @@ test_amd12_pcie_topology() {
         die "AMD12 PCIe topology regression failed"
 }
 
+# PCI DOS memory safety: synthetic BAR/window checks, no host PCI access.
+test_pci_dos_memory() {
+    need cc
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    cc -std=c11 -Wall -Wextra -Werror \
+        -I"$root/drivers/bus/pci95" \
+        "$root/drivers/bus/pci95/pci_dos_memory.c" \
+        "$root/tests/pci-dos-memory.c" \
+        -o "$out_dir/pci-dos-memory-host-test" ||
+        die "DOS PCI memory audit test compilation failed"
+    "$out_dir/pci-dos-memory-host-test" ||
+        die "DOS PCI memory audit regression failed"
+}
+
 # Optional 16-bit DOS MZ .EXE. Never executes it on the build host.
 # Requires the pinned OpenWatcom DOS compiler/linker/runtime library.
 dos_pci_build() {
@@ -413,6 +428,11 @@ dos_pci_build() {
                 "$root/drivers/bus/pci95/$source.c" ||
                 die "DOS PCI source failed: $source.c"
         done
+        "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
+            "-i=$root/drivers/bus/pci95" \
+            "-fo=$out_dir/pci_dos_memory.obj" \
+            "$root/drivers/bus/pci95/pci_dos_memory.c" ||
+            die "DOS PCI memory audit compilation failed"
         "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
             "-i=$root/drivers/bus/pci95" \
             "-fo=$out_dir/amd12_topology.obj" \
@@ -451,6 +471,7 @@ dos_pci_build() {
             "libpath $watcom_root/lib286/dos" \
             "file $out_dir/pci_bios_read.obj" \
             "file $out_dir/pci_bridge.obj" \
+            "file $out_dir/pci_dos_memory.obj" \
             "file $out_dir/amd12_topology.obj" \
             "file $out_dir/identity.obj" \
             "file $out_dir/sata_identity.obj" \
@@ -941,6 +962,7 @@ case "${1:-}" in
     test-rtl8111e-pci-snapshot) test_rtl8111e_pci_snapshot ;;
     test-pci95-bridge) test_pci95_bridge ;;
     test-amd12-pcie-topology) test_amd12_pcie_topology ;;
+    test-pci-dos-memory) test_pci_dos_memory ;;
     test-pci95-bios-read) test_pci95_bios_read ;;
     test-dos-version) test_dos_version ;;
     test-fch-sata-identity) test_fch_sata_identity ;;
@@ -960,5 +982,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci95-bios-read|test-dos-version|test-fch-sata-identity|test-usb-pci-hci|test-dos-mz|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-dos-version|test-fch-sata-identity|test-usb-pci-hci|test-dos-mz|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
