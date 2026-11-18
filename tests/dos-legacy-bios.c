@@ -55,6 +55,9 @@ int main(void)
     CHECK(!whp_dos_legacy_pci_isa_bridge(pci, 63u));
     pci[0x0bu] = 0x06u;
     pci[0x0au] = 0x01u;
+    CHECK(!whp_dos_legacy_pci_isa_bridge(pci, sizeof(pci)));
+    pci[0] = 0x22u;
+    pci[1] = 0x10u;
     CHECK(whp_dos_legacy_pci_isa_bridge(pci, sizeof(pci)));
     pci[0x0eu] = 1u;
     CHECK(!whp_dos_legacy_pci_isa_bridge(pci, sizeof(pci)));
