@@ -74,10 +74,13 @@ enum whp_hda_regs_result whp_hda_decode_regs(
     s.major = regs[3u];
     if (s.major != 1u)
         return WHP_HDA_REGS_UNSUPPORTED_VERSION;
+    /* GCAP NSDO: 00 = 1, 01 = 2, 10 = 4, 11 = reserved. */
+    if (((s.gcap >> 1) & 3u) == 3u)
+        return WHP_HDA_REGS_RESERVED_CAPABILITY;
     s.output_streams = (uint8_t)((s.gcap >> 12) & 0xfu);
     s.input_streams = (uint8_t)((s.gcap >> 8) & 0xfu);
     s.bidir_streams = (uint8_t)((s.gcap >> 3) & 0x1fu);
-    s.serial_data_outputs = (uint8_t)(((s.gcap >> 1) & 3u) + 1u);
+    s.serial_data_outputs = (uint8_t)(1u << ((s.gcap >> 1) & 3u));
     s.supports_64bit = (uint8_t)(s.gcap & 1u);
     s.gctl = read32(regs + 0x08u);
     s.statests = read16(regs + 0x0eu);
