@@ -766,6 +766,7 @@ case "${1:-}" in
     test-rtl8111e-pci-snapshot) test_rtl8111e_pci_snapshot ;;
     test-pci95-bridge) test_pci95_bridge ;;
     test-pci95-bios-read) test_pci95_bios_read ;;
+    test-dos-mz) need python3; python3 -m unittest discover -s "$root/tests" -p 'test_dos_mz.py' ;;
     dos-pci-build) dos_pci_build ;;
     rtl8111e-inf-check) rtl8111e_inf_check ;;
     inf-check) radeon_inf_check; rtl8111e_inf_check ;;
@@ -780,5 +781,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-pci95-bios-read|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-pci95-bios-read|test-dos-mz|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
