@@ -166,6 +166,7 @@ run_fast_tests() {
         step test-hda-probe
         step test-pci95-bridge
         step test-amd12-pcie-topology
+        step test-pci-dos-memory
         step test-pci95-bios-read
         step test-rtl8111e-pci-snapshot
         step test-dos-mz
