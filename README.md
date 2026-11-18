@@ -1090,6 +1090,8 @@ between our portable PCI decoders and a machine's firmware. It is
 selected, pinned OpenWatcom 16-bit DOS compiler and DOS runtime.
 It is **not** a TSR, DOS device driver, PCI.VXD replacement, NIC
 miniport or chipset initialization code.
+The DOS linker reserves an explicit 8 KiB conventional-memory stack
+for the C runtime and BIOS calls; that footprint is a deliberate cost.
 
 The utility checks the historical PCI BIOS installation function
 `INT 1Ah, AX=B101h` and uses the **read-only** configuration-word
@@ -1113,7 +1115,13 @@ can show whether the firmware exposes the NIC and its upstream bridges
 independently of Windows 95 protected-mode PCI.VXD and NDIS. A DOS
 prompt *inside* a running Windows 95 desktop is not equivalent.
 A DOSBox guest examines the emulator's virtual firmware and PCI bus,
-not the physical Pavilion. A PCI BIOS failure does not prove there
+not the physical Pavilion.
+Windows 95 can also run some real-mode NDIS 2 network adapter drivers
+through `NDIS2SUP.VXD`, but that compatibility path has its own
+conventional-memory, mode-transition and configuration costs. It is
+**not** equivalent to an NDIS 3.1 RTL8111E miniport and does not make
+an unenumerated PCIe controller automatically usable.
+ A PCI BIOS failure does not prove there
 is no PCIe hardware: a firmware implementation may omit this legacy
 interface. Successful DOS visibility also does not establish that
 Windows 95 RTM enumerates the device or has working IRQ/resource routing.
@@ -1174,6 +1182,7 @@ Historical contracts:
 - Read Configuration Word B109h: https://www.delorie.com/djgpp/doc/rbinter/id/86/23.html
 - OpenWatcom 16-bit DOS tools: https://open-watcom.github.io/open-watcom-v2-wikidocs/cguide.html
 - Windows 95 Restart in MS-DOS Mode: https://www.betaarchive.com/wiki/index.php/Microsoft_KB_Archive/138996
+- NDIS 2 real-mode compatibility via NDIS2SUP.VXD: https://techshelps.github.io/MSDN/DNWIN95/HTML/S637B.HTM
 
 ### AMD A55 / Windows 95 PCI-to-PCI bridge preflight (2026-11-18)
 
