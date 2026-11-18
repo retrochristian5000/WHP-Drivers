@@ -23,9 +23,10 @@ Use `./build.sh` as the new top-level entry point; the historical executable
 ./build.sh bootstrap-all      # build both pinned toolchains
 WHP_DRIVER_PROFILE=dos-pci ./build.sh plan      # DOS-only plan
 WHP_DRIVER_PROFILE=dos-pci ./build.sh build     # opt-in DOS MZ executable
+WHP_DRIVER_PROFILE=hda ./build.sh test-fast  # HDA PCI/GCAP host-only checks
 ```
 
-The menu selects one workflow (`abi`, `vxd`, `radeon6410d`, `rtl8111e`, `dos-pci`, or `all`),
+The menu selects one workflow (`abi`, `vxd`, `radeon6410d`, `rtl8111e`, `hda`, `dos-pci`, or `all`),
 the VxD backend (`llvm` or optional `openwatcom`), and **independent**
 toolchain bootstrap (`off`, `llvm`, `openwatcom`, or `both`), plus LLVM
 parallel jobs (1–16, default 2). Earlier `WHP_DRIVER_BOOTSTRAP=on` profiles
@@ -604,6 +605,101 @@ Source trail:
 - Microsoft Win95 DDK network model: https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D14.HTM
 - Windows 95 versus Windows for Workgroups NDIS: https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D16.HTM
 - NT 3.51 DDK network design: https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D04.HTM
+## HD Audio / AMD FCH Azalia research target (2026-11-18)
+
+The HP Pavilion p6-2310 (H3Y76AA) product specification advertises
+**High Definition Audio with up to 5.1 channels** and the **AMD A55
+Fusion Controller Hub (FCH)**. The AMD FCH Azalia PCI controller
+`1022:780D` is a **hardware-family candidate**, not yet a confirmed
+Pavilion-specific PCI device. Additional HDA-class devices (for
+example, display/HDMI audio) must remain separate PCI functions.
+The **onboard HDA codec identity and widget topology are unknown**.
+Do not infer an ALC662/ALC8xx/IDT/Conexant codec from an FCH PCI ID.
+In particular, third-party listings naming Realtek **ALC655/656**
+conflict with HDA assumptions: ALC655 is an **AC'97** codec.
+Never interchange AC'97 registers, Intel HDA controller registers,
+or HDA codec verbs without a verified hardware witness.
+
+`drivers/audio/hda/hda_probe.[ch]` is a real **source-level research
+module**, but not a usable sound driver. Its first layer decodes
+externally captured 64-byte PCI type-0 configuration snapshots and
+accepts only standard HDA class/subclass/programming interface
+`04:03:00`. It retains vendor/device/revision/subsystem IDs,
+PCI command/status, IRQ line/pin and BAR0/BAR1 evidence. BAR decoding
+distinguishes unassigned, I/O, invalid, 32-bit MMIO and 64-bit MMIO
+resources; decoded addresses are **not valid mappings**. The class
+match cannot prove sound output or codec identity.
+
+The second layer decodes **separately acquired 96-byte HDA MMIO
+snapshots**, with GCAP, HDA spec version, GCTL, STATESTS, stream
+counts, serial data outputs, 64-bit DMA addressing and reported CORB/
+RIRB ring-size capability bits. This snapshot is **not** PCI
+configuration space, and must be provided by a separately validated
+OS/firmware mapping. These read-only values are not evidence of
+initialized DMA engines, connected audio pins, valid amplifier
+routing, or functioning interrupt delivery. The probe does not
+reconfigure GCTL, reset HDA, touch wake/status W1C bits, submit
+codec verbs, initialize CORB/RIRB, turn on bus mastering, install
+drivers, or play sound.
+
+Run the cheapest regression route first (host C compiler; no LLVM,
+OpenWatcom, DOS emulator or actual sound hardware):
+
+```sh
+./build test-hda-probe
+WHP_DRIVER_PROFILE=hda ./build.sh test-fast
+WHP_DRIVER_PROFILE=hda ./build.sh plan
+```
+
+To also verify the portable source compiles into an **i386 Windows
+COFF object** using the already built, pinned WHP LLVM:
+
+```sh
+WHP_DRIVER_PROFILE=hda ./build.sh incremental
+```
+
+The new HDA profile is included in `all` as a small compile-only
+smoke check, but is never considered an installable Win95 driver.
+The existing `WHPPCI.EXE` DOS PCI BIOS inventory has also been
+extended to *report* `04:03:00` HDA-class endpoints and flag
+`1022:780D` as an AMD FCH candidate. It performs **no HDA MMIO
+reads**. A DOS PCI listing, Windows 95 DOS prompt and real Windows
+95 protected-mode enumeration are independent evidence, not
+interchangeable runtime tests.
+
+Next, gather the actual Pavilion PCI hardware tuple and an
+independently authorized, read-only MMIO snapshot on a suitable
+operating system. Only then evaluate codec link presence, codec
+vendor/subsystem ID, nodes, amplifier/pin widgets and safe mixer
+paths. A *working* Win95 RTM sound implementation also requires
+an HDA bus/controller driver, appropriate VxD/Win16 multimedia
+bridge, IRQ/DMA serialization and cache coherency, codec control,
+correct speaker-jack routing, period-compatible DDK and loader
+tests, and a reversible INF setup path. A DOS diagnostics target
+cannot make HDA into a legacy Sound Blaster card; SB/FM emulation,
+if pursued, is a separate compatibility project.
+
+**Cost control:** Avoid rebuilding LLVM to test PCI/GCAP bitfields,
+avoid hardware writes while identity is uncertain, and do not buy
+or substitute a purported Realtek codec from a driver-download
+listing. Keep the HDA read-only tests alongside the established
+Windows 95 **Win16 audio DDK boundary** below without treating
+the older SB16 .DRV ABI as a turnkey HDA implementation.
+
+References:
+- HP Pavilion p6-2310 sound specifications:
+  https://www.newegg.com/hp-pavilion-p6-2310/p/N82E16883256196
+- AMD FCH Azalia PCI ID comparison:
+  https://cateee.net/lkddb/web-lkddb/SND_HDA.html
+- Intel HD Audio controller specification:
+  https://www.intel.la/content/dam/www/public/us/en/documents/product-specifications/high-definition-audio-specification.pdf
+- PCI HDA class programming interface:
+  https://pcisig.com/sites/default/files/files/PCI_Code-ID_r_1_12__v9_Jan_2020.pdf
+- Realtek ALC655 identifies as AC'97:
+  https://www.realtek.com/Product/Index?id=671
+- Microsoft UAA audio architecture:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/universal-audio-architecture
+
 ## Windows 95 RTM sound-driver DDK boundary
 
 Windows 95 RTM audio cards use traditional Win16 multimedia installable
