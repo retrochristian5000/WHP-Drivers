@@ -213,6 +213,39 @@ test_hda_probe() {
         die "HDA synthetic PCI/GCAP tests failed"
 }
 
+# The new HDA header is Water-owned. Check precisely the two relevant
+# historical boundaries, not an unrelated display/NDIS dependency tree.
+check_water_hda_headers() {
+    check_water_revision
+    [ -f "$water_inc/ddk/win95rtm/vmm.h" ] ||
+        die "pinned Water lacks Windows 95 RTM VMM boundary"
+    [ -f "$water_inc/ddk/win95rtm/audio/hda_regs.h" ] ||
+        die "pinned Water lacks HDA register reference (advance reviewed gitlink)"
+    [ -f "$water_inc/ddk/win95rtm/audio/ddk_audio.h" ] ||
+        die "pinned Water lacks independent Win16 audio boundary"
+    [ -f "$water_inc/ddk/win95rtm/win16_abi.h" ] ||
+        die "pinned Water lacks Win16 ABI width checks"
+}
+
+# Run on the host with native cc: no LLVM, Watcom or guest needed.
+# Unlike the standalone HDA PCI probe, this requires a checked-out,
+# exactly pinned Water submodule. Never use an implicit system fallback.
+test_hda_water_header() {
+    check_water_hda_headers
+    need cc
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    hda_dir="$root/drivers/audio/hda"
+    cc -std=c11 -Wall -Wextra -Werror \
+        -I"$water_inc" -I"$hda_dir" \
+        -DWHP_HDA_WATER_STANDALONE \
+        "$hda_dir/hda_probe.c" "$root/tests/hda-water-header.c" \
+        -o "$out_dir/hda-water-header-host-test" ||
+        die "Water HDA register contract host compilation failed"
+    "$out_dir/hda-water-header-host-test" ||
+        die "Water HDA register contract disagrees with WHP probe"
+}
+
 smoke_hda() {
     check_tools
     out_dir="$build_dir/whp-tests"
@@ -227,7 +260,19 @@ smoke_hda() {
         grep -q 'Machine: IMAGE_FILE_MACHINE_I386' ||
         die "HDA identity object is not i386 COFF"
     test_hda_probe
-    printf '%s\n' "WHP-Drivers: HDA PCI and register probes passed (no sound driver loaded)"
+    # Compile the Water-owned historical VMM and HDA register boundary as
+    # i386 COFF only; no Win95 VxD is linked or loaded.
+    test_hda_water_header
+    "$bin_dir/clang" --target=i386-pc-windows-msvc \
+        -std=c11 -ffreestanding -fno-builtin -fno-stack-protector \
+        -Wall -Wextra -Werror -I"$water_inc" -I"$hda_dir" -c \
+        "$root/tests/win95-hda-vxd-header.c" \
+        -o "$out_dir/win95-hda-vxd-header.obj" ||
+        die "Water Windows 95 RTM HDA/VMM header compilation failed"
+    "$bin_dir/llvm-readobj" --file-headers "$out_dir/win95-hda-vxd-header.obj" |
+        grep -q 'Machine: IMAGE_FILE_MACHINE_I386' ||
+        die "Water HDA/VMM header object is not i386 COFF"
+    printf '%s\n' "WHP-Drivers: portable HDA and Water Win95 RTM header probes passed (not a driver)"
 }
 
 smoke_radeon6410d() {
@@ -802,6 +847,7 @@ case "${1:-}" in
     smoke-radeon6410d) smoke_radeon6410d ;;
     smoke-hda) smoke_hda ;;
     test-hda-probe) test_hda_probe ;;
+    test-hda-water) test_hda_water_header ;;
     smoke-rtl8111e) smoke_rtl8111e ;;
     test-rtl8111e-pci-snapshot) test_rtl8111e_pci_snapshot ;;
     test-pci95-bridge) test_pci95_bridge ;;
@@ -821,5 +867,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-pci95-bios-read|test-dos-mz|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-pci95-bios-read|test-dos-mz|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
