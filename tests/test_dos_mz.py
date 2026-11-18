@@ -49,7 +49,7 @@ class TestMZ(unittest.TestCase):
             mod.verify_mz(bytes(image))
     def test_partial_page(self):
         image = fixture()
-        struct.pack_into("<H", image, 2, 60)
+        struct.pack_into("<H", image, 2, 20)
         with self.assertRaises(ValueError):
             mod.verify_mz(bytes(image))
 
