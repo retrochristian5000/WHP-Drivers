@@ -16,17 +16,23 @@ Use `./build.sh` as the new top-level entry point; the historical executable
 ./build.sh test-fast          # host regressions; does not build LLVM
 ./build.sh test               # full format, LE, and selected driver checks
 ./build.sh clean-tests        # remove generated test outputs, not toolchains
+./build.sh clean-dos-pci      # remove only DOS PCI build outputs
 ./build.sh test-menuconfig    # isolated shell-menu regression checks
 ./build.sh bootstrap          # explicitly compile the pinned LLVM fork
 ./build.sh bootstrap-watcom   # bootstrap pinned OpenWatcom host + release tools
 ./build.sh bootstrap-all      # build both pinned toolchains
+WHP_DRIVER_PROFILE=dos-pci ./build.sh plan      # DOS-only plan
+WHP_DRIVER_PROFILE=dos-pci ./build.sh build     # opt-in DOS MZ executable
 ```
 
-The menu selects one workflow (`abi`, `vxd`, `radeon6410d`, `rtl8111e`, or `all`),
+The menu selects one workflow (`abi`, `vxd`, `radeon6410d`, `rtl8111e`, `dos-pci`, or `all`),
 the VxD backend (`llvm` or optional `openwatcom`), and **independent**
 toolchain bootstrap (`off`, `llvm`, `openwatcom`, or `both`), plus LLVM
 parallel jobs (1–16, default 2). Earlier `WHP_DRIVER_BOOTSTRAP=on` profiles
 are accepted and interpreted as `llvm`; `off` remains the default.
+The `dos-pci` profile uses pinned OpenWatcom's 16-bit DOS compiler and is
+not implicitly added to the existing `all` profile. Ordinary
+`test-fast` DOS checks use only host C/Python, not a DOS emulator or LLVM.
 The Radeon identity profile remains LLVM-based; the backend choice affects
 **only the VxD smoke probe**. OpenWatcom is never a silent fallback, and
 the VxD backend must pass its own LE verification. OpenWatcom bootstrap
