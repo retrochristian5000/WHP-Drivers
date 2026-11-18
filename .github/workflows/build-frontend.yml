@@ -93,11 +93,15 @@ jobs:
           [ "$upstream" = "https://github.com/retrochristian5000/water.git" ]
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
-          mkdir -p "$tmp/ddk/win95rtm/audio"
+          mkdir -p "$tmp/ddk/win95rtm/audio" "$tmp/ddk/hda"
           curl --fail --silent --show-error --location \
                --retry 2 --connect-timeout 10 --max-time 30 \
                "https://raw.githubusercontent.com/retrochristian5000/water/$pinned/include/ddk/win95rtm/audio/hda_regs.h" \
                -o "$tmp/ddk/win95rtm/audio/hda_regs.h"
+          curl --fail --silent --show-error --location \
+               --retry 2 --connect-timeout 10 --max-time 30 \
+               "https://raw.githubusercontent.com/retrochristian5000/water/$pinned/include/ddk/hda/hda_regs.h" \
+               -o "$tmp/ddk/hda/hda_regs.h"
           cc -std=c11 -Wall -Wextra -Werror \
              -DWHP_HDA_WATER_STANDALONE \
              -I"$tmp" -Idrivers/audio/hda \
