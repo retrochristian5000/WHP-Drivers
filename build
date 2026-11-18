@@ -256,7 +256,13 @@ dos_pci_build() {
     [ -d "$watcom_root/lib286/dos" ] ||
         die "OpenWatcom 16-bit DOS runtime missing: $watcom_root/lib286/dos"
     out_dir="$root/.build/dos-pci"
+    [ ! -L "$root/.build" ] && [ ! -L "$out_dir" ] ||
+        die "DOS output path must not be a symlink"
+    [ ! -e "$out_dir" ] || [ -d "$out_dir" ] ||
+        die "DOS output path exists but is not a directory"
     mkdir -p "$out_dir"
+    # Do not leave a previous valid-looking EXE after a failed link.
+    rm -f "$out_dir/WHPPCI.EXE"
     (
         export WATCOM="$watcom_root"
         export INCLUDE="$watcom_root/h"
