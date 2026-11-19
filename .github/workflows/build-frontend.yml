@@ -29,6 +29,7 @@ on:
       - tests/pci95-bios-read.c
       - tests/pci-config-registers.c
       - tests/probe-menu.c
+      - tests/dos-memory-survey.c
       - tests/test_dos_mz.py
   pull_request:
     paths:
@@ -58,6 +59,7 @@ on:
       - tests/pci95-bios-read.c
       - tests/pci-config-registers.c
       - tests/probe-menu.c
+      - tests/dos-memory-survey.c
       - tests/test_dos_mz.py
   workflow_dispatch:
 
