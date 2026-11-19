@@ -6,12 +6,15 @@
 #error "Build this DOS entry point with OpenWatcom 16-bit wcc"
 #endif
 #include <i86.h>
+#include <conio.h>
+#include <io.h>
 #include <stdio.h>
 #include <string.h>
 #include "pci_bios_read.h"
 #include "pci_bridge.h"
 #include "pci_dos_memory.h"
 #include "pci_config_report.h"
+#include "probe_menu.h"
 #include "amd12_topology.h"
 #include "rtl8111e.h"
 #include "dos_version.h"
@@ -338,7 +341,7 @@ static void print_pci_registers(const uint8_t *cfg, unsigned int length)
     }
 }
 
-int main(int argc, char **argv)
+static int run_report(int show_all_pci)
 {
     struct whp_pci95_bios_reader reader;
     enum whp_pci95_bios_result result;
@@ -348,15 +351,7 @@ int main(int argc, char **argv)
     unsigned int id_vendor, id_device, cls, subclass;
     int wanted_bridge, wanted_nic, wanted_hda, wanted_storage, wanted_usb, wanted_isa_bridge;
     unsigned int conventional_kb;
-    int show_all_pci = 0;
 
-    if (argc == 2 && (strcmp(argv[1], "--all-pci") == 0 ||
-                      strcmp(argv[1], "/A") == 0))
-        show_all_pci = 1;
-    else if (argc != 1) {
-        puts("Usage: WHPPROBE [/A|--all-pci]");
-        return 2;
-    }
     report_dos_version();
     probe_legacy_bios();
     conventional_kb = bios_conventional_memory_kb();
@@ -606,4 +601,243 @@ int main(int argc, char **argv)
            found_bridges, found_isa_bridges, found_nics, found_hda, found_storage, found_usb, read_errors);
     puts("A DOS PCI BIOS result is not Windows 95 PCI.VXD/NDIS validation.");
     return read_errors ? 1 : 0;
+}
+
+/* Only interactive screen presentation touches video BIOS. Redirection,
+ * report printing and the original PCI read-only transport stay unchanged.
+ */
+static void menu_clear(void)
+{
+    union REGS inregs, outregs;
+    unsigned int mode, columns;
+    fflush(stdout);
+    memset(&inregs, 0, sizeof(inregs));
+    memset(&outregs, 0, sizeof(outregs));
+    inregs.h.ah = 0x0fu;
+    int86(0x10, &inregs, &outregs);
+    mode = outregs.h.al & 0x7fu;
+    columns = outregs.h.ah;
+    if (mode > 3u && mode != 7u) {
+        puts("\n----------------------------------------");
+        return;
+    }
+    memset(&inregs, 0, sizeof(inregs));
+    inregs.w.ax = 0x0600u;
+    inregs.h.bh = 7u;
+    inregs.w.cx = 0u;
+    inregs.h.dh = 24u;
+    inregs.h.dl = (uint8_t)(columns > 0u && columns <= 80u ?
+                            columns - 1u : 79u);
+    int86(0x10, &inregs, &outregs);
+    memset(&inregs, 0, sizeof(inregs));
+    inregs.h.ah = 2u;
+    inregs.w.dx = 0u;
+    int86(0x10, &inregs, &outregs);
+}
+
+static int menu_read_key(void)
+{
+    int key;
+    fflush(stdout);
+    key = getch();
+    if (key == 0 || key == 0xe0)
+        return 0x100 | getch();
+    return key;
+}
+
+static void menu_header(const char *title)
+{
+    puts("WHP Diagnostics - DOS System Probe");
+    puts("==================================");
+    puts(title);
+    puts("----------------------------------");
+}
+
+static void menu_pause(void)
+{
+    puts("\n[Enter/Esc] Return to menu");
+    for (;;) {
+        int key = menu_read_key();
+        if (key == 13 || key == 27)
+            return;
+    }
+}
+
+/* Display only one matching PCI function, and defer its 256-byte
+ * configuration read until requested. Never dereference BAR addresses.
+ */
+static int menu_device(const struct whp_pci95_bios_reader *reader,
+                       unsigned int bus, unsigned int dev,
+                       unsigned int fn, unsigned int index)
+{
+    unsigned int vendor, device, snapshot_size;
+    enum whp_pci95_bios_result result;
+    int key;
+    vendor = (unsigned int)config_bytes[0] |
+             ((unsigned int)config_bytes[1] << 8);
+    device = (unsigned int)config_bytes[2] |
+             ((unsigned int)config_bytes[3] << 8);
+    menu_clear();
+    menu_header("PCI function summary");
+    printf("Device %u: bus %u, device %u, function %u\n",
+           index, bus, dev, fn);
+    printf("PCI ID %04X:%04X    Revision %02Xh\n",
+           vendor, device, (unsigned int)config_bytes[8]);
+    printf("Class %02X:%02X:%02X    Header %02Xh\n",
+           (unsigned int)config_bytes[11], (unsigned int)config_bytes[10],
+           (unsigned int)config_bytes[9], (unsigned int)config_bytes[14]);
+    puts("A PCI identity does not establish a working driver.");
+    puts("\n[R] Registers  [Enter/N] Next device  [Esc/Q] Menu");
+    for (;;) {
+        key = menu_read_key();
+        if (key == 27 || key == 'q' || key == 'Q')
+            return 0;
+        if (key == 13 || key == 'n' || key == 'N')
+            return 1;
+        if (key == 'r' || key == 'R')
+            break;
+    }
+
+    /* The transport preserves the original 64-byte header on failure. */
+    snapshot_size = 64u;
+    result = whp_pci95_bios_read_config(reader, (uint8_t)bus,
+                 (uint8_t)((dev << 3) | fn), config_bytes, 256u);
+    if (result == WHP_PCI95_BIOS_OK)
+        snapshot_size = 256u;
+    menu_clear();
+    menu_header("Standard PCI configuration registers");
+    printf("%u:%02u.%u  ID %04X:%04X\n", bus, dev, fn, vendor, device);
+    if (snapshot_size == 64u)
+        puts("Extended snapshot unavailable: header registers only.");
+    print_pci_registers(config_bytes, snapshot_size);
+    puts("\n[Enter/N] Next device  [Esc/Q] Menu");
+    for (;;) {
+        key = menu_read_key();
+        if (key == 27 || key == 'q' || key == 'Q')
+            return 0;
+        if (key == 13 || key == 'n' || key == 'N')
+            return 1;
+    }
+}
+
+static void menu_pci(unsigned int section)
+{
+    struct whp_pci95_bios_reader reader;
+    enum whp_pci95_bios_result result;
+    unsigned int last_bus, version, bus, dev, fn, multifn, devfn;
+    unsigned int matches = 0u, errors = 0u;
+    menu_clear();
+    menu_header(whp_probe_menu_label(section));
+    puts("Reading PCI BIOS configuration headers...");
+    fflush(stdout);
+    if (!pci_bios_installed(&last_bus, &version)) {
+        puts("No usable PCI BIOS service. Hardware presence is unknown.");
+        menu_pause();
+        return;
+    }
+    reader.read_word = bios_word;
+    reader.context = 0;
+    for (bus = 0u; bus <= last_bus; ++bus) {
+        for (dev = 0u; dev < 32u; ++dev) {
+            multifn = 0u;
+            for (fn = 0u; fn < 8u; ++fn) {
+                if (fn && !multifn)
+                    break;
+                devfn = (dev << 3) | fn;
+                result = whp_pci95_bios_read_config(&reader, (uint8_t)bus,
+                                (uint8_t)devfn, config_bytes, 64u);
+                if (result == WHP_PCI95_BIOS_NO_DEVICE) {
+                    if (!fn)
+                        break;
+                    continue;
+                }
+                if (result != WHP_PCI95_BIOS_OK) {
+                    ++errors;
+                    if (!fn)
+                        break;
+                    continue;
+                }
+                if (!fn)
+                    multifn = (config_bytes[14] & 0x80u) != 0u;
+                if (!whp_probe_menu_matches(section, config_bytes, 64u))
+                    continue;
+                ++matches;
+                if (!menu_device(&reader, bus, dev, fn, matches))
+                    return;
+            }
+        }
+    }
+    menu_clear();
+    menu_header(whp_probe_menu_label(section));
+    printf("Completed: %u match(es), %u read error(s).\n", matches, errors);
+    puts("Neither PCI configuration nor device state was modified.");
+    menu_pause();
+}
+
+static int menu_main(void)
+{
+    unsigned int selected = 1u, i;
+    enum whp_probe_menu_action action;
+    for (;;) {
+        menu_clear();
+        menu_header("Main menu");
+        for (i = 1u; i <= 9u; ++i)
+            printf(" %c %u. %s\n", i == selected ? '>' : ' ',
+                   i, whp_probe_menu_label(i));
+        puts("\n[Up/Down] Select [Enter/1-9] Open [Esc/0] Exit");
+        puts("Batch reports: WHPPROBE /R or WHPPROBE /A");
+        puts("Read-only inspection; no driver installation.");
+        action = whp_probe_menu_key(&selected, menu_read_key());
+        if (action == WHP_MENU_EXIT) {
+            menu_clear();
+            return 0;
+        }
+        if (action != WHP_MENU_OPEN)
+            continue;
+        if (selected == 1u) {
+            unsigned int kb;
+            menu_clear();
+            menu_header(whp_probe_menu_label(selected));
+            report_dos_version();
+            kb = bios_conventional_memory_kb();
+            if (kb)
+                printf("Conventional memory boundary: %u KiB\n", kb);
+            else
+                puts("Conventional memory boundary unavailable.");
+            puts("Boundary does not measure free RAM.");
+            menu_pause();
+        } else if (selected == 2u) {
+            menu_clear();
+            menu_header(whp_probe_menu_label(selected));
+            probe_legacy_bios();
+            menu_pause();
+        } else {
+            menu_pci(selected);
+        }
+    }
+}
+
+int main(int argc, char **argv)
+{
+    if (argc == 2 && (strcmp(argv[1], "/R") == 0 ||
+                      strcmp(argv[1], "--report") == 0))
+        return run_report(0);
+    if (argc == 2 && (strcmp(argv[1], "/A") == 0 ||
+                      strcmp(argv[1], "--all-pci") == 0))
+        return run_report(1);
+    if (argc == 2 && (strcmp(argv[1], "/?") == 0 ||
+                      strcmp(argv[1], "--help") == 0)) {
+        puts("WHPPROBE [/R|/A|/?]");
+        puts("No option: DOS menu when interactive; report if redirected.");
+        puts("/R = standard report; /A = all PCI registers.");
+        return 0;
+    }
+    if (argc != 1) {
+        puts("Invalid option. Run WHPPROBE /?");
+        return 2;
+    }
+    /* Preserve WHPPROBE > PCI.TXT without screen clearing or key input. */
+    if (!isatty(fileno(stdin)) || !isatty(fileno(stdout)))
+        return run_report(0);
+    return menu_main();
 }
