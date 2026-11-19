@@ -61,7 +61,7 @@ printf 'dos-pci-build\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=dos-pci "$tmp/build.sh" test-fast
-printf 'test-dos-version\ntest-dos-legacy-bios\ntest-fch-sata-identity\ntest-usb-pci-hci\ntest-hda-probe\ntest-pci95-bridge\ntest-amd12-pcie-topology\ntest-pci-dos-memory\ntest-pci95-bios-read\ntest-rtl8111e-pci-snapshot\ntest-dos-mz\n' > "$tmp/expected"
+printf 'test-dos-version\ntest-dos-legacy-bios\ntest-fch-sata-identity\ntest-usb-pci-hci\ntest-hda-probe\ntest-pci95-bridge\ntest-amd12-pcie-topology\ntest-pci-dos-memory\ntest-pci95-bios-read\ntest-pci-config-registers\ntest-rtl8111e-pci-snapshot\ntest-dos-mz\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=dos-pci "$tmp/build.sh" plan > "$tmp/dos-plan"
@@ -76,7 +76,7 @@ printf 'dos-probe-build\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=dos-probe "$tmp/build.sh" test-fast
-printf 'test-dos-version\ntest-dos-legacy-bios\ntest-fch-sata-identity\ntest-usb-pci-hci\ntest-hda-probe\ntest-pci95-bridge\ntest-amd12-pcie-topology\ntest-pci-dos-memory\ntest-pci95-bios-read\ntest-rtl8111e-pci-snapshot\ntest-dos-mz\n' > "$tmp/expected"
+printf 'test-dos-version\ntest-dos-legacy-bios\ntest-fch-sata-identity\ntest-usb-pci-hci\ntest-hda-probe\ntest-pci95-bridge\ntest-amd12-pcie-topology\ntest-pci-dos-memory\ntest-pci95-bios-read\ntest-pci-config-registers\ntest-rtl8111e-pci-snapshot\ntest-dos-mz\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=dos-probe "$tmp/build.sh" plan > "$tmp/probe-plan"
