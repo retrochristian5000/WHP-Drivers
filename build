@@ -480,6 +480,11 @@ dos_probe_build() {
             die "DOS version classification compilation failed"
         "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
             "-i=$root/tools/dos" \
+            "-fo=$out_dir/memory_survey.obj" \
+            "$root/tools/dos/memory_survey.c" || \
+            die "DOS memory survey compilation failed"
+        "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
+            "-i=$root/tools/dos" \
             "-fo=$out_dir/probe_menu.obj" \
             "$root/tools/dos/probe_menu.c" || \
             die "DOS probe menu compilation failed"
@@ -506,6 +511,7 @@ dos_probe_build() {
             "file $out_dir/legacy_bios.obj" \
             "file $out_dir/whpprobe.obj" \
             "file $out_dir/probe_menu.obj" \
+            "file $out_dir/memory_survey.obj" \
             "name $out_dir/WHPPROBE.EXE" ||
             die "DOS hardware probe MZ EXE linking failed"
     )
@@ -515,6 +521,21 @@ dos_probe_build() {
     python3 "$root/tools/verify_dos_mz.py" "$out_dir/WHPPROBE.EXE" ||
         die "DOS PCI output did not pass MZ structural preflight"
     printf '%s\n' "WHP-Drivers: DOS hardware probe built ($out_dir/WHPPROBE.EXE; real hardware NOT tested)"
+}
+
+# Pure synthetic memory-resource analysis with no DOS or hardware calls.
+test_dos_memory_survey() {
+    need cc
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    cc -std=c11 -Wall -Wextra -Werror \
+        -I"$root/tools/dos" \
+        "$root/tools/dos/memory_survey.c" \
+        "$root/tests/dos-memory-survey.c" \
+        -o "$out_dir/dos-memory-survey-host-test" ||
+        die "DOS memory survey host compilation failed"
+    "$out_dir/dos-memory-survey-host-test" ||
+        die "DOS memory survey synthetic regression failed"
 }
 
 # Fast host-side synthetic menu/category tests, independent of DOS.
@@ -1024,6 +1045,7 @@ case "${1:-}" in
     test-pci95-bios-read) test_pci95_bios_read ;;
     test-pci-config-registers) test_pci_config_registers ;;
     test-probe-menu) test_probe_menu ;;
+    test-dos-memory-survey) test_dos_memory_survey ;;
     test-dos-version) test_dos_version ;;
     test-dos-legacy-bios) test_dos_legacy_bios ;;
     test-fch-sata-identity) test_fch_sata_identity ;;
@@ -1043,5 +1065,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-pci-config-registers|test-probe-menu|test-dos-version|test-dos-legacy-bios|test-fch-sata-identity|test-usb-pci-hci|test-dos-mz|dos-probe-build|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-pci-config-registers|test-probe-menu|test-dos-memory-survey|test-dos-version|test-dos-legacy-bios|test-fch-sata-identity|test-usb-pci-hci|test-dos-mz|dos-probe-build|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
