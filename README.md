@@ -1633,8 +1633,10 @@ WHP_DRIVER_PROFILE=dos-probe ./build.sh incremental
 
 #### Read-only memory-resource survey
 
-Choose **DOS version and memory** from the WHPPROBE menu to inspect
-firmware-reported memory boundaries and compare them with PCI BAR starts.
+Choose **DOS version and memory** from the WHPPROBE menu, then press
+**M** to run the on-demand memory resource survey. It compares
+firmware-reported memory boundaries with PCI BAR start addresses, without
+scanning the bus simply because the DOS-version page was opened.
 The report gathers INT 12h, BDA 0040:0013h, the tentative EBDA segment
 at 0040:000Eh (which may also be LPT4), and INT 15h AH=88h as a
 **legacy, incomplete** extended-memory estimate. A missing value is
