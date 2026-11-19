@@ -28,6 +28,7 @@ on:
       - tools/verify_dos_mz.py
       - tests/pci95-bios-read.c
       - tests/pci-config-registers.c
+      - tests/probe-menu.c
       - tests/test_dos_mz.py
   pull_request:
     paths:
@@ -56,6 +57,7 @@ on:
       - tools/verify_dos_mz.py
       - tests/pci95-bios-read.c
       - tests/pci-config-registers.c
+      - tests/probe-menu.c
       - tests/test_dos_mz.py
   workflow_dispatch:
 

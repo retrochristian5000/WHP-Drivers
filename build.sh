@@ -171,6 +171,7 @@ run_fast_tests() {
         step test-pci-dos-memory
         step test-pci95-bios-read
         step test-pci-config-registers
+        step test-probe-menu
         step test-rtl8111e-pci-snapshot
         step test-dos-mz
         return
