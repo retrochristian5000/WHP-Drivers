@@ -1,0 +1,103 @@
+name: WHP-Drivers pinned LLVM build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/driver-build.yml
+      - .gitmodules
+      - build
+      - build.sh
+      - toolchains/llvm-project
+      - third_party/water
+      - drivers/**
+      - include/**
+      - packaging/win95rtm/**
+      - tests/whp-vxd-probe.c
+      - tests/i386-abi-probe.c
+      - tests/test_vxd_format.py
+      - tools/verify_vxd.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: whp-driver-build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+jobs:
+  pinned-llvm:
+    name: Build and verify experimental i386 artifacts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      WHP_LLVM_JOBS: "2"
+      WHP_DRIVER_PROFILE: all
+      WHP_DRIVER_BOOTSTRAP: "off"
+    steps:
+      - name: Checkout existing branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+
+      - name: Fetch exactly pinned LLVM and Water dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          git submodule update --init --depth 1 -- toolchains/llvm-project third_party/water
+          test "$(git -C toolchains/llvm-project rev-parse HEAD)" = "$(git rev-parse HEAD:toolchains/llvm-project)"
+          test "$(git -C third_party/water rev-parse HEAD)" = "$(git rev-parse HEAD:third_party/water)"
+
+      - name: Check build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          for tool in cmake ninja cc c++ python3 git; do
+            command -v "$tool" >/dev/null
+          done
+
+      - name: Build pinned LLVM X86 compiler and linker
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh ./build.sh bootstrap
+
+      - name: Build and test experimental driver objects and VxD
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh ./build.sh test
+
+      - name: Verify products and record exact source revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          output=.build/llvm-native/whp-tests
+          test -s "$output/WHPTEST.VXD"
+          test -s "$output/rtl8111e-miniport-core.obj"
+          test -s "$output/rtl8111e-dma-ring.obj"
+          test -s "$output/hda-probe.obj"
+          test -s "$output/radeon6410d-pci-id.obj"
+          sh ./build.sh verify-vxd "$output/WHPTEST.VXD"
+          {
+            printf 'WHP-Drivers commit: %s\n' "$(git rev-parse HEAD)"
+            printf 'LLVM gitlink: %s\n' "$(git rev-parse HEAD:toolchains/llvm-project)"
+            printf 'Water gitlink: %s\n' "$(git rev-parse HEAD:third_party/water)"
+            printf '%s\n' 'Artifacts: experimental i386 COFF objects and format-checked VxD'
+            printf '%s\n' 'Windows 95 RTM runtime and physical hardware: NOT TESTED'
+            printf '%s\n' 'DOS 16-bit WHPPROBE.EXE: NOT BUILT by this LLVM job'
+          } > "$output/BUILD-MANIFEST.txt"
+
+      - name: Upload verified build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: whp-drivers-experimental-i386-${{ github.sha }}
+          path: |
+            .build/llvm-native/whp-tests/*.obj
+            .build/llvm-native/whp-tests/*.VXD
+            .build/llvm-native/whp-tests/BUILD-MANIFEST.txt
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 6
