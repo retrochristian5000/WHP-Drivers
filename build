@@ -436,7 +436,7 @@ dos_probe_build() {
         export WATCOM="$watcom_root"
         export INCLUDE="$watcom_root/h"
         export LIB="$watcom_root/lib286/dos"
-        for source in pci_bios_read pci_bridge; do
+        for source in pci_bios_read pci_bridge pci_config_report; do
             "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
                 "-i=$root/drivers/bus/pci95" \
                 "-fo=$out_dir/$source.obj" \
@@ -491,6 +491,7 @@ dos_probe_build() {
             "libpath $watcom_root/lib286/dos" \
             "file $out_dir/pci_bios_read.obj" \
             "file $out_dir/pci_bridge.obj" \
+            "file $out_dir/pci_config_report.obj" \
             "file $out_dir/pci_dos_memory.obj" \
             "file $out_dir/amd12_topology.obj" \
             "file $out_dir/identity.obj" \
@@ -508,6 +509,21 @@ dos_probe_build() {
     python3 "$root/tools/verify_dos_mz.py" "$out_dir/WHPPROBE.EXE" ||
         die "DOS PCI output did not pass MZ structural preflight"
     printf '%s\n' "WHP-Drivers: DOS hardware probe built ($out_dir/WHPPROBE.EXE; real hardware NOT tested)"
+}
+
+# Portable, synthetic PCI configuration-register decoder test.
+test_pci_config_registers() {
+    need cc
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    cc -std=c11 -Wall -Wextra -Werror \
+        -I"$root/drivers/bus/pci95" \
+        "$root/drivers/bus/pci95/pci_config_report.c" \
+        "$root/tests/pci-config-registers.c" \
+        -o "$out_dir/pci-config-registers-host-test" ||
+        die "PCI configuration register host compilation failed"
+    "$out_dir/pci-config-registers-host-test" ||
+        die "PCI configuration register synthetic regression failed"
 }
 
 # Pure read-only PCI bridge topology regression: native host compiler only.
@@ -985,6 +1001,7 @@ case "${1:-}" in
     test-amd12-pcie-topology) test_amd12_pcie_topology ;;
     test-pci-dos-memory) test_pci_dos_memory ;;
     test-pci95-bios-read) test_pci95_bios_read ;;
+    test-pci-config-registers) test_pci_config_registers ;;
     test-dos-version) test_dos_version ;;
     test-dos-legacy-bios) test_dos_legacy_bios ;;
     test-fch-sata-identity) test_fch_sata_identity ;;
@@ -1004,5 +1021,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-dos-version|test-dos-legacy-bios|test-fch-sata-identity|test-usb-pci-hci|test-dos-mz|dos-probe-build|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-pci-config-registers|test-dos-version|test-dos-legacy-bios|test-fch-sata-identity|test-usb-pci-hci|test-dos-mz|dos-probe-build|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac

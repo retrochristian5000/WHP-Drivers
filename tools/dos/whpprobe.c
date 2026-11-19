@@ -11,6 +11,7 @@
 #include "pci_bios_read.h"
 #include "pci_bridge.h"
 #include "pci_dos_memory.h"
+#include "pci_config_report.h"
 #include "amd12_topology.h"
 #include "rtl8111e.h"
 #include "dos_version.h"
@@ -268,7 +269,76 @@ static void print_bar_memory(const uint8_t *cfg, size_t cfg_size,
     }
 }
 
-int main(void)
+/* Named fields come only from a BIOS-read PCI configuration snapshot.
+ * Never touch a BAR address, read device MMIO or infer active driver support.
+ */
+static void print_pci_registers(const uint8_t *cfg, unsigned int length)
+{
+    struct whp_pci_config_report r;
+    unsigned int index;
+    if (!whp_pci_config_report_decode(cfg, length, &r)) {
+        puts("    PCI configuration register report unavailable.");
+        return;
+    }
+    printf("    PCI registers 00h Vendor=%04Xh Device=%04Xh\n",
+           (unsigned int)r.vendor, (unsigned int)r.device);
+    printf("    PCI 04h Command=%04Xh Status=%04Xh; "
+           "08h Revision=%02Xh PI=%02Xh Subclass=%02Xh Class=%02Xh\n",
+           (unsigned int)r.command, (unsigned int)r.status,
+           (unsigned int)r.revision, (unsigned int)r.prog_if,
+           (unsigned int)r.subclass, (unsigned int)r.class_code);
+    printf("    PCI 0Ch CacheLine=%02Xh Latency=%02Xh Header=%02Xh BIST=%02Xh; "
+           "3Ch IRQ-line=%02Xh IRQ-pin=%02Xh\n",
+           (unsigned int)r.cache_line_size, (unsigned int)r.latency_timer,
+           (unsigned int)r.header_type, (unsigned int)r.bist,
+           (unsigned int)r.irq_line, (unsigned int)r.irq_pin);
+    for (index = 0u; index < r.bar_count; ++index)
+        printf("    PCI %02Xh BAR%u raw=%08lXh (size not probed)\n",
+               0x10u + index * 4u, index, (unsigned long)r.bars[index]);
+    if (r.layout == 0u)
+        printf("    PCI 2Ch SubsystemVendor=%04Xh SubsystemDevice=%04Xh\n",
+               (unsigned int)r.subsystem_vendor,
+               (unsigned int)r.subsystem_device);
+    else if (r.layout == 1u)
+        printf("    PCI 18h Primary=%u Secondary=%u Subordinate=%u "
+               "SecondaryLatency=%u; 3Eh BridgeControl=%04Xh\n",
+               (unsigned int)r.primary, (unsigned int)r.secondary,
+               (unsigned int)r.subordinate,
+               (unsigned int)r.secondary_latency,
+               (unsigned int)r.bridge_control);
+    switch (r.caps_status) {
+    case WHP_PCI_CAP_HEADER_ONLY:
+        printf("    PCI 34h CapPointer=%02Xh (header only; capabilities unread)\n",
+               (unsigned int)r.caps_pointer);
+        break;
+    case WHP_PCI_CAP_COMPLETE:
+        printf("    PCI 34h CapPointer=%02Xh (complete standard list)\n",
+               (unsigned int)r.caps_pointer);
+        if (r.pcie_cap_offset != 0u) {
+            printf("    PCIe capability at %02Xh flags=%04Xh\n",
+                   (unsigned int)r.pcie_cap_offset,
+                   (unsigned int)r.pcie_flags);
+            if (r.pcie_link_status_valid)
+                printf("    PCIe %02Xh LinkStatus=%04Xh "
+                       "speed-code=%u width=x%u DLL-active=%u "
+                       "(snapshot only)\n",
+                       (unsigned int)(r.pcie_cap_offset + 0x12u),
+                       (unsigned int)r.pcie_link_status,
+                       (unsigned int)(r.pcie_link_status & 0x0fu),
+                       (unsigned int)((r.pcie_link_status >> 4) & 0x3fu),
+                       (unsigned int)((r.pcie_link_status >> 13) & 1u));
+        }
+        break;
+    case WHP_PCI_CAP_MALFORMED:
+        puts("    PCI 34h capability chain malformed; no PCIe inference.");
+        break;
+    default:
+        puts("    PCI status does not advertise standard capabilities.");
+        break;
+    }
+}
+
+int main(int argc, char **argv)
 {
     struct whp_pci95_bios_reader reader;
     enum whp_pci95_bios_result result;
@@ -278,7 +348,15 @@ int main(void)
     unsigned int id_vendor, id_device, cls, subclass;
     int wanted_bridge, wanted_nic, wanted_hda, wanted_storage, wanted_usb, wanted_isa_bridge;
     unsigned int conventional_kb;
+    int show_all_pci = 0;
 
+    if (argc == 2 && (strcmp(argv[1], "--all-pci") == 0 ||
+                      strcmp(argv[1], "/A") == 0))
+        show_all_pci = 1;
+    else if (argc != 1) {
+        puts("Usage: WHPPROBE [/A|--all-pci]");
+        return 2;
+    }
     report_dos_version();
     probe_legacy_bios();
     conventional_kb = bios_conventional_memory_kb();
@@ -352,9 +430,15 @@ int main(void)
                              (config_bytes[0x0eu] & 0x7fu) == 0u;
                 if (!wanted_bridge && !wanted_nic && !wanted_hda &&
                     !wanted_storage && !wanted_usb && !wanted_isa_bridge) {
-                    if (cls == 0x06u && subclass == 0u)
+                    if (show_all_pci) {
+                        printf("%u:%02u.%u PCI %04X:%04X class=%02X:%02X:%02X\n",
+                               bus, dev, fn, id_vendor, id_device,
+                               cls, subclass, (unsigned int)config_bytes[9]);
+                        print_pci_registers(config_bytes, 64u);
+                    } else if (cls == 0x06u && subclass == 0u) {
                         printf("%u:%02u.%u host bridge %04X:%04X (not PCI type-1)\n",
                                bus, dev, fn, id_vendor, id_device);
+                    }
                     continue;
                 }
                 /* A full 256-byte snapshot is optional for capabilities.
@@ -514,6 +598,7 @@ int main(void)
                  * BIOS reconfiguration, physical dereferences, or DMA.
                  */
                 print_bar_memory(config_bytes, snapshot_size, conventional_kb);
+                print_pci_registers(config_bytes, snapshot_size);
             }
         }
     }

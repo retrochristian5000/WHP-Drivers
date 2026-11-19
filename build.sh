@@ -170,6 +170,7 @@ run_fast_tests() {
         step test-amd12-pcie-topology
         step test-pci-dos-memory
         step test-pci95-bios-read
+        step test-pci-config-registers
         step test-rtl8111e-pci-snapshot
         step test-dos-mz
         return
