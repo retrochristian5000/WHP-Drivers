@@ -1631,6 +1631,34 @@ WHP_DRIVER_PROFILE=dos-probe ./build.sh incremental
 ./build.sh clean-dos-probe              # cleans only DOS output artifacts
 ```
 
+#### Read-only memory-resource survey
+
+Choose **DOS version and memory** from the WHPPROBE menu to inspect
+firmware-reported memory boundaries and compare them with PCI BAR starts.
+The report gathers INT 12h, BDA 0040:0013h, the tentative EBDA segment
+at 0040:000Eh (which may also be LPT4), and INT 15h AH=88h as a
+**legacy, incomplete** extended-memory estimate. A missing value is
+reported as unknown; inconsistent conventional/EBDA boundaries are
+flagged rather than silently merged.
+
+```text
+WHPPROBE.EXE /M > MEMORY.TXT
+```
+
+The memory scan uses the preexisting read-only PCI BIOS transport and
+BAR decoder. Only **enabled PCI MMIO BAR base addresses** are checked
+against the credible conventional limit; raw BAR size and the actual
+memory allocation are unknown. A suspicious base inside conventional
+RAM is a **potential conflict**, not proof of a faulty driver. EBDA,
+low-memory gaps, the VGA aperture and ROM/UMB areas are distinguished
+without automatically treating intentional hardware mappings as errors.
+
+This does **not** sweep or modify RAM, test for failing DIMMs, locate
+all DOS allocations, inspect EMS/XMS or drivers' DMA buffers, or obtain
+the modern BIOS E820 physical-memory map. Windows 95 driver ownership
+and physical memory stability remain unverified. The /R and /A reports
+are unchanged; the memory survey is an additional opt-in report.
+
 #### Interactive DOS diagnostics menu
 
 `WHPPROBE.EXE` now opens an MSD-style **read-only** text menu when standard
