@@ -967,9 +967,19 @@ static int menu_main(void)
             else
                 puts("Conventional memory boundary unavailable.");
             puts("Boundary does not measure free RAM.");
-            puts("");
-            report_memory_resources(1);
-            menu_pause();
+            puts("\n[M] Memory/PCI resource survey   [Enter/Esc] Menu");
+            for (;;) {
+                int key = menu_read_key();
+                if (key == 13 || key == 27)
+                    break;
+                if (key == 'm' || key == 'M') {
+                    menu_clear();
+                    menu_header("Memory and PCI resource observations");
+                    report_memory_resources(1);
+                    menu_pause();
+                    break;
+                }
+            }
         } else if (selected == 2u) {
             menu_clear();
             menu_header(whp_probe_menu_label(selected));
