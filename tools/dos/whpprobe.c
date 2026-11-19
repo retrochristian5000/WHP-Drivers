@@ -13,6 +13,7 @@
 #include "pci_bios_read.h"
 #include "pci_bridge.h"
 #include "pci_dos_memory.h"
+#include "memory_survey.h"
 #include "pci_config_report.h"
 #include "probe_menu.h"
 #include "amd12_topology.h"
@@ -339,6 +340,167 @@ static void print_pci_registers(const uint8_t *cfg, unsigned int length)
         puts("    PCI status does not advertise standard capabilities.");
         break;
     }
+}
+
+/* Firmware memory/resource survey: no RAM patterns or memory allocation.
+ * Reads BIOS INT 12h / INT 15h AH=88h and BDA metadata only.
+ * The BAR comparison reuses the existing read-only PCI BIOS transport.
+ */
+static int report_memory_resources(int for_menu)
+{
+    struct whp_memory_firmware firmware;
+    struct whp_memory_survey summary;
+    union REGS inregs, outregs;
+    const volatile unsigned short __far *bda_word;
+    struct whp_pci95_bios_reader reader;
+    enum whp_pci95_bios_result result;
+    unsigned int last_bus, version, bus, dev, fn, multifunction, devfn;
+    unsigned int count = 0u, observations = 0u, errors = 0u, printed = 0u;
+    unsigned int limit = for_menu ? 3u : 24u;
+    unsigned int index, max_bars;
+    enum whp_memory_bar_notice notice;
+    const char *interpretation;
+
+    memset(&firmware, 0, sizeof(firmware));
+    memset(&inregs, 0, sizeof(inregs));
+    memset(&outregs, 0, sizeof(outregs));
+    int86(0x12, &inregs, &outregs);
+    firmware.int12_kb = (uint16_t)outregs.w.ax;
+
+    /* 0040:0013 is an ODD byte offset: never index a word array with 13/2. */
+    bda_word = (const volatile unsigned short __far *)MK_FP(0x0040u, 0x0013u);
+    firmware.bda_kb = (uint16_t)*bda_word;
+    bda_word = (const volatile unsigned short __far *)MK_FP(0x0040u, 0x000eu);
+    firmware.ebda_segment = (uint16_t)*bda_word;
+
+    memset(&inregs, 0, sizeof(inregs));
+    memset(&outregs, 0, sizeof(outregs));
+    inregs.h.ah = 0x88u;
+    int86(0x15, &inregs, &outregs);
+    if (!outregs.w.cflag) {
+        /* AH is part of the returned 16-bit KiB value, NOT a status byte. */
+        firmware.int15_88_valid = 1u;
+        firmware.int15_88_kb = (uint16_t)outregs.w.ax;
+    }
+
+    if (!whp_memory_survey_decode(&firmware, &summary))
+        return 2;
+    puts("Memory resource survey (BIOS metadata; no RAM test)");
+    if (summary.conventional_valid)
+        printf("  INT 12h conventional boundary: %u KiB (%05lXh)\n",
+               (unsigned int)firmware.int12_kb,
+               (unsigned long)summary.conventional_end);
+    else
+        printf("  INT 12h boundary: %u KiB (untrusted PC range)\n",
+               (unsigned int)firmware.int12_kb);
+    if (summary.bda_valid)
+        printf("  BDA 0040:0013h: %u KiB%s\n",
+               (unsigned int)firmware.bda_kb,
+               summary.bda_mismatch ? " [DISAGREES WITH INT 12h]" : "");
+    else
+        puts("  BDA conventional-memory size unavailable/implausible.");
+    if (summary.ebda_candidate)
+        printf("  EBDA location candidate: %05lXh%s\n",
+               (unsigned long)summary.ebda_base,
+               summary.ebda_below_conventional_end ?
+               " [DISAGREES WITH CONVENTIONAL BOUND]" : "");
+    else
+        puts("  EBDA unknown; 0040:000Eh can instead mean LPT4.");
+    if (summary.legacy_extended_valid)
+        printf("  INT 15h/88h legacy extended-memory estimate: %u KiB\n",
+               (unsigned int)summary.legacy_extended_kb);
+    else
+        puts("  INT 15h/88h extended-memory estimate unavailable.");
+    puts("  A0000h-BFFFFh: legacy video; C0000h-FFFFFh: ROM/UMB.");
+    puts("  These are NOT verified physical-RAM allocations.");
+
+    if (!summary.conventional_valid) {
+        puts("  PCI overlap scan unavailable: conventional bound untrusted.");
+        return 0;
+    }
+    puts("  PCI memory BAR base check (sizes unknown, read only):");
+    if (!pci_bios_installed(&last_bus, &version)) {
+        puts("  No usable PCI BIOS; memory/PCI comparison unavailable.");
+        return 0;
+    }
+    reader.read_word = bios_word;
+    reader.context = 0;
+    for (bus = 0u; bus <= last_bus; ++bus) {
+        for (dev = 0u; dev < 32u; ++dev) {
+            multifunction = 0u;
+            for (fn = 0u; fn < 8u; ++fn) {
+                if (fn != 0u && !multifunction)
+                    break;
+                devfn = (dev << 3) | fn;
+                result = whp_pci95_bios_read_config(&reader, (uint8_t)bus,
+                           (uint8_t)devfn, config_bytes, 64u);
+                if (result == WHP_PCI95_BIOS_NO_DEVICE) {
+                    if (fn == 0u)
+                        break;
+                    continue;
+                }
+                if (result != WHP_PCI95_BIOS_OK) {
+                    ++errors;
+                    if (fn == 0u)
+                        break;
+                    continue;
+                }
+                if (fn == 0u)
+                    multifunction = (config_bytes[0x0eu] & 0x80u) != 0u;
+                ++count;
+                /* Disabled memory decode and I/O BARs are not active
+                 * MMIO mappings. The BAR parser never performs sizing writes.
+                 */
+                if (!(config_bytes[4] & 0x02u))
+                    continue;
+                max_bars = (config_bytes[0x0eu] & 0x7fu) == 0u ? 6u :
+                           (config_bytes[0x0eu] & 0x7fu) == 1u ? 2u : 0u;
+                for (index = 0u; index < max_bars; ++index) {
+                    int bar_status = whp_pci_dos_read_bar(
+                        config_bytes, 64u, index, &pci_bar);
+                    if (bar_status != 1)
+                        continue;
+                    notice = whp_memory_bar_check(&summary,
+                               pci_bar.base, pci_bar.is_io, 1);
+                    if (pci_bar.slots == 2u)
+                        ++index;
+                    if (notice == WHP_MEM_BAR_NONE)
+                        continue;
+                    ++observations;
+                    if (printed >= limit)
+                        continue;
+                    switch (notice) {
+                    case WHP_MEM_BAR_CONVENTIONAL:
+                        interpretation = "POTENTIAL conventional RAM conflict";
+                        break;
+                    case WHP_MEM_BAR_EBDA_CANDIDATE:
+                        interpretation = "possible EBDA-area base";
+                        break;
+                    case WHP_MEM_BAR_LOW_GAP:
+                        interpretation = "low memory gap, allocation unknown";
+                        break;
+                    default:
+                        interpretation = "legacy VGA/ROM/UMB (may be normal)";
+                        break;
+                    }
+                    printf("  PCI %u:%02u.%u BAR%u=%08lX%08lXh: %s\n",
+                           bus, dev, fn, (unsigned int)pci_bar.index,
+                           (unsigned long)(uint32_t)(pci_bar.base >> 32),
+                           (unsigned long)(uint32_t)pci_bar.base,
+                           interpretation);
+                    ++printed;
+                }
+            }
+        }
+    }
+    printf("  PCI functions=%u, observations=%u, read errors=%u\n",
+           count, observations, errors);
+    if (observations > printed)
+        printf("  %u observations omitted (use /M for more).\n",
+               observations - printed);
+    puts("  No E820 map, BAR sizes, DMA buffers, RAM health or");
+    puts("  installed-driver ownership verified; hints are not proof.");
+    return errors ? 1 : 0;
 }
 
 static int run_report(int show_all_pci)
@@ -785,7 +947,7 @@ static int menu_main(void)
             printf(" %c %u. %s\n", i == selected ? '>' : ' ',
                    i, whp_probe_menu_label(i));
         puts("\n[Up/Down] Select [Enter/1-9] Open [Esc/0] Exit");
-        puts("Batch reports: WHPPROBE /R or WHPPROBE /A");
+        puts("Batch reports: WHPPROBE /R, /A or /M");
         puts("Read-only inspection; no driver installation.");
         action = whp_probe_menu_key(&selected, menu_read_key());
         if (action == WHP_MENU_EXIT) {
@@ -805,6 +967,8 @@ static int menu_main(void)
             else
                 puts("Conventional memory boundary unavailable.");
             puts("Boundary does not measure free RAM.");
+            puts("");
+            report_memory_resources(1);
             menu_pause();
         } else if (selected == 2u) {
             menu_clear();
@@ -819,6 +983,9 @@ static int menu_main(void)
 
 int main(int argc, char **argv)
 {
+    if (argc == 2 && (strcmp(argv[1], "/M") == 0 ||
+                      strcmp(argv[1], "--memory") == 0))
+        return report_memory_resources(0);
     if (argc == 2 && (strcmp(argv[1], "/R") == 0 ||
                       strcmp(argv[1], "--report") == 0))
         return run_report(0);
@@ -827,9 +994,9 @@ int main(int argc, char **argv)
         return run_report(1);
     if (argc == 2 && (strcmp(argv[1], "/?") == 0 ||
                       strcmp(argv[1], "--help") == 0)) {
-        puts("WHPPROBE [/R|/A|/?]");
+        puts("WHPPROBE [/R|/A|/M|/?]");
         puts("No option: DOS menu when interactive; report if redirected.");
-        puts("/R = standard report; /A = all PCI registers.");
+        puts("/R = standard report; /A = all PCI; /M = memory survey.");
         return 0;
     }
     if (argc != 1) {
