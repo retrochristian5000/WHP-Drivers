@@ -1631,6 +1631,33 @@ WHP_DRIVER_PROFILE=dos-probe ./build.sh incremental
 ./build.sh clean-dos-probe              # cleans only DOS output artifacts
 ```
 
+#### Interactive DOS diagnostics menu
+
+`WHPPROBE.EXE` now opens an MSD-style **read-only** text menu when standard
+input and output are console devices. Navigation: Up/Down or numbers 1-9
+select DOS/memory, legacy BIOS, PCI bridges, display, network, HDA,
+storage, USB, or all PCI functions. Enter opens a category; Esc or Q
+returns to the menu. PCI devices are shown individually: R displays
+the function's standard PCI configuration registers, while Enter/N
+advances to the next device. The menu does not require ANSI.SYS.
+
+Redirected input or output automatically retains the old streaming
+report mode, so existing `WHPPROBE.EXE > PCI.TXT` scripts still work.
+Force a conventional report with `/R` or all PCI registers with `/A`:
+
+```text
+WHPPROBE.EXE
+WHPPROBE.EXE /R > PCI.TXT
+WHPPROBE.EXE /A > ALLPCI.TXT
+WHPPROBE.EXE /?
+```
+
+Interactive PCI detail pages read full 256-byte PCI BIOS configuration
+snapshots **only when R is selected** and fall back to the saved
+64-byte header on a failed read. No BAR sizing writes, MMIO access,
+driver installation, or hardware initialization is performed.
+Host-side synthetic menu tests do not substitute for an OpenWatcom
+16-bit build and emulator or hardware execution.
 With a DOS-compatible, BIOS-based Pavilion boot environment,
 **copy** `WHPPROBE.EXE` to removable media, then run from genuine DOS
 or Windows 95 restarted into MS-DOS Mode:
