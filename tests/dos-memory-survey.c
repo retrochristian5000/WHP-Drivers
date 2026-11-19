@@ -15,10 +15,10 @@ int main(void)
     CHECK(!whp_memory_survey_decode(0, &r));
     CHECK(!whp_memory_survey_decode(&f, 0));
     CHECK(r.conventional_end == UINT32_C(0xa5a5a5a5));
-    f.int12_kb = 639u; f.bda_kb = 639u; f.ebda_segment = 0x9fc0u;
+    f.int12_kb = 638u; f.bda_kb = 638u; f.ebda_segment = 0x9fc0u;
     f.int15_88_kb = 15360u; f.int15_88_valid = 1u;
     CHECK(whp_memory_survey_decode(&f, &r));
-    CHECK(r.conventional_valid && r.conventional_end == 639u * 1024u);
+    CHECK(r.conventional_valid && r.conventional_end == 638u * 1024u);
     CHECK(r.bda_valid && !r.bda_mismatch);
     CHECK(r.ebda_candidate && r.ebda_base == UINT32_C(0x9fc00));
     CHECK(!r.ebda_below_conventional_end);
