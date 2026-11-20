@@ -175,6 +175,7 @@ run_fast_tests() {
         step test-dos-memory-survey
         step test-rtl8111e-pci-snapshot
         step test-dos-mz
+        step test-dos-packages
         return
     fi
     step test-format

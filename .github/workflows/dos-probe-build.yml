@@ -1,0 +1,107 @@
+name: WHP-Drivers DOS probe source build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/dos-probe-build.yml
+      - .gitmodules
+      - build
+      - build.sh
+      - toolchains/openwatcom
+      - tools/dos/**
+      - tools/verify_dos_mz.py
+      - tools/package_dos_probe.py
+      - drivers/bus/pci95/**
+      - drivers/network/rtl8111e/identity.c
+      - drivers/network/rtl8111e/rtl8111e.h
+      - drivers/storage/fch_sata/**
+      - drivers/usb/**
+      - tests/dos-*.c
+      - tests/test_dos_*.py
+      - tests/pci*.c
+      - tests/probe-menu.c
+      - tests/rtl8111e-pci-snapshot.c
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: whp-dos-probe-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+jobs:
+  dos-probe:
+    name: Compile and package 16-bit WHPPROBE.EXE
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout source without persisted token
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          persist-credentials: false
+
+      - name: Validate portable scripts and archive tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh -n ./build ./build.sh
+          python3 -m unittest discover -s tests -p 'test_dos_packages.py'
+
+      - name: Fetch precisely pinned OpenWatcom source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git submodule update --init --depth 1 -- toolchains/openwatcom
+          pinned="$(git rev-parse HEAD:toolchains/openwatcom)"
+          actual="$(git -C toolchains/openwatcom rev-parse HEAD)"
+          test "$actual" = "$pinned"
+          printf 'WHP-Drivers: pinned OpenWatcom %s\n' "$pinned"
+
+      - name: Verify native bootstrap prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          for tool in clang make cc c++ git python3; do
+            command -v "$tool" >/dev/null
+          done
+
+      - name: Build pinned OpenWatcom from source (not a precompiled package)
+        shell: bash
+        run: |
+          set -euo pipefail
+          WHP_WATCOM_CLANG="$(command -v clang)" sh ./build.sh bootstrap-watcom
+
+      - name: Run DOS synthetic tests and link WHPPROBE.EXE
+        shell: bash
+        run: |
+          set -euo pipefail
+          WHP_DRIVER_PROFILE=dos-probe WHP_DRIVER_BOOTSTRAP=off sh ./build.sh test-fast
+          sh ./build dos-probe-build
+          test -s .build/dos-pci/WHPPROBE.EXE
+          python3 tools/verify_dos_mz.py .build/dos-pci/WHPPROBE.EXE
+
+      - name: Create and inspect TGZ and ZIP packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 tools/package_dos_probe.py --exe .build/dos-pci/WHPPROBE.EXE --output-dir .build/dos-packages --source-sha "$(git rev-parse HEAD)" --watcom-sha "$(git rev-parse HEAD:toolchains/openwatcom)"
+          cd .build/dos-packages
+          sha256sum --check SHA256SUMS
+          test "$(find . -maxdepth 1 -type f -name '*.tgz' | wc -l)" -eq 1
+          test "$(find . -maxdepth 1 -type f -name '*.zip' | wc -l)" -eq 1
+
+      - name: Upload DOS packages (not a driver installation)
+        uses: actions/upload-artifact@v4
+        with:
+          name: whpprobe-dos-${{ github.sha }}
+          path: |
+            .build/dos-packages/*.tgz
+            .build/dos-packages/*.zip
+            .build/dos-packages/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

@@ -1413,6 +1413,26 @@ Previously built `WHPPCI.EXE` files in that folder are historical
 artifacts, not aliases for the current executable; the build does not
 silently delete them.
 
+#### GitHub Actions DOS source build and archives
+
+The separate [DOS source-build workflow](.github/workflows/dos-probe-build.yml)
+checks out the pinned OpenWatcom gitlink, bootstraps its 16-bit compiler,
+runs the host-only DOS regressions, builds `WHPPROBE.EXE` using the existing
+`dos-probe-build` target, and verifies its MZ structure. It publishes
+`WHPPROBE-<commit12>.tgz` and `WHPPROBE-<commit12>.zip` in one short-lived
+GitHub Actions artifact. Both formats include the identical 16-bit
+`WHPPROBE.EXE`, DOS-compatible `README.TXT`, and `BUILD.TXT` with the
+exact repository and OpenWatcom commit IDs and executable SHA-256.
+`SHA256SUMS` accompanies the two archives outside them. The `.tgz`
+suffix is the conventional shorter form of `.tar.gz`.
+
+The built-in packager uses Python standard-library TAR/GZIP/ZIP writers;
+it refuses invalid MZ binaries and symlinked executable inputs and uses
+stable archive metadata. Run its synthetic regression without any compiler:
+`./build test-dos-packages`. Packaging tests do **not** prove successful
+OpenWatcom linking or DOS execution. CI never installs or runs the DOS
+executable on the Ubuntu host; real DOS and physical hardware remain untested.
+
 #### ISA and legacy PC-compatible probing
 
 The first ISA-related stage uses two independent, read-only mechanisms:

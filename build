@@ -1051,6 +1051,7 @@ case "${1:-}" in
     test-fch-sata-identity) test_fch_sata_identity ;;
     test-usb-pci-hci) test_usb_pci_hci ;;
     test-dos-mz) need python3; python3 -m unittest discover -s "$root/tests" -p 'test_dos_mz.py' ;;
+    test-dos-packages) need python3; python3 -m unittest discover -s "$root/tests" -p 'test_dos_packages.py' ;;
     dos-probe-build|dos-pci-build) dos_probe_build ;;
     rtl8111e-inf-check) rtl8111e_inf_check ;;
     inf-check) radeon_inf_check; rtl8111e_inf_check ;;

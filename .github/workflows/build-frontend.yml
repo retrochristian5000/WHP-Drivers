@@ -31,6 +31,8 @@ on:
       - tests/probe-menu.c
       - tests/dos-memory-survey.c
       - tests/test_dos_mz.py
+      - tests/test_dos_packages.py
+      - tools/package_dos_probe.py
   pull_request:
     paths:
       - build.sh
@@ -61,6 +63,8 @@ on:
       - tests/probe-menu.c
       - tests/dos-memory-survey.c
       - tests/test_dos_mz.py
+      - tests/test_dos_packages.py
+      - tools/package_dos_probe.py
   workflow_dispatch:
 
 permissions:
