@@ -41,4 +41,12 @@ int whp_dos_legacy_decode(const struct whp_dos_legacy_snapshot *snapshot,
 int whp_dos_legacy_pci_isa_bridge(const uint8_t *cfg,
                                   unsigned int length);
 
+/* BIOS address observations do not prove a working UART. */
+unsigned int whp_dos_com_listed_count(
+    const struct whp_dos_legacy_report *report);
+int whp_dos_com_base_conflict(
+    const struct whp_dos_legacy_report *report, unsigned int index);
+/* PCI class 07:00 serial / 07:02 multiport: COM mapping unverified. */
+int whp_dos_pci_serial_candidate(const uint8_t *cfg, unsigned int length);
+
 #endif

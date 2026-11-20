@@ -49,6 +49,18 @@ int main(void)
     input.equipment = 0u;
     CHECK(whp_dos_legacy_decode(&input, &output));
     CHECK(output.bios_serial_count == 0u && output.com_base[0] != 0u);
+    CHECK(whp_dos_com_listed_count(&output) == 2u);
+    CHECK(!whp_dos_com_base_conflict(&output, 0u));
+    CHECK(!whp_dos_com_base_conflict(&output, 4u));
+    CHECK(!whp_dos_com_base_conflict(0, 0u));
+    CHECK(whp_dos_com_listed_count(0) == 0u);
+    input.com_base[2] = input.com_base[0];
+    CHECK(whp_dos_legacy_decode(&input, &output));
+    CHECK(whp_dos_com_listed_count(&output) == 3u);
+    CHECK(whp_dos_com_base_conflict(&output, 0u));
+    CHECK(whp_dos_com_base_conflict(&output, 2u));
+    CHECK(!whp_dos_com_base_conflict(&output, 1u));
+    input.com_base[2] = 0u;
 
     memset(pci, 0, sizeof(pci));
     CHECK(!whp_dos_legacy_pci_isa_bridge(0, sizeof(pci)));
@@ -68,6 +80,24 @@ int main(void)
     pci[0] = 0xffu;
     pci[1] = 0xffu;
     CHECK(!whp_dos_legacy_pci_isa_bridge(pci, sizeof(pci)));
-    printf("DOS BIOS/ISA-compatible: %d synthetic checks passed\n", checks);
+    memset(pci, 0, sizeof(pci));
+    CHECK(!whp_dos_pci_serial_candidate(0, 64u));
+    CHECK(!whp_dos_pci_serial_candidate(pci, 63u));
+    pci[0] = 0x34u;
+    pci[1] = 0x12u;
+    pci[0x0bu] = 0x07u;
+    CHECK(whp_dos_pci_serial_candidate(pci, 64u));
+    pci[0x0au] = 0x02u;
+    CHECK(whp_dos_pci_serial_candidate(pci, 64u));
+    pci[0x0au] = 0x03u;
+    CHECK(!whp_dos_pci_serial_candidate(pci, 64u));
+    pci[0x0au] = 0u;
+    pci[0x0eu] = 1u;
+    CHECK(!whp_dos_pci_serial_candidate(pci, 64u));
+    pci[0x0eu] = 0u;
+    pci[0] = 0xffu;
+    pci[1] = 0xffu;
+    CHECK(!whp_dos_pci_serial_candidate(pci, 64u));
+    printf("DOS BIOS/ISA/serial: %d synthetic checks passed\n", checks);
     return 0;
 }

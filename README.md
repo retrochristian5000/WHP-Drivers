@@ -1433,6 +1433,28 @@ stable archive metadata. Run its synthetic regression without any compiler:
 OpenWatcom linking or DOS execution. CI never installs or runs the DOS
 executable on the Ubuntu host; real DOS and physical hardware remain untested.
 
+#### COM1-COM4 serial-port evidence
+
+The default batch report (`WHPPROBE /R`) and legacy BIOS menu list all
+four standard COM address slots from the BIOS Data Area (0040:0000-0006).
+The INT 11h equipment serial count and nonzero BDA addresses are separate
+firmware observations. The probe flags disagreements and duplicate address
+assignments without claiming that a working UART is present.
+
+To explicitly request BIOS serial status, use `WHPPROBE /S` or press
+**S** in menu section 2. For plausible, unique BDA bases, this uses
+INT 14h AH=03h to read the BIOS line and modem status; it never initializes
+the UART, sends data, receives data or writes directly to serial I/O ports.
+BIOS status reads may acknowledge latched UART bits, so avoid this
+optional operation during active serial communications. A response does
+not prove functional hardware or an attached serial device.
+
+The standard PCI report additionally flags PCI class 07:00 serial and
+07:02 multiport controller candidates. PCI functions are not silently
+assigned COM numbers. USB serial adapters, ISA PnP, PCI driver mapping
+and live interrupt/baud/loopback checks are not yet supported; an empty
+BDA entry does not prove the corresponding hardware is absent.
+
 #### ISA and legacy PC-compatible probing
 
 The first ISA-related stage uses two independent, read-only mechanisms:

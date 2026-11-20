@@ -89,7 +89,7 @@ static void print_caps(const char *label, int status, unsigned int pcie)
  * read-only historical resources; neither discovers physical ISA slots.
  * Read only the first seven BDA words (COM1-4 and LPT1-3).
  */
-static void probe_legacy_bios(void)
+static void probe_legacy_bios(int with_serial_status)
 {
     union REGS inregs, outregs;
     struct whp_dos_legacy_snapshot snapshot;
@@ -118,14 +118,50 @@ static void probe_legacy_bios(void)
            report.bios_serial_count, report.bios_parallel_count,
            report.bios_floppy_count, report.bios_fpu_present,
            report.bios_game_port_reported, report.bios_video_mode_code);
-    for (i = 0u; i < WHP_DOS_BDA_COM_PORTS; ++i)
-        if (report.com_base[i] != 0u)
-            printf("    BIOS COM%u base=%04Xh (I/O not accessed)\n",
-                   i + 1u, (unsigned int)report.com_base[i]);
+    printf("    COM: %u BDA address(es), %u INT 11h serial flag(s)\n",
+           whp_dos_com_listed_count(&report), report.bios_serial_count);
+    if (whp_dos_com_listed_count(&report) != report.bios_serial_count)
+        puts("    WARNING: BIOS serial count and BDA addresses disagree.");
+    if (report.bios_serial_count > WHP_DOS_BDA_COM_PORTS)
+        puts("    BIOS serial count exceeds four standard BDA slots.");
+    for (i = 0u; i < WHP_DOS_BDA_COM_PORTS; ++i) {
+        if (report.com_base[i] == 0u) {
+            printf("    COM%u: no BIOS BDA address (presence unknown)\n", i + 1u);
+            continue;
+        }
+        printf("    BIOS COM%u base=%04Xh (firmware claim; no port I/O)\n",
+               i + 1u, (unsigned int)report.com_base[i]);
+        if (whp_dos_com_base_conflict(&report, i))
+            puts("      WARNING: BDA address also assigned to another COM number.");
+    }
     for (i = 0u; i < WHP_DOS_BDA_LPT_PORTS; ++i)
         if (report.lpt_base[i] != 0u)
             printf("    BIOS LPT%u base=%04Xh (I/O not accessed)\n",
                    i + 1u, (unsigned int)report.lpt_base[i]);
+    if (with_serial_status) {
+        puts("    INT 14h AH=03h BIOS serial status (not UART identification):");
+        puts("    CAUTION: BIOS reads may acknowledge latched UART status flags.");
+        for (i = 0u; i < WHP_DOS_BDA_COM_PORTS; ++i) {
+            unsigned int base = (unsigned int)report.com_base[i];
+            if (base == 0u)
+                continue;
+            if (whp_dos_com_base_conflict(&report, i) ||
+                base < 0x0100u || base > 0xfff8u || (base & 7u) != 0u) {
+                printf("    COM%u: status skipped (shared or unusual BDA base)\n",
+                       i + 1u);
+                continue;
+            }
+            memset(&inregs, 0, sizeof(inregs));
+            memset(&outregs, 0, sizeof(outregs));
+            inregs.h.ah = 0x03u; /* BIOS status only, no init/receive/send. */
+            inregs.w.dx = (unsigned short)i; /* COM1=0 through COM4=3. */
+            int86(0x14, &inregs, &outregs);
+            printf("    COM%u: BIOS line=%02Xh modem=%02Xh"
+                   " (no working UART confirmed)\n",
+                   i + 1u, (unsigned int)outregs.h.ah,
+                   (unsigned int)outregs.h.al);
+        }
+    }
     puts("    ISA PnP card identity, IRQ/DMA allocation and physical slots unverified.");
 }
 
@@ -508,14 +544,14 @@ static int run_report(int show_all_pci)
     struct whp_pci95_bios_reader reader;
     enum whp_pci95_bios_result result;
     unsigned int last_bus, version, bus, dev, fn, multifn;
-    unsigned int found_bridges = 0, found_nics = 0, found_hda = 0, found_storage = 0, found_usb = 0, found_isa_bridges = 0, read_errors = 0;
+    unsigned int found_bridges = 0, found_nics = 0, found_hda = 0, found_storage = 0, found_usb = 0, found_isa_bridges = 0, found_serial = 0, read_errors = 0;
     unsigned int snapshot_size, devfn;
     unsigned int id_vendor, id_device, cls, subclass;
-    int wanted_bridge, wanted_nic, wanted_hda, wanted_storage, wanted_usb, wanted_isa_bridge;
+    int wanted_bridge, wanted_nic, wanted_hda, wanted_storage, wanted_usb, wanted_isa_bridge, wanted_serial;
     unsigned int conventional_kb;
 
     report_dos_version();
-    probe_legacy_bios();
+    probe_legacy_bios(0);
     conventional_kb = bios_conventional_memory_kb();
     if (conventional_kb)
         printf("WHPPROBE: BIOS conventional-memory boundary=%u KiB (not free RAM)\n",
@@ -565,6 +601,8 @@ static int run_report(int show_all_pci)
                           (config_bytes[0x0eu] & 0x7fu) == 1u;
                 wanted_isa_bridge = whp_dos_legacy_pci_isa_bridge(
                     config_bytes, 64u);
+                wanted_serial = whp_dos_pci_serial_candidate(
+                    config_bytes, 64u);
                 wanted_nic = id_vendor == 0x10ecu && id_device == 0x8168u &&
                           cls == 0x02u && subclass == 0u;
                 /* HDA is PCI class 04:03 / PI=00; this identifies only
@@ -586,7 +624,8 @@ static int run_report(int show_all_pci)
                              config_bytes[9] != 0xfeu &&
                              (config_bytes[0x0eu] & 0x7fu) == 0u;
                 if (!wanted_bridge && !wanted_nic && !wanted_hda &&
-                    !wanted_storage && !wanted_usb && !wanted_isa_bridge) {
+                    !wanted_storage && !wanted_usb && !wanted_isa_bridge &&
+                    !wanted_serial) {
                     if (show_all_pci) {
                         printf("%u:%02u.%u PCI %04X:%04X class=%02X:%02X:%02X\n",
                                bus, dev, fn, id_vendor, id_device,
@@ -612,6 +651,15 @@ static int run_report(int show_all_pci)
                         ++read_errors;
                         continue; /* Device was not stable during read. */
                     }
+                }
+                if (wanted_serial) {
+                    ++found_serial;
+                    printf("%u:%02u.%u PCI serial/multiport %04X:%04X"
+                           " class=07:%02X:%02X\n",
+                           bus, dev, fn, id_vendor, id_device,
+                           (unsigned int)config_bytes[10],
+                           (unsigned int)config_bytes[9]);
+                    puts("    Controller candidate; COM numbers and UART unverified.");
                 }
                 if (wanted_isa_bridge) {
                     ++found_isa_bridges;
@@ -761,6 +809,7 @@ static int run_report(int show_all_pci)
     }
     printf("WHPPROBE: PCI %u bridge(s), %u ISA/LPC bridge candidate(s), %u RTL8168/8111 candidate(s), %u HDA candidate(s), %u storage controller(s), %u USB HCI(s), %u read error(s).\n",
            found_bridges, found_isa_bridges, found_nics, found_hda, found_storage, found_usb, read_errors);
+    printf("WHPPROBE: %u PCI serial/multiport candidate(s).\n", found_serial);
     puts("A DOS PCI BIOS result is not Windows 95 PCI.VXD/NDIS validation.");
     return read_errors ? 1 : 0;
 }
@@ -983,8 +1032,20 @@ static int menu_main(void)
         } else if (selected == 2u) {
             menu_clear();
             menu_header(whp_probe_menu_label(selected));
-            probe_legacy_bios();
-            menu_pause();
+            probe_legacy_bios(0);
+            puts("\n[S] Query BIOS COM status   [Enter/Esc] Menu");
+            for (;;) {
+                int key = menu_read_key();
+                if (key == 13 || key == 27)
+                    break;
+                if (key == 's' || key == 'S') {
+                    menu_clear();
+                    menu_header("Explicit COM BIOS status request");
+                    probe_legacy_bios(1);
+                    menu_pause();
+                    break;
+                }
+            }
         } else {
             menu_pci(selected);
         }
@@ -1002,11 +1063,17 @@ int main(int argc, char **argv)
     if (argc == 2 && (strcmp(argv[1], "/A") == 0 ||
                       strcmp(argv[1], "--all-pci") == 0))
         return run_report(1);
+    if (argc == 2 && (strcmp(argv[1], "/S") == 0 ||
+                      strcmp(argv[1], "--serial") == 0)) {
+        probe_legacy_bios(1);
+        return 0;
+    }
     if (argc == 2 && (strcmp(argv[1], "/?") == 0 ||
                       strcmp(argv[1], "--help") == 0)) {
-        puts("WHPPROBE [/R|/A|/M|/?]");
+        puts("WHPPROBE [/R|/A|/M|/S|/?]");
         puts("No option: DOS menu when interactive; report if redirected.");
         puts("/R = standard report; /A = all PCI; /M = memory survey.");
+        puts("/S = explicit COM1-4 BIOS status; may consume UART flags.");
         return 0;
     }
     if (argc != 1) {

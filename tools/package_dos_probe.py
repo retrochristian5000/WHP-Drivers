@@ -30,7 +30,7 @@ def package(exe: Path, output_dir: Path, source_sha: str, watcom_sha: str) -> tu
         "WHP-Drivers DOS hardware probe\r\n"
         "==============================\r\n"
         "Run WHPPROBE.EXE in a compatible real-mode DOS environment.\r\n"
-        "Commands: WHPPROBE /?  /R  /A  /M\r\n"
+        "Commands: WHPPROBE /?  /R  /A  /M  /S\r\n"
         "This is a diagnostic utility, not an installable hardware driver.\r\n"
         "CI checks compilation and DOS MZ structure only.\r\n"
         "DOS execution and physical hardware compatibility are NOT tested.\r\n"
