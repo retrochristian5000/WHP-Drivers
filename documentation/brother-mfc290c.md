@@ -362,9 +362,39 @@ alternate interface. **Updated user observation:** the original macOS
 System Information/IOKit probe showed one MFC-290C interface with
 `class=0xff subclass=0xff protocol=0xff`. This is a **user-reported,
 host-observed triplet**, not a preserved raw configuration descriptor
-or an independently reproduced hardware test. The interface number,
-alternate setting, configuration and endpoint descriptors have not
-yet been reported, so no function can be assigned to the interface.
+or an independently reproduced hardware test. **Further observations
+from the same physical MFC-290C (user report, 2026-11-21):** the vendor
+interface is `number=0x01` with `declaredEndpoints=0x03`.
+Another probe record printed `protocol=0x02` and
+`protocolMeaning=printer-bidirectional`; our code emits that label
+only when the same record has `class=0x07 subclass=0x01 protocol=0x02`.
+
+| Reported interface record | Number | Class/subclass/protocol | Endpoints | Evidence status |
+| --- | --- | --- | --- | --- |
+| Vendor class | `0x01` | `ff/ff/ff` | `0x03` (3) | User-reported IORegistry fields |
+| Bidirectional USB printer class | Not yet reported | `07/01/02`, inferred from verified probe classifier | Not yet reported | User-reported classifier result |
+
+These are at least **two interface records**; until the second
+record's `bInterfaceNumber`, both records' `bAlternateSetting`
+values and configuration identity are known, do **not** silently
+assume two independent interface numbers or a particular composite
+device topology. Different alternate settings can reuse an interface
+number.
+
+`bNumEndpoints=0x03` counts **three non-control endpoints** for
+the specified interface/alternate setting, **excluding EP0**.
+It does **not** identify endpoint address 3, transfer direction,
+interrupt/bulk type, packet size, scanner operation, fax transport,
+or the total endpoint count of the whole device. Those fields require
+actual endpoint descriptors (`bEndpointAddress`, `bmAttributes`,
+`wMaxPacketSize`, and `bInterval`) and careful association
+with the correct interface.
+
+Brother's Linux MFC-290C downloads document separate scanning
+software, making a scanner function **plausible**, but no source yet
+maps its function to vendor interface 1 or any of the three endpoints.
+Do not copy scanning or PC-FAX opcodes from another model, infer
+bulk/interrupt assignments, or take exclusive USB interface control.
 
 For the reported device `04f9:01fd`, `idVendor=0x04f9` identifies
 **Brother**. All-FF in the *interface* fields means the class and
@@ -414,11 +444,13 @@ advertises vendor-specific `07/01/ff`, do not use that candidate
 as evidence that standard printer class requests are accepted.
 Never apply these interpretations across separate interface numbers.
 
-**Non-mutating follow-up:** record the same probe output line's
-`number`, `class`, `subclass`, `protocol`, `alternate`,
-`declaredEndpoints` and optional service hints. Keep the machine's
-serial number private. This is a sufficient next evidence step; do
-not issue vendor requests or attempt resets.
+**Non-mutating follow-up:** capture the **complete printer-bidirectional
+interface line**, especially `number`, `alternate` and
+`declaredEndpoints`. Compare its number and alternate setting with
+vendor interface `0x01`; then inspect already-available endpoint
+descriptor metadata if the OS exposes it. Keep the machine's serial
+number private. Do not issue vendor requests, switch an alternate
+setting, detach a driver or attempt resets.
 
 Sources:
 - USB-IF, *Universal Serial Bus Common Class Specification* revision 1.0,
@@ -432,6 +464,15 @@ Sources:
   https://www.usb.org/sites/default/files/usbprint11a021811.pdf
 - Apple IOKit `bInterfaceProtocol` descriptor field:
   https://developer.apple.com/documentation/kernel/iousbinterfacedescriptor/1545890-binterfaceprotocol
+- Microsoft USB interface descriptor documentation (endpoint count,
+  interface number and alternate-setting fields):
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/usbspec/ns-usbspec-_usb_interface_descriptor
+- Microsoft USB configuration descriptors (interface and endpoint
+  relationships):
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/usbcon/usb-configuration-descriptors
+- Brother MFC-290C Linux support downloads (scanner context, not
+  interface mapping evidence):
+  https://support.brother.com/g/b/downloadlist.aspx?c=us_ot&lang=en&os=128&prod=mfc290c_all
 
 ## Apple macOS open-source integration audit (2026-11-21)
 
