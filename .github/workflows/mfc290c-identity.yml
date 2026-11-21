@@ -5,6 +5,7 @@ on:
     paths:
       - 'drivers/usb/brother/**'
       - 'tools/macos/mfc290c*'
+      - 'tools/macos/whp_system_probe.c'
       - 'tools/probe/**'
       - 'tests/probe-scope.c'
       - 'tests/brother-mfc290c*.c'
@@ -17,6 +18,7 @@ on:
     paths:
       - 'drivers/usb/brother/**'
       - 'tools/macos/mfc290c*'
+      - 'tools/macos/whp_system_probe.c'
       - 'tools/probe/**'
       - 'tests/probe-scope.c'
       - 'tests/brother-mfc290c*.c'
@@ -56,6 +58,19 @@ jobs:
           ./.build/brother-mfc290c-macos/mfc290c-probe --architecture-only | grep -q 'processISA=arm64 '
           if WHP_MFC290C_MACOS_ARCH=arm64e ./build build-brother-mfc290c-macos; then
             printf '%s\n' 'Unsupported arm64e mode was accepted' >&2
+            exit 1
+          fi
+      - name: Check native macOS system summary without accessing devices
+        if: runner.os == 'macOS'
+        run: |
+          ./.build/brother-mfc290c-macos/whp-system-probe --help
+          summary="$(./.build/brother-mfc290c-macos/whp-system-probe)"
+          printf '%s\n' "$summary" | grep -q 'platform=macos evidence=sysctl-IORegistry'
+          printf '%s\n' "$summary" | grep -q 'physicalMemoryBytes='
+          printf '%s\n' "$summary" | grep -q 'PCI registryServices'
+          printf '%s\n' "$summary" | grep -q 'serial registryServices'
+          if ./.build/brother-mfc290c-macos/whp-system-probe --unsupported; then
+            printf '%s\n' 'Invalid system probe option succeeded' >&2
             exit 1
           fi
       - name: Smoke macOS registry and CUPS queue observations (printer not required)
