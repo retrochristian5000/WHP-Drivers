@@ -1559,6 +1559,76 @@ References (source content, not a license to transplant firmware):
 
 ## Fax capability boundary (2026-11-21)
 
+### Rear LINE and EXT. telephone jacks (physical observation, 2026-11-21)
+
+**Observed on the user's unit:** Two separately marked analog telephone
+modular jacks: `LINE` and `EXT.`. The rear labels establish two
+**physical connections**, not two independent telephone subscriptions
+and not a USB/PC serial-modem port.
+
+Brother's original MFC-290C Quick Setup Guide, step 3, explicitly
+requires the wall telephone cord to enter `LINE`. A separate
+**external telephone** or external **telephone answering device
+(TAD)** may connect to `EXT.` after removing its protective cap.
+For an answering device Brother instructs selection of the
+`External TAD` receive mode. An **extension telephone** at another
+wall socket on the same line is distinct from an **external
+telephone** connected to `EXT.`; both are recognized in the
+MFC-290C User's Guide, chapter 7. This is line sharing, not
+evidence for two concurrent independent modem channels or a
+transparent, always-closed electrical pass-through.
+
+```text
+Analog wall line --> [LINE] Brother MFC-290C [EXT.] --> external phone
+                                                   or answering device
+USB host computer --> [USB device connector]   (separate interface)
+```
+
+**Verified behavior:** Under the documented answering-device
+arrangement, the external TAD answers voice calls and the Brother
+machine can listen for fax-sending tones and take over reception.
+Brother also documents Fax/Tel receive behavior, external-phone
+status and user actions via the control panel. These are
+**standalone analog-line firmware behaviors**, not PC-FAX reception
+and not evidence of an exposed USB CDC ACM, Hayes AT command or
+user-space OS serial port.
+
+**Hardware candidate triangulation:** Trace the two physical
+jacks into the MFC-290C's **MJ PCB family `B53K967`**
+(US/CAN assembly candidate `LT0405001`) and the
+service-manual **MODEM/SDAA** blocks. Candidate functions
+to check in the **correct MFC-290C MJ schematic** include
+telephone-line surge/protection, ringing/call detection,
+on-hook/off-hook behavior, line access and isolation/steering
+for the external jack. A **relay, hook-switch chip,
+DAA manufacturer, switching topology, exact passive
+network and connection pinout remain unknown**: do not
+promote generic fax designs or parts from related models
+into verified MFC-290C components. The existence of the
+jacks establishes use cases, not those specific implementations.
+
+**Next non-invasive verification:** Compare the US/CAN
+MFC-290C `LINE`/`EXT.` harnesses and actual
+`B53K967` assembly with SM-FAX098 Appendix 5/6
+(MJ PCB wiring/circuit scope) and the regional parts
+list. Capture official part designators and datasheet
+mechanical footprints **before** excluding candidates by
+physical width. No live telephone-line test, wiring
+modification, plug-in modem probe, dialing, ringing-voltage
+measurement or speculative vendor USB command is necessary.
+
+Sources:
+- Brother MFC-290C original US Quick Setup Guide, step 3:
+  https://download.brother.com/welcome/doc002385/cv_mfc290_usaeng_qsg.pdf
+- Brother MFC-290C US User's Guide, chapter 7:
+  https://www.bhphotovideo.com/lit_files/142624.pdf
+- Brother MFC-290C FAQ on external TAD and Fax/Tel:
+  https://support.brother.com/g/b/faqend.aspx?c=us&faqid=faq00002454_000&lang=en&pfs=1&prod=mfc290c_all
+  https://support.brother.com/g/b/faqend.aspx?c=us_ot&faqid=faq00002455_000&lang=en&prod=mfc290c_all
+- Brother June 2008 SM-FAX098, ch. 1, §3.1, App. 5/6:
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+
+
 The MFC-290C is an independent telephone-line fax terminal with a **14,400
 bit/s maximum modem rate**. Brother's model-specific specification lists
 **MH/MR/MMR** monochrome encoding, **JPEG** color fax encoding, up to
