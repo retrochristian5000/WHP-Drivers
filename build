@@ -401,6 +401,15 @@ test_brother_mfc290c() {
         die "MFC-290C USB location-hint regression compilation failed"
     "$out_dir/brother-mfc290c-location-host-test" ||
         die "MFC-290C USB location-hint regression failed"
+    cc -std=c11 -Wall -Wextra -Werror -Wpedantic \
+        -I"$root/drivers/usb/brother" \
+        "$root/drivers/usb/brother/mfc290c_fax.c" \
+        "$root/drivers/usb/brother/mfc290c.c" \
+        "$root/tests/brother-mfc290c-fax.c" \
+        -o "$out_dir/brother-mfc290c-fax-host-test" ||
+        die "MFC-290C fax capability regression compilation failed"
+    "$out_dir/brother-mfc290c-fax-host-test" ||
+        die "MFC-290C fax capability and policy regression failed"
 }
 
 # macOS has an independent USB-device observation path; no DOS/Win95 ABI.
