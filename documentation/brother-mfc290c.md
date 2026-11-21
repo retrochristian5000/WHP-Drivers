@@ -663,6 +663,95 @@ Primary references:
 - Brother model-specific FAQ on multi-page scan workflows:
   https://support.brother.com/g/b/sp/faqend.aspx?c=us_ot&faqid=faq00002578_001&lang=en&prod=mfc290c_all
 
+## Physical widths and candidate fit screening (2026-11-21)
+
+**Scope: constraint-based hardware triangulation, not chip identification.**
+Brother's [MFC-290C US specifications](https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all)
+give **390 × 375 × 180 mm** (W × D × H) for the machine body
+and **7.8 kg** mass. Brother's
+[original dimension drawing](https://download.brother.com/welcome/doc002379/cv_mfc290cz_canfre_usr_lx1023002.pdf)
+also shows **410 mm extended width** and **460 mm extended depth**
+when supports/projecting parts are counted. Neither external
+measurement is the inside clear space nor the main PCB, PSU PCB,
+scanner module or media-reader assembly dimensions. Do **not**
+estimate an IC package or board area from a whole-printer silhouette.
+
+| Reference | Published limit | Physically relevant candidate class |
+| --- | --- | --- |
+| Body external width / depth / height | 390 / 375 / 180 mm | Only the **outer dimensional envelope**; actual mechanical cavities must be smaller and measured separately |
+| Extended width and depth | 410 / 460 mm (Brother drawing) | External supports; **never** substitute for available internal rigid-board span |
+| Scanner glass document width | 215.9 mm maximum | Document placement, **not** active sensor-chip package width |
+| Scanner effective image width | 210 mm | Minimum required **effective CIS imaging coverage**; not proof of a single 210-mm semiconductor die |
+| ADF document width | 148–215.9 mm | Feeder guides/rollers/document pathway; not chip-package fit |
+| Normal print width | 8.26 in for Letter per Brother, 8.5 in borderless | Carriage travel/image geometry; no direct ASIC or head-driver IC package dimensions |
+
+The physical subassemblies are separately identified in Brother
+[SM-FAX098](https://manualmachine.com/brother/dcp145c/18240960-service-manual/)
+as main PCB, MJ/PS shield and PSU PCB, and scanner/ADF mechanisms.
+Published **board width, board depth, mounting holes, enclosure
+clearance, component height limits, available connector orientation
+and installed IC package sizes remain unmeasured** for the actual
+unit. Exploded-view drawings or service illustrations without a
+declared scale are not dimensional evidence for millimeter-accurate
+chip fit.
+
+**Physical-fit elimination protocol:**
+
+1. **Locate** the right assembly and model/region: main PCB family
+   `B53K961` (MFC-290C US assemblies `LT0288051` or early
+   `LT0288052`), US/CAN PSU candidate `LT0416001`, MJ board
+   `B53K967`, CIS and reader. Do not transfer one board's usable
+   envelope to another.
+2. **Measure/document** the candidate site in three axes, mounting
+   footprint, obstructing chassis walls, headroom, connector/cable
+   access, necessary insulation/creepage/clearance and thermal space.
+   Unscaled photos cannot provide hard dimensions without a known
+   physical reference and perspective correction.
+3. **Read the real chip's package mechanical drawing** (including
+   width/length/height and tolerances), recommended land pattern
+   and pinout. Distinguish die size, plastic package, PCB pad pattern,
+   heat sink and functional module dimensions.
+4. **Check allowable orientation** and assembly constraints. Reject
+   a candidate as *physically impossible* only when a verified
+   package/module envelope cannot fit the **measured internal
+   footprint/clearance** in any plausible mounting orientation.
+   If a dimension, board location or package is unknown, mark
+   `not-evaluated` rather than `excluded`.
+5. **Corroborate** the fit with 2008 component availability, actual
+   board markings, power requirements, connector signals, CIS/ADF
+   functions and full-speed USB role. A chip **fitting** is necessary
+   but not sufficient; it does not establish its identity or the
+   USB protocol.
+
+**Candidate outcomes:** `excluded-by-dimension` only with
+both source-backed mechanical envelope and candidate data;
+`dimensionally-plausible` where constraints are known to fit;
+`not-evaluated` for missing dimensions. Record exact
+assembly, revision, evidence provenance and which axis fails.
+Never reject ordinary 2008-era IC packages using the 390-mm
+printer width alone, and never infer the internal scanner controller
+from the 210-mm *scan-area* width.
+
+**Non-invasive boundary:** use original technical manuals,
+manufacturer datasheets and authenticated *existing* unpowered
+board photos. No disassembly, energized AC/telephone probing,
+scanner carriage motion, chip swaps, card writes or USB requests
+are needed for this documentation. There are **no verified
+dimension-based IC exclusions yet**; the new results are constraint
+definitions and a targeted measurement plan, not a found chip.
+
+Sources:
+- Brother MFC-290C specifications, general, scanner, printer:
+  https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all
+- Brother MFC-290CZ Canadian French User's Guide, printed p. 140,
+  MFC-290C front/side dimension drawing (PDF page index 153):
+  https://download.brother.com/welcome/doc002379/cv_mfc290cz_canfre_usr_lx1023002.pdf
+- Brother June 2008 parts-reference PCB list (regional board codes):
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+- Brother June 2008 SM-FAX098 service manual, chs. 1 and 3,
+  scanner/CIS and separated main/MJ/PS assemblies:
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+
 ## Main PCB chips and USB command-processing candidates (2026-11-21)
 
 **Hardware evidence, not a working driver.** Brother's June 2008
