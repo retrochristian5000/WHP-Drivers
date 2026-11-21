@@ -19,6 +19,82 @@
 - Do not confuse standalone ITU-T fax modem signaling with Hayes AT commands on a PC COM port. Any future PC-FAX submission protocol requires independently captured, authorized device evidence.
 - USB transport, print stream encoding, scanner commands, PC-FAX sending, OS install packages, and real-hardware behavior remain **unimplemented**. No firmware updates, ink movement, phone calls, or USB requests occur in the identity tests or macOS observer.
 
+## Main PCB chips and USB command-processing candidates (2026-11-21)
+
+**Hardware evidence, not a working driver.** Brother's June 2008
+SM-FAX098 service manual (MFC-290C included) identifies a **RISC 128 MHz**
+CPU for the lower-tier MFC-250C/290C models in section 2.1. Its
+section 3.3.1 control-electronics diagram identifies the **Main ASIC**,
+**SDRAM**, **ROM**, **MODEM**, **EEPROM**, **SDAA** (telephone-line interface)
+and **motor-driver circuits** connected through the main PCB. The manual
+does **not** name the CPU instruction set or give a readable IC manufacturer
+marking, model number, USB controller register map, or main-ASIC pinout.
+In particular, RISC does **not** imply AArch64/ARM, MIPS, or any other
+specific ISA.
+
+| Evidence | MFC-290C-specific significance | Limit |
+| --- | --- | --- |
+| Main ASIC + 128 MHz RISC CPU | First candidate for interpreting firmware-level commands after USB reception | The USB PHY and peripheral controller may be on-chip or separate; no die, pin or register map established |
+| SDRAM | Working data buffering while machine handles host jobs | No capacity, address map, USB DMA or packet-buffer location established |
+| Flash ROM / program ROM | Stores executable machine firmware (Appendix 2) | No CPU ISA, firmware format, command dispatcher or image authorization established |
+| EEPROM | Stores destination/model/calibration parameters (Appendix 3) | Not a USB command register and must not be written during inventory |
+| MODEM and SDAA / MJ PCB | Fax-line path separate from host computer's USB port | No reason to infer CDC ACM, COM port or AT-command USB exposure |
+| DC/step motor drivers and CIS/front-end | Downstream print and scan actuators/sensors | Do not send motion or maintenance commands merely to identify silicon |
+
+The Brother **parts reference list**, List 8 (PCB), identifies main-board
+family **B53K961** for MFC-290C. It lists **LT0288051** for many countries,
+**LT0288052** for US first-three-month production, and **LT0288055** for
+China. The separate **MJ PCB** is classified as **B53K967**, including
+**LT0405001** for MFC-290C in US/CAN/CHN/HK/ARG/CHL/ASA/OCE. These are
+PCB/assembly codes, **not ASIC chip part numbers** or interchangeable
+firmware versions. Related higher-tier MFC-490CW has main PCB **B53K960**;
+its silicon/protocol must not be presumed identical.
+
+**Current USB receive-chain hypothesis (not a verified circuit trace):**
+
+    macOS host USB transaction
+        -> rear MFC-290C USB device connector (USB 2.0 Full-Speed)
+        -> USB device transceiver / protocol controller (unknown IC)
+        -> main ASIC / firmware command handling (candidate)
+        -> SDRAM/ROM and function-specific print, CIS scan or PC-FAX path
+
+The service manual is a **functional/wiring** reference; Appendix 6
+specifies detailed circuit diagrams for the **MJ and power supply PCBs**,
+not a complete main-PCB USB netlist. It does not distinguish whether
+the USB transceiver, endpoint state machines and RISC CPU share a chip.
+A seller's photograph of an alleged `E131175` replacement board cannot
+authenticate silicon markings, assembly revision, or exact component layout.
+
+**Evidence gates before writing driver commands:**
+
+1. Record readable **top/bottom main PCB photographs**, exact board revision
+   and non-destructive chip-package markings for an authenticated MFC-290C.
+   Do not probe an energized/open printer or telephone-line circuitry.
+2. Identify the USB-receiving silicon and obtain its manufacturer
+   datasheet or documented pinout; keep firmware ISA separate from USB
+   descriptors. Do not infer an external USB chip from visual appearance.
+3. Collect sanitized, read-only actual USB **device and configuration
+   descriptors**, interface numbers, alternate settings, endpoint types
+   and packet sizes through OS-managed inspection; no interface seizing.
+4. Compare independently authorized printer versus scanner versus PC-FAX
+   host-driver evidence **per function**. Do not promote protocol requests
+   from related Brother models into MFC-290C commands without confirmation.
+
+**What is now established:** a ranked USB/ASIC investigation target,
+hardware block inventory and board assembly IDs. **What remains
+unestablished:** exact USB controller/PHY chip, its internal/external
+relationship to the main ASIC, firmware CPU ISA, vendor protocol bytes,
+driver-ready printing/scanning/PC-FAX functions.
+
+Primary references:
+- Brother SM-FAX098, section 2.1 (128 MHz RISC model tier), section
+  3.3.1 (control-electronics block diagram), Appendix 2/3 (flash/EEPROM),
+  Appendix 5/6 (wiring and circuit diagram scope):
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- Brother DCP/MFC Parts Reference List, List 8 (PCB), B53K961/B53K967
+  model and region-specific assembly identifiers:
+  https://www.laserexpressinc.com/manuals/Brother/brother-dcp-145c-163c-165c-167c-185c-383c-385c-387c-585cw-mfc-250c-250cz-290c-290cz-297c-297cz-490cw-790cw-990cw-parts-manual.pdf
+
 ## Firmware, flash ROM and service-mode boundary (2026-11-21)
 
 Brother confirms an MFC-290C firmware update tool and a published firmware
