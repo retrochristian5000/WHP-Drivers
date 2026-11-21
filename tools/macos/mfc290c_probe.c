@@ -197,6 +197,9 @@ static void print_interfaces(io_registry_entry_t entry, unsigned depth,
             ++*found;
             printf("  interface");
             print_interface_field(child, CFSTR("bInterfaceNumber"), "number");
+            /* Registry hints only: neither setting nor endpoint is changed. */
+            print_interface_field(child, CFSTR("bAlternateSetting"), "alternate");
+            print_interface_field(child, CFSTR("bNumEndpoints"), "declaredEndpoints");
             print_interface_field(child, CFSTR("bInterfaceClass"), "class");
             print_interface_field(child, CFSTR("bInterfaceSubClass"), "subclass");
             print_interface_field(child, CFSTR("bInterfaceProtocol"), "protocol");

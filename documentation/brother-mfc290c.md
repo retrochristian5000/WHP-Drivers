@@ -246,6 +246,69 @@ References: Apple Universal Binary, Rosetta and USBDriverKit documentation:
 - https://developer.apple.com/documentation/kernel/implementing_drivers_system_extensions_and_kexts
 - https://developer.apple.com/documentation/usbdriverkit
 
+## FreeBSD USB driver cross-check (2026-11-21)
+
+Scope: public FreeBSD `src` USB sources as reviewed on 2026-11-21,
+not a claim of tested FreeBSD support on the physical MFC-290C.
+
+| Source | Finding | Safe consequence for this project |
+| --- | --- | --- |
+| `sys/dev/usb/usbdevs` | Lists Brother vendor `0x04f9`, plus older HL-1050 and MFC-8600/9650 entries; **no MFC-290C/`0x01fd` product entry found** | Lack of a product-list entry does **not** exclude generic USB class-driver binding |
+| `sys/dev/usb/serial/ulpt.c` | `ulpt_devs` matches standard USB printer interface class `0x07`, subclass `0x01`, protocols uni/bidirectional/1284; the attach logic searches an alternate interface suitable for bidirectional use | Printer transport remains a **candidate** until this model's actual interfaces, alternate settings and endpoints are known |
+| `sys/dev/usb/quirk/usb_quirk.c` | No Brother name, `0x04f9` or exact `0x01fd` entry found in the reviewed static quirk table | No MFC-290C-specific quirk established; does not exclude runtime quirks or other sources |
+| `sys/dev/usb/usb_parse.c` | `usb_desc_foreach` bounds descriptor iteration using a prevalidated `wTotalLength`; interface and endpoint descriptor lengths are also checked | A future offline raw-configuration decoder must reject incomplete, zero-length and overrun records and retain alternate-setting context |
+
+**Important implementation limit:** `ulpt.c` issues USB printer-class
+SOFT_RESET using both legacy `0x23` and corrected `0x21` request types,
+and `ulpt(4)` documents an alternative `unlpt` no-reset device path
+because some printers misbehave on reset. The existing WHP offline
+SETUP classifier already distinguishes these captured requests.
+FreeBSD's behavior is **not evidence that the MFC-290C accepts or needs**
+those resets. Our macOS observer must never send them. FreeBSD also
+contains a disabled GET_DEVICE_ID path with compatibility warnings;
+that does not authenticate this model's IEEE 1284 device ID.
+
+**Read-only macOS improvement:** the IOKit USB interface inventory now
+reports `alternate=0xNN` and `declaredEndpoints=0xNN` when numeric
+`bAlternateSetting` and `bNumEndpoints` properties are visible,
+otherwise `unknown`. They are **IORegistry metadata hints**, not an
+authenticated complete raw USB configuration dump. The observer does
+not set an alternate interface, claim endpoints, open a pipe, or send
+USB requests. It reports available interface metadata alongside class,
+subclass and protocol; no printer/scanner/fax roles are inferred.
+
+For **a separate authorized FreeBSD host**, `usbconfig` provides
+non-mutating inspection commands after selecting the correct `ugenX.Y`:
+
+```sh
+usbconfig
+usbconfig -d ugenX.Y dump_device_desc
+usbconfig -d ugenX.Y dump_curr_config_desc
+usbconfig -d ugenX.Y show_ifdrv
+```
+
+Here `ugenX.Y` is a placeholder to replace with the observed target.
+These are examples **for FreeBSD, not macOS commands**. Sanitize serial
+strings and other unit-specific data before sharing traces. Never run
+`do_request`, `reset`, `set_alt`, `detach_kernel_driver`, firmware
+updates or print/scan/fax transactions merely to identify hardware.
+
+Remaining evidence needed: verified `04f9:01fd` physical configuration
+descriptor with each interface number, alternate setting, class,
+subclass, protocol, endpoint type/direction/address and maximum packet
+size; then identify which function/driver owns each interface. Generic
+FreeBSD class handling does not reveal Brother's raster/scanner/fax
+commands or the main ASIC's instruction set.
+
+References:
+- FreeBSD `usbdevs`: https://cgit.freebsd.org/src/tree/sys/dev/usb/usbdevs
+- FreeBSD `ulpt.c`: https://cgit.freebsd.org/src/tree/sys/dev/usb/serial/ulpt.c
+- FreeBSD `usb_quirk.c`: https://cgit.freebsd.org/src/tree/sys/dev/usb/quirk/usb_quirk.c
+- FreeBSD `usb_parse.c`: https://cgit.freebsd.org/src/tree/sys/dev/usb/usb_parse.c
+- FreeBSD `ulpt(4)`: https://man.freebsd.org/cgi/man.cgi?query=ulpt&sektion=4
+- FreeBSD `usbconfig(8)`: https://man.freebsd.org/cgi/man.cgi?query=usbconfig&sektion=8
+- Apple USB interface descriptor: https://developer.apple.com/documentation/kernel/iousbinterfacedescriptor
+
 ## Native macOS USB evidence (IOKit)
 
 macOS is an **independent target**, not a Windows 95 or DOS compatibility
