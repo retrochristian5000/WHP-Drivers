@@ -87,6 +87,41 @@ References:
 - Apple ImageCaptureCore `ICDevice.usbLocationID`:
   https://developer.apple.com/documentation/imagecapturecore/icdevice/usblocationid
 
+## macOS Intel / Apple Silicon architecture audit (2026-11-21)
+
+The MFC-290C USB Full-Speed protocol is the same regardless of its macOS
+host CPU. PowerPC, x86_64 and AArch64 are host code architectures, **not**
+USB endpoint numbers, printer command families or the device firmware ISA.
+Keep the existing explicit byte decoding, not host-ABI struct casts.
+
+The IOKit/CUPS diagnostic reports the executing process ISA and pointer
+width plus sysctl.proc_translated (Rosetta) status when available.
+The read-only --architecture-only option skips both USB registry and CUPS
+queries. A rosetta=unknown result is not proof of native execution.
+
+Build mode WHP_MFC290C_MACOS_ARCH accepts native (default), arm64, x86_64
+or universal2. The build passes explicit -arch compiler arguments and
+verifies Mach-O slices using lipo; universal2 requires both arm64 and
+x86_64. The special arm64e kernel-extension ABI is deliberately rejected
+for this user-space probe; it is not a DriverKit extension or a kext.
+
+Example (on macOS):
+
+    WHP_MFC290C_MACOS_ARCH=universal2 ./build build-brother-mfc290c-macos
+    lipo -archs .build/brother-mfc290c-macos/mfc290c-probe
+    ./.build/brother-mfc290c-macos/mfc290c-probe --architecture-only
+
+The pinned macOS 15 Apple Silicon CI runner compiles both slices and
+executes the arm64 slice only. Intel runtime, historical PowerPC builds,
+the physical MFC-290C, USB transfers, printing, scanning, PC-FAX and
+signed USBDriverKit entitlement/installation are not yet tested.
+
+References: Apple Universal Binary, Rosetta and USBDriverKit documentation:
+- https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary
+- https://developer.apple.com/documentation/apple-silicon/about-the-rosetta-translation-environment
+- https://developer.apple.com/documentation/kernel/implementing_drivers_system_extensions_and_kexts
+- https://developer.apple.com/documentation/usbdriverkit
+
 ## Native macOS USB evidence (IOKit)
 
 macOS is an **independent target**, not a Windows 95 or DOS compatibility

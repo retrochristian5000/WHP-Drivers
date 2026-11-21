@@ -428,6 +428,15 @@ build_brother_mfc290c_macos() {
     compiler=${CC:-cc}
     command -v "$compiler" >/dev/null 2>&1 ||
         die "missing macOS host C compiler: $compiler"
+    # Select Mach-O slices without changing USB commands or the SDK.
+    arch_mode=${WHP_MFC290C_MACOS_ARCH:-native}
+    case "$arch_mode" in
+        native) set -- ;;
+        arm64|x86_64) set -- -arch "$arch_mode" ;;
+        universal2) set -- -arch arm64 -arch x86_64 ;;
+        *) die 'WHP_MFC290C_MACOS_ARCH must be native, arm64, x86_64 or universal2 (not arm64e)' ;;
+    esac
+    need lipo
     out_dir="$root/.build/brother-mfc290c-macos"
     [ ! -L "$root/.build" ] && [ ! -L "$out_dir" ] &&
         [ ! -L "$out_dir/mfc290c-probe" ] ||
@@ -438,7 +447,7 @@ build_brother_mfc290c_macos() {
         umask 077
         mkdir -p "$out_dir" || exit 1
         chmod 700 "$out_dir" || exit 1
-        "$compiler" -std=c11 -Wall -Wextra -Werror -Wpedantic \
+        "$compiler" "$@" -std=c11 -Wall -Wextra -Werror -Wpedantic \
             -I"$root/drivers/usb/brother" \
             "$root/tools/macos/mfc290c_probe.c" \
             "$root/tools/macos/mfc290c_cups.c" \
@@ -446,7 +455,25 @@ build_brother_mfc290c_macos() {
             "$root/drivers/usb/brother/mfc290c_location.c" \
             -framework IOKit -framework CoreFoundation -lcups \
             -o "$out_dir/mfc290c-probe"
-    ) || die 'MFC-290C native macOS probe build failed'
+    ) || die 'MFC-290C macOS probe build failed'
+    slices=$(lipo -archs "$out_dir/mfc290c-probe") ||
+        die 'cannot inspect MFC-290C Mach-O architecture'
+    case "$arch_mode" in
+        native)
+            case "$slices" in
+                arm64|x86_64) ;;
+                *) die "unexpected native macOS probe slices: $slices" ;;
+            esac ;;
+        arm64|x86_64)
+            [ "$slices" = "$arch_mode" ] ||
+                die "macOS probe architecture mismatch ($arch_mode vs $slices)" ;;
+        universal2)
+            case "$slices" in
+                'arm64 x86_64'|'x86_64 arm64') ;;
+                *) die "universal2 requires exactly arm64 and x86_64: $slices" ;;
+            esac ;;
+    esac
+    printf '%s\n' "WHP-Drivers: macOS probe Mach-O slices=$slices ($arch_mode)"
     printf '%s\n' "WHP-Drivers: macOS USB inventory tool built at $out_dir/mfc290c-probe"
 }
 

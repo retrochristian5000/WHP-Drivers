@@ -7,10 +7,46 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/sysctl.h>
 
 #include "mfc290c.h"
 #include "mfc290c_location.h"
 #include "mfc290c_cups.h"
+
+/* Process ISA and translation never describe the USB peripheral firmware. */
+static void report_process_architecture(void)
+{
+    const char *isa;
+    int translated = 0;
+    size_t translated_size = sizeof(translated);
+
+#if defined(__arm64e__)
+    isa = "arm64e";
+#elif defined(__arm64__) || defined(__aarch64__)
+    isa = "arm64";
+#elif defined(__x86_64__)
+    isa = "x86_64";
+#elif defined(__i386__)
+    isa = "i386";
+#elif defined(__ppc64__)
+    isa = "powerpc64";
+#elif defined(__ppc__)
+    isa = "powerpc";
+#else
+    isa = "unknown";
+#endif
+    printf("processISA=%s pointerBits=%zu", isa, sizeof(void *) * 8u);
+    if (sysctlbyname("sysctl.proc_translated", &translated,
+                     &translated_size, NULL, 0) == 0 &&
+        translated_size == sizeof(translated) &&
+        (translated == 0 || translated == 1)) {
+        printf(" rosetta=%s", translated == 1 ? "yes" : "no");
+    } else {
+        printf(" rosetta=unknown");
+    }
+    putchar('\n');
+    puts("Process architecture does not establish device or driver support.");
+}
 
 #define MAX_REGISTRY_DEPTH 8u
 #define MAX_REGISTRY_NODES 512u
@@ -225,15 +261,22 @@ int main(int argc, char **argv)
     uint32_t location_hint = 0u;
     int have_location_hint = 0;
 
+    if (argc == 2 && strcmp(argv[1], "--architecture-only") == 0) {
+        puts("Brother MFC-290C macOS architecture audit (read-only)");
+        report_process_architecture();
+        puts("No USB registry or CUPS inspection was performed.");
+        return 0;
+    }
     if (argc == 3 && strcmp(argv[1], "--location-hint") == 0 &&
         whp_mfc290c_parse_location_hint(argv[2], &location_hint)) {
         have_location_hint = 1;
     } else if (argc != 1) {
-        fprintf(stderr, "usage: %s [--location-hint 0xNNNNNNNN]\n", argv[0]);
+        fprintf(stderr, "usage: %s [--location-hint 0xNNNNNNNN | --architecture-only]\n", argv[0]);
         return 2;
     }
 
     puts("Brother MFC-290C macOS USB registry observation (read-only)");
+    report_process_architecture();
     if (have_location_hint) {
         printf("Expected topology hint=0x%08x (comparison only; never a filter)\n",
                (unsigned)location_hint);

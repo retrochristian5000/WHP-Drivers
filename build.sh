@@ -280,7 +280,7 @@ Usage: ./build.sh [menuconfig|config|plan|build|incremental|test|test-fast|clean
   bootstrap-all   Build both pinned LLVM and OpenWatcom toolchains
   test-menuconfig Run isolated build.sh configuration regression checks
   <legacy target> Pass through to ./build (smoke, smoke-vxd, verify-vxd, ...)
-  build-brother-mfc290c-macos Compile native macOS USB registry probe (no device I/O)
+  build-brother-mfc290c-macos Compile macOS probe; WHP_MFC290C_MACOS_ARCH=native|arm64|x86_64|universal2
   probe-brother-mfc290c-macos Compile and run read-only macOS USB registry probe
 Profiles: abi (default), vxd, radeon6410d, rtl8111e, hda, brother-mfc290c, dos-probe, all
 Legacy profile: dos-pci (accepted for existing configurations)

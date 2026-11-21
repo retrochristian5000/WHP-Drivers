@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-15]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
@@ -41,9 +41,19 @@ jobs:
           ./build.sh test-menuconfig
       - name: Test USB identity, CUPS, location and fax policy guards
         run: ./build test-brother-mfc290c
-      - name: Compile native macOS IOKit and CUPS read-only observer
+      - name: Compile and verify arm64 plus x86_64 macOS observer slices
         if: runner.os == 'macOS'
+        env:
+          WHP_MFC290C_MACOS_ARCH: universal2
         run: ./build build-brother-mfc290c-macos
+      - name: Verify Apple Silicon process ISA without USB access
+        if: runner.os == 'macOS'
+        run: |
+          ./.build/brother-mfc290c-macos/mfc290c-probe --architecture-only | grep -q 'processISA=arm64 '
+          if WHP_MFC290C_MACOS_ARCH=arm64e ./build build-brother-mfc290c-macos; then
+            printf '%s\n' 'Unsupported arm64e mode was accepted' >&2
+            exit 1
+          fi
       - name: Smoke macOS registry and CUPS queue observations (printer not required)
         if: runner.os == 'macOS'
         run: ./.build/brother-mfc290c-macos/mfc290c-probe
