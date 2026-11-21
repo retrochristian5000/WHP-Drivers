@@ -19,6 +19,50 @@
 - Do not confuse standalone ITU-T fax modem signaling with Hayes AT commands on a PC COM port. Any future PC-FAX submission protocol requires independently captured, authorized device evidence.
 - USB transport, print stream encoding, scanner commands, PC-FAX sending, OS install packages, and real-hardware behavior remain **unimplemented**. No firmware updates, ink movement, phone calls, or USB requests occur in the identity tests or macOS observer.
 
+## macOS USB Location ID observation (2026-11-21)
+
+A connected MFC-290C was reported by macOS with **Location ID
+`0x00120000`**. This is an **observed topology value**, not a model
+identifier, serial number, fixed USB endpoint or driver-binding requirement.
+The macOS version, controller, hub chain and physical connector for this
+observation have not been recorded; do not infer a specific physical port from
+the hexadecimal digits alone.
+
+Apple's original IOUSBFamily `IOUSBLib.h` documents
+`GetLocationID` as returning a 32-bit identifier for the USB device's
+position in the system topology. It is normally stable across reboots while
+topology remains unchanged, but may differ after a cable/hub/port/controller
+change. Apple's ImageCaptureCore also exposes an `ICDevice.usbLocationID`
+property, which may be useful for **future** scanner-registry correlation;
+no ICA device matching has yet been implemented.
+
+The macOS probe now accepts a **diagnostic-only** comparison:
+
+```sh
+./build.sh probe-brother-mfc290c-macos --location-hint 0x00120000
+```
+
+The optional argument requires exactly eight hexadecimal digits preceded by
+`0x` or `0X`. It is not saved in a configuration file and never restricts
+USB enumeration. All devices with matching Brother **VID/PID** are still
+reported. Where macOS exposes a location ID, each match is annotated
+`locationHint=same` or `locationHint=different`; if the property is
+missing it reports `locationHint=unavailable`. An invalid hint fails before
+registry access. A moved device is **still recognized** if its VID/PID matches.
+
+The portable parser `drivers/usb/brother/mfc290c_location.{h,c}` is covered
+by synthetic checks for valid 32-bit values, rejected malformed hints,
+unchanged output on failure, and stable VID/PID matching after a simulated
+location change. Comparing a location cannot establish printer, scanner
+or fax endpoints, protocols, print queues, USB speed, or functional driver
+support. Never hard-code this observation into a Windows, DOS or macOS driver.
+
+References:
+- Apple IOUSBFamily `GetLocationID` contract:
+  https://github.com/apple-oss-distributions/IOUSBFamily/blob/main/IOUSBFamily/Headers/IOUSBLib.h
+- Apple ImageCaptureCore `ICDevice.usbLocationID`:
+  https://developer.apple.com/documentation/imagecapturecore/icdevice/usblocationid
+
 ## Native macOS USB evidence (IOKit)
 
 macOS is an **independent target**, not a Windows 95 or DOS compatibility
