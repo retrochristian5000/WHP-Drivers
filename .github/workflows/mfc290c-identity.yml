@@ -1,11 +1,11 @@
-name: Brother MFC-290C identity and macOS observation
+name: Brother MFC-290C USB and macOS print-stack audit
 
 on:
   push:
     paths:
       - 'drivers/usb/brother/**'
-      - 'tools/macos/mfc290c_probe.c'
-      - 'tests/brother-mfc290c.c'
+      - 'tools/macos/mfc290c*'
+      - 'tests/brother-mfc290c*.c'
       - 'tests/build-menuconfig.sh'
       - 'documentation/brother-mfc290c.md'
       - 'build'
@@ -14,8 +14,8 @@ on:
   pull_request:
     paths:
       - 'drivers/usb/brother/**'
-      - 'tools/macos/mfc290c_probe.c'
-      - 'tests/brother-mfc290c.c'
+      - 'tools/macos/mfc290c*'
+      - 'tests/brother-mfc290c*.c'
       - 'tests/build-menuconfig.sh'
       - 'documentation/brother-mfc290c.md'
       - 'build'
@@ -39,11 +39,11 @@ jobs:
         run: |
           sh -n build build.sh tests/build-menuconfig.sh
           ./build.sh test-menuconfig
-      - name: Compile and test synthetic MFC-290C USB descriptors
+      - name: Compile and test USB identity and CUPS model-label guards
         run: ./build test-brother-mfc290c
-      - name: Compile native macOS IOKit USB registry observer
+      - name: Compile native macOS IOKit and CUPS read-only observer
         if: runner.os == 'macOS'
         run: ./build build-brother-mfc290c-macos
-      - name: Smoke read-only macOS USB enumeration (printer not required)
+      - name: Smoke macOS registry and CUPS queue observations (printer not required)
         if: runner.os == 'macOS'
         run: ./.build/brother-mfc290c-macos/mfc290c-probe
