@@ -16,16 +16,19 @@ int main(void)
     const char *dos = whp_probe_scope_line(WHP_PROBE_SCOPE_DOS_BIOS_PCI);
     const char *mac = whp_probe_scope_line(WHP_PROBE_SCOPE_MACOS_USB_REGISTRY);
     const char *arch = whp_probe_scope_line(WHP_PROBE_SCOPE_MACOS_ARCHITECTURE);
+    const char *sys = whp_probe_scope_line(WHP_PROBE_SCOPE_MACOS_SYSTEM);
 
-    CHECK(dos != NULL && mac != NULL && arch != NULL);
+    CHECK(dos != NULL && mac != NULL && arch != NULL && sys != NULL);
     CHECK(strcmp(dos, "WHP probe platform=dos evidence=BIOS-PCI "
                       "usbDevices=not-enumerated transfers=no") == 0);
     CHECK(strcmp(mac, "WHP probe platform=macos evidence=IORegistry-CUPS "
                       "usbDevices=registry-only transfers=no") == 0);
     CHECK(strcmp(arch, "WHP probe platform=macos evidence=process-architecture "
                        "usbDevices=not-queried transfers=no") == 0);
+    CHECK(strcmp(sys, "WHP probe platform=macos evidence=sysctl-IORegistry "
+                       "usbDevices=not-queried transfers=no") == 0);
     CHECK(whp_probe_scope_line((enum whp_probe_scope)0) == NULL);
-    CHECK(whp_probe_scope_line((enum whp_probe_scope)4) == NULL);
+    CHECK(whp_probe_scope_line((enum whp_probe_scope)5) == NULL);
     CHECK(whp_probe_scope_line((enum whp_probe_scope)-1) == NULL);
 
     puts("WHP probe: common source-scope tests passed");

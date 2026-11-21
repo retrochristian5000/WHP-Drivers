@@ -13,6 +13,8 @@ const char *whp_probe_scope_line(enum whp_probe_scope scope)
         return "WHP probe platform=macos evidence=IORegistry-CUPS usbDevices=registry-only transfers=no";
     case WHP_PROBE_SCOPE_MACOS_ARCHITECTURE:
         return "WHP probe platform=macos evidence=process-architecture usbDevices=not-queried transfers=no";
+    case WHP_PROBE_SCOPE_MACOS_SYSTEM:
+        return "WHP probe platform=macos evidence=sysctl-IORegistry usbDevices=not-queried transfers=no";
     default:
         return 0;
     }

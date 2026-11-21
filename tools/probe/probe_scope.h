@@ -5,7 +5,8 @@
 enum whp_probe_scope {
     WHP_PROBE_SCOPE_DOS_BIOS_PCI = 1,
     WHP_PROBE_SCOPE_MACOS_USB_REGISTRY,
-    WHP_PROBE_SCOPE_MACOS_ARCHITECTURE
+    WHP_PROBE_SCOPE_MACOS_ARCHITECTURE,
+    WHP_PROBE_SCOPE_MACOS_SYSTEM
 };
 
 /* Newline-free source label; returns NULL for invalid input. */
