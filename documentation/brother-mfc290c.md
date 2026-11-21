@@ -1,6 +1,6 @@
 # Brother MFC-290C — USB multifunction driver evidence and boundaries
 
-**Status:** portable USB identity decoder, synthetic host tests, and read-only macOS IORegistry observer. **Not an installable driver.**
+**Status:** portable USB identity/model-label decoders, synthetic host tests, and read-only macOS IORegistry/CUPS observers. **Not an installable driver.**
 
 ## Identified hardware
 
@@ -61,6 +61,57 @@ operating-system version and raw/report-derived status of each value; never
 silently choose the "most accurate" OS as authoritative without hardware
 documentation and descriptor evidence.
 
+## macOS print and scan driver logic (evidence versus implementation)
+
+Brother's original Mac software used a **CUPS printer-driver path** and an
+**Image Capture Architecture (ICA) scanner path**. Brother's MFC-290C Mac OS X
+10.6 instructions specifically state that its CUPS Printer Driver package
+contained the ICA Scanner Driver. These are separate operating-system
+interfaces, not evidence that the USB device presents separate printer and
+scanner class interfaces. We must obtain USB configuration/endpoint descriptors
+before selecting any USB interface or issuing transfers.
+
+The macOS observer now reports **two independent evidence layers**:
+
+1. **IOKit USB registry:** exact numeric USB VID/PID `04f9:01fd`, visible
+   interface fields and descendant service-class/`CFBundleIdentifier` hints.
+   A bundle hint is **not proof** of the active Brother print/scan implementation.
+2. **CUPS destinations:** the standard `cupsGetDests` metadata snapshot and
+   number of queues whose `printer-make-and-model` text contains distinct
+   `Brother` and `MFC-290C`/`MFC290C` tokens. A queue model-label candidate
+   is **not** a verified USB device, a working installed filter, a printer
+   protocol, or a confirmed connected physical unit. Other model variants
+   with appended letters/numbers are rejected. Missing labels remain unknown.
+   Neither queue names nor device URIs nor serial numbers are printed.
+
+The CUPS model-label check is an OS-neutral C11 function in
+`drivers/usb/brother/mfc290c_model_match.{c,h}`, covered by synthetic positive,
+negative, neighboring-model, NULL and overlength tests. The CUPS-specific
+adapter is `tools/macos/mfc290c_cups.{c,h}`. It **only queries** the print
+scheduler; it does not submit jobs, configure queues, install a PPD, open a
+USB interface, or modify driver settings. The native macOS build links the
+system `IOKit`, `CoreFoundation` and `cups` libraries. Querying CUPS may
+contact the local print scheduler; the caller performs no direct USB transfers.
+
+**Implementation design:** keep transport and Brother wire protocols portable,
+then adapt them separately to (a) a macOS print service connected to CUPS/IPP,
+(b) ImageCaptureCore/ICA scanning, and (c) PC-FAX sending. Do not assume this
+USB-only legacy device supports native AirPrint or IPP Everywhere; a future
+printer application could expose an IPP-compatible interface only *after*
+its Brother-specific print stream is understood. Classic PPD-based CUPS filters
+are deprecated, so new code should not depend on their permanent availability.
+Do not package a USBDriverKit extension merely to inspect a registry:
+USBDriverKit binding, signing and entitlements apply only if an actual
+driver extension is needed. Avoid installing unsigned kernel extensions or
+copying proprietary Brother binaries into our source tree.
+
+**Unverified:** native macOS SDK build/CI result, presence and content of
+actual MFC-290C registry services, CUPS destination setup, historical Brother
+filter behavior, ICA scanner availability on modern macOS, device endpoints,
+print stream, scanner commands, fax protocol, and real printing or scanning.
+A clean macOS CI runner has no target printer, so successful compilation and
+empty observations cannot certify hardware support.
+
 ## Portability gates
 
 | Target | Required proof before claiming driver support |
@@ -74,11 +125,15 @@ documentation and descriptor evidence.
 
 ## Verification
 
-Run `./build.sh test-brother-mfc290c` (or `./build test-brother-mfc290c`). This uses a native C11 host compiler and synthetic descriptors; it does not need LLVM, OpenWatcom, USB permissions, or a printer. The targeted GitHub Actions job runs this test on Linux and macOS, and additionally compiles the native macOS IOKit probe. A CI Mac without an attached MFC-290C cannot verify physical-device behavior.
+Run `./build.sh test-brother-mfc290c` (or `./build test-brother-mfc290c`). It uses a native C11 host compiler to run synthetic **USB descriptor and CUPS model-label** tests; it does not need LLVM, OpenWatcom, USB permissions, or a printer. The targeted GitHub Actions job runs both tests on Linux and macOS and additionally compiles the IOKit/CUPS observer on macOS. A CI Mac without an attached MFC-290C cannot verify physical-device behavior.
 
 ## Primary and corroborating references
 
 - Brother, *Quick Setup Guide*, 2008 (USB speed, cable, physical phone connections): https://download.brother.com/welcome/doc002385/cv_mfc290_usaeng_qsg.pdf
+- Brother MFC-290C ICA scanning on Mac OS X 10.6: https://support.brother.com/g/b/faqend.aspx?c=as_ot&faqid=faq00000717_002&ftype3=1992&lang=en&prod=mfc290c_all
+- CUPS Programming Manual, destination attributes: https://www.cups.org/doc/cupspm.html
+- OpenPrinting, printer applications and legacy drivers: https://openprinting.github.io/cups/drivers.html
+- Apple ImageCaptureCore: https://developer.apple.com/documentation/imagecapturecore
 - Apple IOUSBHostDevice (IOKit/IOUSBHost): https://developer.apple.com/documentation/iousbhost/iousbhostdevice
 - Apple USBDriverKit: https://developer.apple.com/documentation/usbdriverkit
 - Brother OS compatibility listing: https://support.brother.com/g/b/oslist.aspx?c=us&lang=en&prod=mfc290c_all
