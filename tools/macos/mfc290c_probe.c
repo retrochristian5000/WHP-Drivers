@@ -6,8 +6,10 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "mfc290c.h"
+#include "mfc290c_location.h"
 #include "mfc290c_cups.h"
 
 #define MAX_REGISTRY_DEPTH 8u
@@ -150,7 +152,8 @@ static void print_interfaces(io_registry_entry_t entry, unsigned depth,
     IOObjectRelease(iterator);
 }
 
-static int search_usb_class(const char *class_name, unsigned *matched)
+static int search_usb_class(const char *class_name, unsigned *matched,
+                            int have_location_hint, uint32_t location_hint)
 {
     CFMutableDictionaryRef matching;
     io_iterator_t iterator = 0;
@@ -191,6 +194,15 @@ static int search_usb_class(const char *class_name, unsigned *matched)
             }
             if (read_u32(device, CFSTR("locationID"), &location)) {
                 printf(" locationID=0x%08x", (unsigned)location);
+                if (have_location_hint) {
+                    printf(" locationHint=%s",
+                           location == location_hint ? "same" : "different");
+                }
+            } else {
+                printf(" locationID=unknown");
+                if (have_location_hint) {
+                    printf(" locationHint=unavailable");
+                }
             }
             printf(" registryClass=%s\n", class_name);
             print_interfaces(device, 0u, &remaining, &interfaces);
@@ -210,24 +222,38 @@ static int search_usb_class(const char *class_name, unsigned *matched)
 int main(int argc, char **argv)
 {
     unsigned matched = 0u;
+    uint32_t location_hint = 0u;
+    int have_location_hint = 0;
 
-    if (argc != 1) {
-        fprintf(stderr, "usage: %s\n", argv[0]);
+    if (argc == 3 && strcmp(argv[1], "--location-hint") == 0 &&
+        whp_mfc290c_parse_location_hint(argv[2], &location_hint)) {
+        have_location_hint = 1;
+    } else if (argc != 1) {
+        fprintf(stderr, "usage: %s [--location-hint 0xNNNNNNNN]\n", argv[0]);
         return 2;
     }
+
     puts("Brother MFC-290C macOS USB registry observation (read-only)");
-    if (search_usb_class("IOUSBHostDevice", &matched) != 0) {
+    if (have_location_hint) {
+        printf("Expected topology hint=0x%08x (comparison only; never a filter)\n",
+               (unsigned)location_hint);
+    }
+    if (search_usb_class("IOUSBHostDevice", &matched,
+                         have_location_hint, location_hint) != 0) {
         return 1;
     }
     /* Older macOS USB families expose IOUSBDevice instead. Never print
      * duplicate matches for both class families in the same observation.
      */
-    if (matched == 0u && search_usb_class("IOUSBDevice", &matched) != 0) {
+    if (matched == 0u &&
+        search_usb_class("IOUSBDevice", &matched,
+                         have_location_hint, location_hint) != 0) {
         return 1;
     }
     if (matched == 0u) {
         puts("No matching 04f9:01fd device visible in the macOS USB registry.");
     }
+    puts("Location IDs describe USB topology, not an immutable device identity.");
     puts("No USB transfer performed; registry values are not raw descriptors.");
     whp_mfc290c_report_cups();
     return 0;
