@@ -1367,6 +1367,95 @@ the physical MFC-290C:** current IOKit/CUPS observations, raw endpoint
 descriptors, Brother print/scan/fax command streams, modern ICA support
 or actual printing/scanning/media access. CI has no attached printer.
 
+## Windows BRMF250C.PDD forensic lead (2026-11-21)
+
+**New user-supplied artifact observation:** An extracted Brother Windows
+driver package for the MFC-290C includes the filename
+`BRMF250C.PDD`. **Its file bytes, size, hash, format signature,
+installed Windows/driver version and the package's exact INF mapping
+have not been supplied or examined.** Record the exact filename as
+observed; the presence of an MFC-250C-named file in a family driver
+bundle does not establish that the MFC-290C actually loads it.
+
+A published **third-party file inventory** of a Brother 2009-era
+multi-model inkjet Windows driver lists *both*
+`brmf250c.pdd` / `brmf250c.ini` and
+`brmf290c.pdd` / `brmf290c.ini` alongside shared
+`brpri07a.inf`, `bril08b.dll`, `brio08b.dll`,
+`briu08b.dll` and `.bcm` files. This is evidence of
+**multiple model-named resources distributed together**,
+not verification of the user's particular bundle or of the
+function each binary serves. **Check first for
+`BRMF290C.PDD` in the extracted directory**, and then
+inspect the actual INF/install-section and companion INI
+references to determine which model and driver DLL select
+which data files.
+
+**Do not confuse extensions:** Windows Brother `.PDD` is
+**not automatically** a CUPS/PostScript `.PPD` (PostScript Printer
+Description). Brother's official method for producing a PPD from
+a Windows download requires a compatible **BR-Script/PostScript**
+driver and a `.pp_` source. No evidence establishes that
+this inkjet model's `.PDD` is plain text, Adobe PPD,
+PCL metadata, a standard file format or an executable.
+Classify its structure only from a real bounded byte inspection.
+
+**Safe, read-only local workflow, macOS shell; run in the
+extracted driver directory, changing filenames if needed:**
+
+```sh
+find . -type f \( -iname 'brmf250c.*' -o -iname 'brmf290c.*' -o -iname '*.inf' \) -print
+file BRMF250C.PDD
+wc -c < BRMF250C.PDD
+shasum -a 256 BRMF250C.PDD
+hexdump -C -n 128 BRMF250C.PDD
+LC_ALL=C strings -a BRMF250C.PDD | head -n 80
+```
+
+The first-pass inventory must preserve **original bytes**; do
+not rename `.PDD` to `.PPD` or run/install/execute any
+untrusted or legacy driver. Where `BRMF290C.PDD` is
+available, repeat the same bounded inspection, compare
+sizes/hashes and inspect **differences in their contents
+only after** verifying their packaging/version provenance.
+Search `.INF` and `.INI` references without overwriting
+the extracted files, and use PE import/export inspection of
+known driver DLLs only if the static resource evidence
+warrants it. No raw proprietary binary is committed to
+this public repository.
+
+**Potential information gates:**
+
+| Question | Minimum required evidence | Driver implication |
+| --- | --- | --- |
+| Is `BRMF250C.PDD` shared with MFC-290C? | Exact package's INF/model mapping and DLL/resource references | Family reuse hypothesis; not a model alias |
+| Is a `BRMF290C.PDD` present? | Verified directory listing and hashes of both files | Prefer the model-specific resource when mapping options |
+| What is the PDD format? | Size, first bytes/magic, string and record layout from actual file | Write a **read-only offline parser** only for a validated format |
+| Which features are recorded? | Authenticated records cross-checked with Brother manuals | May yield paper sizes, print modes, DPI, inks, media and constraints |
+| Does PDD encode USB or raster data? | Cross-reference to the producing driver DLL and verified output format/capture | **Not inferred** from filename, extension or feature strings |
+| Can macOS reuse it? | Independently understood, lawful data semantics and a working native print filter | **Metadata may be portable; Windows binary/code is not** |
+
+**macOS design boundary:** Keep Brother print raster/transport analysis
+distinct from CUPS/IPP queue metadata and from ICA scanning.
+The Windows `.PDD` cannot itself make the MFC-290C AirPrint-compatible,
+reveal scanner/PC-FAX USB opcodes, or replace a native macOS encoder.
+Use the original MFC-290C CUPS/Linux printer-driver source as an
+independent comparison point where licensing and actual source contents
+permit. The existing `04f9:01fd` USB identity, unknown vendor
+interface roles, fax safety rules and read-only host probes are unchanged.
+
+Sources:
+- Brother MFC-290C official Windows driver download catalog:
+  https://support.brother.com/g/b/downloadlist.aspx?c=us&lang=en&os=6&prod=mfc290c_all
+- Brother official Linux downloads, including CUPS wrapper source:
+  https://support.brother.com/g/b/downloadlist.aspx?c=us_ot&lang=en&os=128&prod=mfc290c_all
+- Third-party Brother DCP-585CW package inventory (shares
+  the family file list; **not a verified MFC-290C install mapping**):
+  https://www.runonpc.com/driverdownload/brother-dcp-585cw-printer-driver-download/
+- Brother official PPD extraction instructions for **BR-Script**
+  models, showing why `.PDD` and `.PPD` must not be conflated:
+  https://help.brother-usa.com/app/answers/detail/a_id/164936
+
 ## USB command recovery: standards, interfaces, and unknowns (2026-11-21)
 
 This is an **evidence inventory**, not a command sender. Neither Brother's
