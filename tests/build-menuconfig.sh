@@ -83,6 +83,13 @@ WHP_TEST_PLATFORM=Darwin PATH="$tmp/fake-bin:$PATH" \
 printf 'test-brother-mfc290c\n' > "$tmp/expected"
 cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
 
+# The read-only macOS probe must receive its optional location hint verbatim.
+# This tests dispatch only; it never accesses an actual USB device.
+: > "$WHP_TEST_LOG"
+"$tmp/build.sh" probe-brother-mfc290c-macos --location-hint 0x00120000
+printf 'probe-brother-mfc290c-macos --location-hint 0x00120000\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+
 # DOS is a separate opt-in profile; it must not force a toolchain bootstrap.
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=dos-pci "$tmp/build.sh" build
