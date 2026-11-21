@@ -96,6 +96,28 @@ int main(void)
     CHECK(!whp_mfc290c_usb_classify_setup(descriptor, 8u, 0x07u, NULL));
     CHECK(memcmp(&report, &before, sizeof(report)) == 0);
 
+    /* Do not conflate an FF protocol with an FF interface class. */
+    CHECK(whp_mfc290c_usb_hint_interface(0x07u, 0x01u, 0x01u) ==
+          WHP_MFC290C_INTERFACE_PRINTER_UNIDIRECTIONAL);
+    CHECK(whp_mfc290c_usb_hint_interface(0x07u, 0x01u, 0x02u) ==
+          WHP_MFC290C_INTERFACE_PRINTER_BIDIRECTIONAL);
+    CHECK(whp_mfc290c_usb_hint_interface(0x07u, 0x01u, 0x03u) ==
+          WHP_MFC290C_INTERFACE_PRINTER_IEEE1284_4);
+    CHECK(whp_mfc290c_usb_hint_interface(0x07u, 0x01u, 0xffu) ==
+          WHP_MFC290C_INTERFACE_PRINTER_VENDOR_PROTOCOL);
+    CHECK(whp_mfc290c_usb_hint_interface(0xffu, 0x01u, 0xffu) ==
+          WHP_MFC290C_INTERFACE_VENDOR_CLASS);
+    CHECK(whp_mfc290c_usb_hint_interface(0xffu, 0x00u, 0x02u) ==
+          WHP_MFC290C_INTERFACE_VENDOR_CLASS);
+    CHECK(whp_mfc290c_usb_hint_interface(0x07u, 0x00u, 0xffu) ==
+          WHP_MFC290C_INTERFACE_UNCLASSIFIED);
+    CHECK(whp_mfc290c_usb_hint_interface(0x08u, 0x01u, 0xffu) ==
+          WHP_MFC290C_INTERFACE_UNCLASSIFIED);
+    CHECK(whp_mfc290c_usb_hint_interface(0x07u, 0x01u, 0x00u) ==
+          WHP_MFC290C_INTERFACE_UNCLASSIFIED);
+    CHECK(whp_mfc290c_usb_hint_interface(0x07u, 0x01u, 0x04u) ==
+          WHP_MFC290C_INTERFACE_UNCLASSIFIED);
+
     CHECK(whp_mfc290c_usb_hint_endpoint(0x07u, 0x01u, 0x02u) ==
           WHP_MFC290C_ENDPOINT_PRINTER_BULK_OUT_CANDIDATE);
     CHECK(whp_mfc290c_usb_hint_endpoint(0x07u, 0x81u, 0x02u) ==

@@ -12,6 +12,7 @@
 #include "mfc290c.h"
 #include "mfc290c_location.h"
 #include "mfc290c_cups.h"
+#include "mfc290c_usb_commands.h"
 
 /* Process ISA and translation never describe the USB peripheral firmware. */
 static void report_process_architecture(void)
@@ -83,16 +84,55 @@ static int read_u16(io_registry_entry_t entry, CFStringRef key, uint16_t *out)
     return 1;
 }
 
-static void print_interface_field(io_registry_entry_t entry,
-                                  CFStringRef key, const char *label)
+/* Optional output avoids re-reading class/subclass/protocol properties. */
+static int print_interface_field(io_registry_entry_t entry,
+                                 CFStringRef key, const char *label,
+                                 uint8_t *observed)
 {
     uint32_t value;
 
     if (read_u32(entry, key, &value) && value <= UINT8_MAX) {
         printf(" %s=0x%02x", label, (unsigned)value);
-    } else {
-        printf(" %s=unknown", label);
+        if (observed != NULL) {
+            *observed = (uint8_t)value;
+        }
+        return 1;
     }
+    printf(" %s=unknown", label);
+    return 0;
+}
+
+static void print_interface_protocol_hint(int have_triplet, uint8_t cls,
+                                          uint8_t subclass, uint8_t protocol)
+{
+    enum whp_mfc290c_usb_interface_hint hint;
+    const char *meaning = "unclassified";
+
+    if (!have_triplet) {
+        printf(" protocolMeaning=insufficient");
+        return;
+    }
+    hint = whp_mfc290c_usb_hint_interface(cls, subclass, protocol);
+    switch (hint) {
+    case WHP_MFC290C_INTERFACE_PRINTER_UNIDIRECTIONAL:
+        meaning = "printer-unidirectional";
+        break;
+    case WHP_MFC290C_INTERFACE_PRINTER_BIDIRECTIONAL:
+        meaning = "printer-bidirectional";
+        break;
+    case WHP_MFC290C_INTERFACE_PRINTER_IEEE1284_4:
+        meaning = "printer-1284.4";
+        break;
+    case WHP_MFC290C_INTERFACE_PRINTER_VENDOR_PROTOCOL:
+        meaning = "printer-vendor-protocol";
+        break;
+    case WHP_MFC290C_INTERFACE_VENDOR_CLASS:
+        meaning = "vendor-class";
+        break;
+    case WHP_MFC290C_INTERFACE_UNCLASSIFIED:
+        break;
+    }
+    printf(" protocolMeaning=%s", meaning);
 }
 
 /* The USB device registry can expose a serial string already obtained by
@@ -217,15 +257,27 @@ static void print_interfaces(io_registry_entry_t entry, unsigned depth,
         --*remaining;
         if (IOObjectConformsTo(child, "IOUSBHostInterface") ||
             IOObjectConformsTo(child, "IOUSBInterface")) {
+            uint8_t cls = 0u;
+            uint8_t subclass = 0u;
+            uint8_t protocol = 0u;
+            int have_class;
+            int have_subclass;
+            int have_protocol;
+
             ++*found;
             printf("  interface");
-            print_interface_field(child, CFSTR("bInterfaceNumber"), "number");
+            print_interface_field(child, CFSTR("bInterfaceNumber"), "number", NULL);
             /* Registry hints only: neither setting nor endpoint is changed. */
-            print_interface_field(child, CFSTR("bAlternateSetting"), "alternate");
-            print_interface_field(child, CFSTR("bNumEndpoints"), "declaredEndpoints");
-            print_interface_field(child, CFSTR("bInterfaceClass"), "class");
-            print_interface_field(child, CFSTR("bInterfaceSubClass"), "subclass");
-            print_interface_field(child, CFSTR("bInterfaceProtocol"), "protocol");
+            print_interface_field(child, CFSTR("bAlternateSetting"), "alternate", NULL);
+            print_interface_field(child, CFSTR("bNumEndpoints"), "declaredEndpoints", NULL);
+            have_class = print_interface_field(child, CFSTR("bInterfaceClass"),
+                                               "class", &cls);
+            have_subclass = print_interface_field(child, CFSTR("bInterfaceSubClass"),
+                                                  "subclass", &subclass);
+            have_protocol = print_interface_field(child, CFSTR("bInterfaceProtocol"),
+                                                  "protocol", &protocol);
+            print_interface_protocol_hint(have_class && have_subclass &&
+                                          have_protocol, cls, subclass, protocol);
             print_legacy_cups_class_hint(child);
             print_bundle_hint(child);
             putchar('\n');

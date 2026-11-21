@@ -453,6 +453,7 @@ build_brother_mfc290c_macos() {
             "$root/tools/macos/mfc290c_cups.c" \
             "$root/drivers/usb/brother/mfc290c_model_match.c" \
             "$root/drivers/usb/brother/mfc290c_location.c" \
+            "$root/drivers/usb/brother/mfc290c_usb_commands.c" \
             -framework IOKit -framework CoreFoundation -lcups \
             -o "$out_dir/mfc290c-probe"
     ) || die 'MFC-290C macOS probe build failed'

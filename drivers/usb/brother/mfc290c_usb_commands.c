@@ -1,5 +1,34 @@
 #include "mfc290c_usb_commands.h"
 
+enum whp_mfc290c_usb_interface_hint whp_mfc290c_usb_hint_interface(
+    uint8_t interface_class, uint8_t interface_subclass,
+    uint8_t interface_protocol)
+{
+    if (interface_class == WHP_MFC290C_USB_VENDOR_CLASS) {
+        return WHP_MFC290C_INTERFACE_VENDOR_CLASS;
+    }
+    if (interface_class != WHP_MFC290C_USB_PRINTER_CLASS ||
+        interface_subclass != WHP_MFC290C_USB_PRINTER_SUBCLASS) {
+        return WHP_MFC290C_INTERFACE_UNCLASSIFIED;
+    }
+    /* USB Printer Class 1.1 section 5.3. An FF protocol is not the
+     * same thing as an FF interface class. Newer protocol extensions
+     * are not interpreted without their own specification.
+     */
+    switch (interface_protocol) {
+    case 0x01u:
+        return WHP_MFC290C_INTERFACE_PRINTER_UNIDIRECTIONAL;
+    case 0x02u:
+        return WHP_MFC290C_INTERFACE_PRINTER_BIDIRECTIONAL;
+    case 0x03u:
+        return WHP_MFC290C_INTERFACE_PRINTER_IEEE1284_4;
+    case 0xffu:
+        return WHP_MFC290C_INTERFACE_PRINTER_VENDOR_PROTOCOL;
+    default:
+        return WHP_MFC290C_INTERFACE_UNCLASSIFIED;
+    }
+}
+
 static uint16_t read_le16(const uint8_t *bytes)
 {
     return (uint16_t)((uint16_t)bytes[0] | ((uint16_t)bytes[1] << 8));

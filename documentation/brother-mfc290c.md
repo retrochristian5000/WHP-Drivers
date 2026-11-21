@@ -351,6 +351,59 @@ operating-system version and raw/report-derived status of each value; never
 silently choose the "most accurate" OS as authoritative without hardware
 documentation and descriptor evidence.
 
+## Interpreting macOS `protocol=0xff` (2026-11-21)
+
+A user-observed `protocol=0xff` from the **original macOS IOKit probe**
+is a readable `bInterfaceProtocol` byte with numeric value 255;
+it is **not** the probe's `protocol=unknown` fallback. This field
+must be interpreted **with `bInterfaceClass` and `bInterfaceSubClass`**
+from the *same interface*, not a device-level class or a different
+alternate interface. No verified physical MFC-290C class/subclass
+triplet has yet been incorporated into this public ledger.
+
+According to USB-IF *USB Device Class Definition for Printing Devices*
+version 1.1, section 5.3, `class=0x07 subclass=0x01` identifies a
+printer interface; protocols `0x01`, `0x02`, `0x03` mean unidirectional,
+bidirectional and IEEE 1284.4-compatible respectively. In that specific
+printer-class context, `protocol=0xff` means **vendor-specific printer
+protocol**, for which the class-specific printer protocols do not apply.
+In contrast, `class=0xff` defines a **vendor-specific interface class**
+independently of the protocol byte. Neither proves the endpoint roles,
+actual Brother print-language bytes, scanner role, fax role or ASIC ISA.
+
+The existing host-only `whp_mfc290c_usb_hint_interface()` now
+classifies **only known combinations** without emitting USB commands:
+legacy printer protocols 1/2/3, printer vendor protocol FF, vendor
+class FF, or unclassified. Other pairs, including newer protocol
+extensions, remain unclassified rather than being falsely labeled.
+The macOS probe prints `protocolMeaning=printer-vendor-protocol`
+only when all three validated properties are present and match
+`07/01/ff`; `class=ff` produces `protocolMeaning=vendor-class`;
+missing fields produce `protocolMeaning=insufficient`.
+The field is a **class-definition interpretation of registry metadata**
+and does not establish a functional driver or authorize printer class
+GET_DEVICE_ID, status, soft reset or other class-specific requests.
+
+The original offline SETUP classifier takes *class alone*, and its
+printer-specific `*_CANDIDATE` result is only a **syntactic**
+classification of captured traffic. When a verified interface
+advertises vendor-specific `07/01/ff`, do not use that candidate
+as evidence that standard printer class requests are accepted.
+Never apply these interpretations across separate interface numbers.
+
+**Non-mutating follow-up:** record the same probe output line's
+`number`, `class`, `subclass`, `protocol`, `alternate`,
+`declaredEndpoints` and optional service hints. Keep the machine's
+serial number private. This is a sufficient next evidence step; do
+not issue vendor requests or attempt resets.
+
+Sources:
+- USB-IF, *USB Device Class Definition for Printing Devices*,
+  version 1.1, §5.3, interface descriptor Table 6:
+  https://www.usb.org/sites/default/files/usbprint11a021811.pdf
+- Apple IOKit `bInterfaceProtocol` descriptor field:
+  https://developer.apple.com/documentation/kernel/iousbinterfacedescriptor/1545890-binterfaceprotocol
+
 ## Apple macOS open-source integration audit (2026-11-21)
 
 **Source pinning and scope:** Apple's published system components are

@@ -9,6 +9,25 @@
 
 #define WHP_MFC290C_USB_SETUP_LENGTH 8u
 #define WHP_MFC290C_USB_PRINTER_CLASS 0x07u
+#define WHP_MFC290C_USB_PRINTER_SUBCLASS 0x01u
+#define WHP_MFC290C_USB_VENDOR_CLASS 0xffu
+
+/* A passive interpretation of USB *interface* descriptor bytes.
+ * The result is not a driver binding or an authorization to issue a USB
+ * printer request; class, subclass and protocol must be read together.
+ */
+enum whp_mfc290c_usb_interface_hint {
+    WHP_MFC290C_INTERFACE_UNCLASSIFIED = 0,
+    WHP_MFC290C_INTERFACE_PRINTER_UNIDIRECTIONAL,
+    WHP_MFC290C_INTERFACE_PRINTER_BIDIRECTIONAL,
+    WHP_MFC290C_INTERFACE_PRINTER_IEEE1284_4,
+    WHP_MFC290C_INTERFACE_PRINTER_VENDOR_PROTOCOL,
+    WHP_MFC290C_INTERFACE_VENDOR_CLASS
+};
+
+enum whp_mfc290c_usb_interface_hint whp_mfc290c_usb_hint_interface(
+    uint8_t interface_class, uint8_t interface_subclass,
+    uint8_t interface_protocol);
 
 enum whp_mfc290c_usb_setup_kind {
     WHP_MFC290C_SETUP_OPAQUE = 0,
