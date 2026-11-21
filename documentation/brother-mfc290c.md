@@ -1623,6 +1623,87 @@ References:
 - Microsoft scanner interrupt event example (`Capabilities=0x31`):
   https://learn.microsoft.com/en-us/windows-hardware/drivers/image/adding-interrupt-event-support
 
+### Scanner INF: observed `EventEmail=1` and host-assisted email (2026-11-21)
+
+**New user report:** Another line in the extracted Brother imaging
+INF reads `EventEmail=1`. The exact INF section, original
+`AddReg` or `DeviceData` relationship, associated event GUID,
+registry key/value type, driver version and MFC-290C model-row
+binding **have not been supplied**. Preserve the literal line as
+an **observed filename-independent software clue**, not a
+Microsoft-defined standard INF directive with a verified binary
+meaning. The provisional inference is a Brother-specific
+**email-related scan-event option or registration**, not
+proof of functioning hardware notification delivery.
+
+**Independent model confirmation:** Brother's model-specific
+ControlCenter2/3 FAQ identifies **Scan to E-mail** as
+scanning a document into an attachment in a selected **computer
+email application**. It distinguishes the software-button
+configuration from the physical machine's **Device Button**
+configuration. Brother's legacy Software User's Guide for the
+MFC-290C family describes pressing **Scan → Scan to E-mail**
+with a USB cable and host-side MFL-Pro/ControlCenter software
+installed. Brother's published MFC-290C product specifications
+give a **USB** PC interface, not an Ethernet or Wi-Fi network
+interface for independent mail delivery.
+
+```text
+MFC-290C flatbed/ADF + Scan control
+    -> MFC-290C USB device link (protocol/event packets unknown)
+    -> Windows WIA/TWAIN + Brother ControlCenter3
+       or historical Mac scanner + ControlCenter2
+    -> scanned file / selected host email application attachment
+    -> computer's own network connection for optional send
+```
+
+**Do not conflate three different features:**
+
+| Function | Supported inference | Unsupported inference |
+| --- | --- | --- |
+| Scan to E-mail (PC) | Brother documents handing an image/file attachment to a host mail application | Printer has its own SMTP stack, Ethernet NIC or Wi-Fi radio |
+| `EventEmail=1` in scanner INF | Plausible event or email-workflow registration, to be traced to an actual device-specific INF section | A defined Microsoft `EventEmail` keyword, USB opcode, endpoint, physical button packet, or automatic sending |
+| Analog fax over `LINE` / `EXT.` | Separate standalone telephone-line fax service and PC-FAX sending where documented | Fax transmission equals Internet email or Scan-to-Email |
+
+**Next read-only INF tracing:** Find the line's **section
+header**; examine nearby `Events=`, `DeviceData=`,
+`AddReg=`, event names/GUIDs and associated `USDClass`,
+`MicroDriver`, `TwainDS`, `CopyFiles` or
+ControlCenter binaries. Microsoft's STI/WIA documentation defines
+the event-section row grammar
+`EventName="Display", {GUID}, App`; it does **not**
+document `EventEmail` as a universal keyword. The line might
+appear in a **vendor data section**, in which case its meaning
+must be recovered from the actual Brother code/registry
+consumer. Cross-check `SubClass=StillImage`,
+`Capabilities=0x39` and the selected MFC-290C
+hardware-ID entry, but do not assume the three lines
+are in one effective install section.
+
+For a native macOS scanner, treat **Scan to E-mail** as
+a user-invoked *host application handoff*: receive the scan
+using independently verified Brother USB scanning commands,
+write a safe local document, and let the chosen mail
+application create a draft with an attachment. **Never
+automatically send mail**, select recipients, or infer
+SMTP credentials from this INF line. WIA event flags and
+Windows COM interfaces are **not portable** macOS APIs.
+Scanner-button notifications and direct scan data remain
+unimplemented.
+
+Sources:
+- Brother MFC-290C ControlCenter2/3 scanning and email options:
+  https://support.brother.com/g/b/faqend.aspx?c=as_ot&faqid=faq00002561_000&ftype3=1993&lang=en&prod=mfc290c_all
+- Brother MFC-290C ControlCenter E-mail application and separate
+  Software Button/Device Button settings:
+  https://support.brother.com/g/b/faqend.aspx?c=as_ot&faqid=faq00002614_000&ftype3=2036&lang=en&prod=mfc290c_all
+- Brother model-specific interface specifications:
+  https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all
+- Microsoft, WIA INF device event sections and DeviceData:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/image/inf-files-for-wia-devices
+- Microsoft, push-model aware applications and INF event registration:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/image/creating-push-model-aware-applications
+
 **Two Windows install topologies are possible:** an imaging
 function with its own Plug and Play device object/INF, or
 the documented multifunction-device approach that exposes
