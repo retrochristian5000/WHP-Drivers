@@ -1,17 +1,25 @@
-name: Brother MFC-290C USB identity
+name: Brother MFC-290C identity and macOS observation
 
 on:
   push:
     paths:
       - 'drivers/usb/brother/**'
+      - 'tools/macos/mfc290c_probe.c'
       - 'tests/brother-mfc290c.c'
+      - 'tests/build-menuconfig.sh'
+      - 'documentation/brother-mfc290c.md'
       - 'build'
+      - 'build.sh'
       - '.github/workflows/mfc290c-identity.yml'
   pull_request:
     paths:
       - 'drivers/usb/brother/**'
+      - 'tools/macos/mfc290c_probe.c'
       - 'tests/brother-mfc290c.c'
+      - 'tests/build-menuconfig.sh'
+      - 'documentation/brother-mfc290c.md'
       - 'build'
+      - 'build.sh'
       - '.github/workflows/mfc290c-identity.yml'
 
 permissions:
@@ -19,9 +27,23 @@ permissions:
 
 jobs:
   identity:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Validate portable shell syntax and profile dispatch
+        run: |
+          sh -n build build.sh tests/build-menuconfig.sh
+          ./build.sh test-menuconfig
       - name: Compile and test synthetic MFC-290C USB descriptors
         run: ./build test-brother-mfc290c
+      - name: Compile native macOS IOKit USB registry observer
+        if: runner.os == 'macOS'
+        run: ./build build-brother-mfc290c-macos
+      - name: Smoke read-only macOS USB enumeration (printer not required)
+        if: runner.os == 'macOS'
+        run: ./.build/brother-mfc290c-macos/mfc290c-probe
