@@ -156,6 +156,112 @@ print stream, scanner commands, fax protocol, and real printing or scanning.
 A clean macOS CI runner has no target printer, so successful compilation and
 empty observations cannot certify hardware support.
 
+## USB command recovery: standards, interfaces, and unknowns (2026-11-21)
+
+This is an **evidence inventory**, not a command sender. Neither Brother's
+manuals, the existing macOS IORegistry output, nor our synthetic tests provide
+an authenticated MFC-290C USB configuration descriptor or device-side
+command transcript yet. The model-level `04f9:01fd` identity and previously
+observed macOS `locationID=0x00120000` do not establish USB interface
+classes, endpoint addresses, or fax command bytes.
+
+### Standard USB SETUP requests (protocol-defined, not model-tested)
+
+The host's USB stack manages standard enumeration. Our host-neutral decoder
+can recognize the following **captured eight-byte setup records**, in
+little-endian USB SETUP field order. It does **not** send the requests:
+
+| Request | `bmRequestType` | `bRequest` | Evidence/conditions |
+| --- | --- | --- | --- |
+| `GET_DESCRIPTOR` | `0x80` | `0x06` | Standard read of device/configuration/other descriptors |
+| `GET_CONFIGURATION` | `0x80` | `0x08` | Standard read of current configuration |
+| `GET_INTERFACE` | `0x81` | `0x0A` | Standard read of alternate setting for a real interface |
+| `GET_STATUS` | `0x80`/`0x81`/`0x82` | `0x00` | Standard device/interface/endpoint status read |
+
+The USB-IF **Printer Class 1.1** specification defines additional requests
+**only for an interface whose actual `bInterfaceClass` is `0x07`**:
+
+| Printer-class request | `bmRequestType` | `bRequest` | Classification |
+| --- | --- | --- | --- |
+| `GET_DEVICE_ID` | `0xA1` | `0x00` | Candidate IEEE 1284 identification read |
+| `GET_PORT_STATUS` | `0xA1` | `0x01` | Candidate printer status read |
+| `SOFT_RESET` | `0x21` | `0x02` | **State-changing**; not for discovery |
+| Historical reset recipient variant | `0x23` | `0x02` | **State-changing**; USB-IF notes prior 1.0 discrepancy |
+
+The printer-class `GET_DEVICE_ID` request uses its `wValue` and `wIndex`
+fields to select configuration/interface/alternate setting; these must be
+derived from actual hardware descriptors. `GET_PORT_STATUS` returns a
+one-byte parallel-printer-compatible status if implemented. A printer-class
+interface typically uses Bulk OUT for print data and may have Bulk IN.
+**None of these provide the MFC-290C print raster language**, and no claim
+is made that the MFC-290C accepts any particular class-specific request.
+
+### Scanner and PC-FAX: separate investigation, not invented opcodes
+
+- **Scanner lead:** third-party Windows device/driver listings identify
+  `USB\\VID_04F9&PID_01FD&MI_01` for an MFC-290C scanner driver.
+  This is a **corroborating software binding record**, not a raw USB
+  descriptor or verified class/endpoint map. It suggests investigation of
+  interface 1, **not a rule that interface 1 always means scanning**.
+- **Scanner comparative prior art:** the open-source `codyps/brother2`
+  project documents ASCII-like request packets starting with `0x1b` and
+  operation letters on *other* Brother scanners (e.g., MFC-7820N).
+  Their request letters, framing, endpoint directions, and responses
+  are **unverified for the MFC-290C** and must not be transmitted as-is.
+- **PC-FAX:** Brother publishes a separate Linux PC-FAX package
+  (`brmfcfaxdrv`) for this model. The historical macOS workflow exposed
+  sending through a CUPS print-dialog fax option. **Neither establishes
+  whether PC-FAX uses a dedicated USB interface or shares a printer data
+  endpoint**. The actual fax job headers, number formatting, command bytes,
+  and USB transfer framing are not recovered. Standalone fax protocols
+  over the telephone line must not be treated as USB control requests.
+- **Printing:** Brother publishes model-specific LPR, CUPSwrapper and
+  CUPSwrapper source packages. These are candidates for legitimate *static
+  inspection*, but mere package availability does not prove that the
+  published wrapper source contains the low-level raster/proprietary USB
+  protocol.
+
+### Offline decoder, verification, and safe next evidence
+
+`drivers/usb/brother/mfc290c_usb_commands.{h,c}` classifies a **captured**
+eight-byte USB SETUP record when given the target interface class from a
+separately verified descriptor. Unknown interfaces must be marked `0xFF`.
+The classifier reports standard reads, conditional printer-class reads,
+printer resets, host-to-device/state-changing requests, or unknown traffic;
+it never emits a USB command. It also labels **possible** printer Bulk IN
+and Bulk OUT endpoints only if supplied with actual endpoint attributes
+and printer-class interface metadata. It deliberately **does not infer
+scanner or fax traffic** from endpoint numbers, the macOS Location ID,
+Windows `MI_01`, or vendor request values.
+
+The synthetic tests `tests/brother-mfc290c-usb-commands.c` cover all standard
+request names, both reset variants, malformed packet lengths, output
+unchanged on invalid input, vendor-specific/unknown traffic, class-unknown
+fallback, and printer Bulk IN/OUT conditional labels. Run
+`./build test-brother-mfc290c` without any USB permissions or printer.
+
+To recover Brother's *actual* commands, preserve (a) a sanitized full
+configuration/interface/endpoint descriptor for a physically connected
+`04f9:01fd`, (b) exact host OS and installed driver versions, (c) lawful,
+authorized captures or static driver analysis for **one function at a time**,
+and (d) both the raw eight-byte SETUP headers and transfer direction/endpoint
+context. Begin with already-observed, read-only discovery and avoid
+unreviewed control OUT transfers, soft resets, scan movement, print jobs,
+fax dialing, or firmware updates. The host OS may already own USB
+interfaces; never forcibly seize them for a probe.
+
+Sources:
+- USB-IF, *USB Device Class Definition for Printing Devices*, v1.1:
+  https://www.usb.org/sites/default/files/usbprint11a021811.pdf
+- Microsoft, USB printer driver binding:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/print/printer-connected-to-a-usb-port
+- Third-party model scanner MI_01 record (unverified independently):
+  https://www.drivermax.com/Brother-MFC-290C-Hamrick-Software-USB-Vid-04f9-Pid-01fd-MI-01-1_0_0_90-2006-08-21-4336985-driver.htm
+- Other-Brother-model scanner protocol research, **not MFC-290C**:
+  https://github.com/codyps/brother2/blob/master/PROTO
+- Brother MFC-290C Linux downloads (LPR, CUPS wrapper/source, scanner, PC-FAX):
+  https://support.brother.com/g/b/downloadlist.aspx?c=us_ot&lang=en&os=128&prod=mfc290c_all
+
 ## Fax capability boundary (2026-11-21)
 
 The MFC-290C is an independent telephone-line fax terminal with a **14,400
@@ -229,7 +335,7 @@ Sources:
 
 ## Verification
 
-Run `./build.sh test-brother-mfc290c` (or `./build test-brother-mfc290c`). It uses a native C11 host compiler to run synthetic **USB descriptor, CUPS model-label, fax policy and location-hint** tests; it does not need LLVM, OpenWatcom, USB permissions, or a printer. The targeted GitHub Actions job runs both tests on Linux and macOS and additionally compiles the IOKit/CUPS observer on macOS. A CI Mac without an attached MFC-290C cannot verify physical-device behavior.
+Run `./build.sh test-brother-mfc290c` (or `./build test-brother-mfc290c`). It uses a native C11 host compiler to run synthetic **USB descriptor, CUPS model-label, fax policy, location-hint and offline USB command** tests; it does not need LLVM, OpenWatcom, USB permissions, or a printer. The targeted GitHub Actions job runs both tests on Linux and macOS and additionally compiles the IOKit/CUPS observer on macOS. A CI Mac without an attached MFC-290C cannot verify physical-device behavior.
 
 ## Primary and corroborating references
 
