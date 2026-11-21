@@ -95,6 +95,54 @@ Primary references:
   model and region-specific assembly identifiers:
   https://www.laserexpressinc.com/manuals/Brother/brother-dcp-145c-163c-165c-167c-185c-383c-385c-387c-585cw-mfc-250c-250cz-290c-290cz-297c-297cz-490cw-790cw-990cw-parts-manual.pdf
 
+## Per-unit USB serial string evidence (2026-11-21)
+
+A physical MFC-290C has been **reported by the user** in the macOS
+System Information USB view with a serial-number string. The exact
+per-device value is deliberately **not recorded in this public repo**.
+This is a host-observed identifier, **not a board part number, firmware
+version, USB endpoint or vendor command**, and it does not identify which
+chip implements USB string-descriptor responses. Confirm the value is
+shown under the MFC-290C device's USB entry alongside `04f9:01fd`.
+
+Standard USB device-descriptor byte **16**, `iSerialNumber`, is a
+**string-descriptor index**: zero means no USB serial string is
+advertised; nonzero means the host may request that string using USB
+standard enumeration. The index itself is **not** the serial number.
+The portable `whp_mfc290c_usb_identity.serial_string_index` field now
+exposes this byte from **caller-provided raw device descriptors**,
+without submitting any control transfer or accessing the printer.
+Synthetic tests cover index 3 and index 0, plus existing rejected
+descriptor/output-preservation cases. These fixtures do not assert the
+physical MFC-290C's actual index.
+
+The existing macOS **read-only** IORegistry observer now prints only
+`serialRegistry=present` or `serialRegistry=unavailable` for each
+matching `04f9:01fd` device. It uses the existing USB-device entry's
+`USB Serial Number` property (Apple's `kUSBSerialNumberString` key).
+An unavailable property is not proof of descriptor index zero. Neither
+string contents nor serial-derived hashes are emitted or stored.
+Do not hard-code a user's serial into a driver, CI fixture, output
+filename, log or public evidence ledger. Do not use it to authorize
+device updates or to infer internal RISC/USB-controller silicon.
+
+**Safe physical cross-check:** the MFC-290C User's Guide, *Machine
+Information → Checking the serial number*, directs users to press
+`Menu → 6 → 1` on the device LCD, then `Stop/Exit`. Privately compare
+that LCD value with the macOS System Information USB entry. A match
+raises confidence they refer to the same machine; a mismatch calls
+for checking the device entry, host-side cached metadata and exact
+serial representation, not inventing a USB command.
+
+Sources:
+- USB 2.0 device descriptor's `iSerialNumber` at offset 16:
+  https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-xusbi/5ae30d66-029d-4c7c-b43b-567c298bddab
+- Apple `kUSBSerialNumberString` IORegistry property:
+  https://developer.apple.com/documentation/iokit/kusbserialnumberstring
+- Brother MFC-290C User's Guide, serial number LCD instructions, p. 118
+  (online viewer page 126):
+  https://www.manualslib.com/manual/558310/Brother-Version-0-Mfc-290c.html?page=126
+
 ## Firmware, flash ROM and service-mode boundary (2026-11-21)
 
 Brother confirms an MFC-290C firmware update tool and a published firmware

@@ -28,6 +28,7 @@ enum whp_mfc290c_usb_result whp_mfc290c_identify_usb(
     identity.usb_bcd = read_le16(descriptor + 2u);
     identity.device_bcd = read_le16(descriptor + 12u);
     identity.configurations = descriptor[17];
+    identity.serial_string_index = descriptor[16];
     *out = identity;
     return WHP_MFC290C_USB_MATCH;
 }

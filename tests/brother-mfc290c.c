@@ -43,6 +43,15 @@ int main(void)
     CHECK(identity.vendor_id == 0x04f9u && identity.product_id == 0x01fdu);
     CHECK(identity.usb_bcd == 0x0200u && identity.device_bcd == 0x0110u);
     CHECK(identity.configurations == 1u);
+    CHECK(identity.serial_string_index == 3u);
+    descriptor[16] = 0u; /* No USB serial string advertised. */
+    CHECK(whp_mfc290c_identify_usb(descriptor, 18u, &identity) ==
+          WHP_MFC290C_USB_MATCH);
+    CHECK(identity.serial_string_index == 0u);
+    descriptor[16] = 3u; /* Index, not an actual serial value. */
+    CHECK(whp_mfc290c_identify_usb(descriptor, 18u, &identity) ==
+          WHP_MFC290C_USB_MATCH);
+    CHECK(identity.serial_string_index == 3u);
     CHECK(whp_mfc290c_identify_usb(descriptor, sizeof(descriptor), &identity) ==
           WHP_MFC290C_USB_MATCH); /* Trailing caller bytes are harmless. */
 

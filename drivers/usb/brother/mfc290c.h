@@ -23,6 +23,8 @@ struct whp_mfc290c_usb_identity {
     uint16_t usb_bcd;
     uint16_t device_bcd;
     uint8_t configurations;
+    /* USB device descriptor byte 16: index, never the serial string. */
+    uint8_t serial_string_index;
 };
 
 enum whp_mfc290c_documented_feature {

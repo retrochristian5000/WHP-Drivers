@@ -95,6 +95,28 @@ static void print_interface_field(io_registry_entry_t entry,
     }
 }
 
+/* The USB device registry can expose a serial string already obtained by
+ * macOS. Observe its presence only: never print or persist its contents.
+ * A missing/wrong-type property is "unavailable", not proof of no serial.
+ * The property name is Apple's kUSBSerialNumberString registry key.
+ */
+static void print_serial_registry_hint(io_registry_entry_t device)
+{
+    CFTypeRef value = IORegistryEntryCreateCFProperty(
+        device, CFSTR("USB Serial Number"), kCFAllocatorDefault, 0);
+
+    if (value != NULL &&
+        CFGetTypeID(value) == CFStringGetTypeID() &&
+        CFStringGetLength((CFStringRef)value) > 0) {
+        printf(" serialRegistry=present");
+    } else {
+        printf(" serialRegistry=unavailable");
+    }
+    if (value != NULL) {
+        CFRelease(value);
+    }
+}
+
 /* Registry class and bundle strings are diagnostic hints, not proof of a
  * functional Brother driver or an endpoint claim. Never print arbitrary
  * property values, queue names, serial numbers, or device URIs.
@@ -240,6 +262,7 @@ static int search_usb_class(const char *class_name, unsigned *matched,
                     printf(" locationHint=unavailable");
                 }
             }
+            print_serial_registry_hint(device);
             printf(" registryClass=%s\n", class_name);
             print_interfaces(device, 0u, &remaining, &interfaces);
             if (interfaces == 0u) {
