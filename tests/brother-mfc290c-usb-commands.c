@@ -105,6 +105,11 @@ int main(void)
           WHP_MFC290C_INTERFACE_PRINTER_IEEE1284_4);
     CHECK(whp_mfc290c_usb_hint_interface(0x07u, 0x01u, 0xffu) ==
           WHP_MFC290C_INTERFACE_PRINTER_VENDOR_PROTOCOL);
+    /* Hardware-observed FF/FF/FF is still a vendor *class*,
+     * not printer class 07/01/FF or evidence of a vendor request.
+     */
+    CHECK(whp_mfc290c_usb_hint_interface(0xffu, 0xffu, 0xffu) ==
+          WHP_MFC290C_INTERFACE_VENDOR_CLASS);
     CHECK(whp_mfc290c_usb_hint_interface(0xffu, 0x01u, 0xffu) ==
           WHP_MFC290C_INTERFACE_VENDOR_CLASS);
     CHECK(whp_mfc290c_usb_hint_interface(0xffu, 0x00u, 0x02u) ==

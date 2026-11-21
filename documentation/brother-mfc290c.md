@@ -358,8 +358,31 @@ is a readable `bInterfaceProtocol` byte with numeric value 255;
 it is **not** the probe's `protocol=unknown` fallback. This field
 must be interpreted **with `bInterfaceClass` and `bInterfaceSubClass`**
 from the *same interface*, not a device-level class or a different
-alternate interface. No verified physical MFC-290C class/subclass
-triplet has yet been incorporated into this public ledger.
+alternate interface. **Updated user observation:** the original macOS
+System Information/IOKit probe showed one MFC-290C interface with
+`class=0xff subclass=0xff protocol=0xff`. This is a **user-reported,
+host-observed triplet**, not a preserved raw configuration descriptor
+or an independently reproduced hardware test. The interface number,
+alternate setting, configuration and endpoint descriptors have not
+yet been reported, so no function can be assigned to the interface.
+
+For the reported device `04f9:01fd`, `idVendor=0x04f9` identifies
+**Brother**. All-FF in the *interface* fields means the class and
+its subclass/protocol are **manufacturer-defined** in this context.
+It does **not** mean an FF-coded USB command, nor that all USB
+SETUP requests are vendor requests: standard USB enumeration and
+descriptors still apply. It does not identify a Brother command
+opcode, an ASIC architecture, a scanner interface or a fax endpoint.
+A vendor-specific interface may use multiple transfer types and
+vendor-controlled or standard request sequences.
+
+Apple's archived *USB Device Overview* describes interface-specific
+matching for class FF using `idVendor + bInterfaceSubClass +
+bInterfaceProtocol` and the more targeted `idVendor + idProduct +
+bConfigurationValue + bInterfaceNumber`. The latter combination
+avoids binding every Brother FF/FF/FF interface the same way;
+these are **historical matching rules**, not a modern DriverKit
+installation design.
 
 According to USB-IF *USB Device Class Definition for Printing Devices*
 version 1.1, section 5.3, `class=0x07 subclass=0x01` identifies a
@@ -378,7 +401,7 @@ class FF, or unclassified. Other pairs, including newer protocol
 extensions, remain unclassified rather than being falsely labeled.
 The macOS probe prints `protocolMeaning=printer-vendor-protocol`
 only when all three validated properties are present and match
-`07/01/ff`; `class=ff` produces `protocolMeaning=vendor-class`;
+`07/01/ff`; the reported `ff/ff/ff` produces `protocolMeaning=vendor-class`;
 missing fields produce `protocolMeaning=insufficient`.
 The field is a **class-definition interpretation of registry metadata**
 and does not establish a functional driver or authorize printer class
@@ -398,6 +421,12 @@ serial number private. This is a sufficient next evidence step; do
 not issue vendor requests or attempt resets.
 
 Sources:
+- USB-IF, *Universal Serial Bus Common Class Specification* revision 1.0,
+  §3.10–3.11 (vendor-specific interface matching and vendor request
+  identification):
+  https://www.usb.org/sites/default/files/usbccs10.pdf
+- Apple archived *USB Device Overview*, interface matching Table 1-3:
+  https://developer.apple.com/library/archive/documentation/DeviceDrivers/Conceptual/USBBook/USBOverview/USBOverview.html
 - USB-IF, *USB Device Class Definition for Printing Devices*,
   version 1.1, §5.3, interface descriptor Table 6:
   https://www.usb.org/sites/default/files/usbprint11a021811.pdf
