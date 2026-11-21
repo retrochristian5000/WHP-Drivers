@@ -384,6 +384,14 @@ test_brother_mfc290c() {
         die "MFC-290C USB identity test compilation failed"
     "$out_dir/brother-mfc290c-host-test" ||
         die "MFC-290C synthetic USB identity checks failed"
+    cc -std=c11 -Wall -Wextra -Werror -Wpedantic \
+        -I"$root/drivers/usb/brother" \
+        "$root/drivers/usb/brother/mfc290c_model_match.c" \
+        "$root/tests/brother-mfc290c-model.c" \
+        -o "$out_dir/brother-mfc290c-model-host-test" ||
+        die "MFC-290C CUPS model-label test compilation failed"
+    "$out_dir/brother-mfc290c-model-host-test" ||
+        die "MFC-290C synthetic CUPS model-label checks failed"
 }
 
 # macOS has an independent USB-device observation path; no DOS/Win95 ABI.
@@ -407,7 +415,9 @@ build_brother_mfc290c_macos() {
         "$compiler" -std=c11 -Wall -Wextra -Werror -Wpedantic \
             -I"$root/drivers/usb/brother" \
             "$root/tools/macos/mfc290c_probe.c" \
-            -framework IOKit -framework CoreFoundation \
+            "$root/tools/macos/mfc290c_cups.c" \
+            "$root/drivers/usb/brother/mfc290c_model_match.c" \
+            -framework IOKit -framework CoreFoundation -lcups \
             -o "$out_dir/mfc290c-probe"
     ) || die 'MFC-290C native macOS probe build failed'
     printf '%s\n' "WHP-Drivers: macOS USB inventory tool built at $out_dir/mfc290c-probe"
