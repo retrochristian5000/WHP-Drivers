@@ -551,6 +551,80 @@ References:
   and computer access to inserted media:
   https://www.manualslib.com/manual/558310/brother-version-0-mfc-290c.html
 
+## Flatbed and ADF scanner paths: shared CIS, separate mechanics (2026-11-21)
+
+**New physical observation:** The user's MFC-290C offers scanning
+from both the flatbed glass and the automatic document feeder (ADF).
+Brother's model-specific specifications and the SM-FAX098 service
+manual, §3.2.1 (pp. 3-5–3-7), establish that **these are two
+document-motion paths through one CIS assembly**, not evidence of
+two image-sensor chips or two scanner USB interfaces.
+
+| Path | Document and CIS movement | Relevant documented hardware |
+| --- | --- | --- |
+| Flatbed | Original lies face-down and stationary on the glass; CIS travels along the rail and belt, then returns home | Shared color CIS module and flex cable, CIS stepper motor, drive belt, white reference film |
+| ADF | Document-front sensor detects loaded paper; the CIS briefly moves for white-level compensation and then rests at ADF scan position while sheets pass over it | The **same** CIS and CIS motor; separate ADF stepper motor, pickup/separation/feed rollers, document-front and document-rear sensors |
+
+The service manual states that inserting a document activates
+automatic **ADF-path selection** at scan start. This is a behavior of
+the machine's control firmware, not proof that a given host USB
+command selects the ADF. The machine's color CIS alternates
+**red/green/blue LEDs**; monochrome uses green illumination. This is
+evidence for illumination sequencing and image-sensor electronics,
+not permission to drive LEDs or motors directly from the host.
+
+**Published MFC-290C scanner limits** (Brother US specifications):
+- ADF: up to **15 sheets**; document width **148–215.9 mm**,
+  length **148–355.6 mm**.
+- Flatbed glass: document area **215.9 × 297 mm**.
+- Listed scanner **optical resolution 1200 × 2400 dpi** and
+  internal memory **32 MB** are product-level specifications.
+  Per-mode maximum resolutions, image transfer buffering,
+  supported pixel formats and whether the firmware streams scans
+  have **not** been established by those numbers.
+- The ADF is a sheet feeder with one shared imaging line:
+  **automatic duplex scanning is not demonstrated**. Do not
+  advertise a duplex capability from ADF presence alone.
+
+**Component eligibility — identify function before manufacturer:**
+
+| Component class | Evidence / reason to inspect | Still unknown |
+| --- | --- | --- |
+| CIS sensor PCB / analog front end and image acquisition | Documented CIS RGB illumination, lens array and pixel output | Sensor part marking, ADC location, controller integration, sampling protocol |
+| CIS stepper drive | Documented belt/rail motion including calibration positioning | Motor-drive IC or main-ASIC integration, coil specifications |
+| ADF stepper drive | Documented separate feeder motor in ADF models | Driver IC, control wiring, shared or separate motor IC |
+| Document sensor conditioning | Document-front and document-rear sensors and their actuators | Sensor electrical interface and main-PCB pins |
+| Main ASIC / SDRAM | Coordinates scan workflow and data path; memory capacity independently listed | Image processing, buffers, USB command routing and exact ISA |
+
+**Driver scope:** Keep one scanner-device identity with **two
+document-source capabilities** only when host protocol evidence can
+expose and select them correctly. Plan for single-sheet flatbed and
+multi-page ADF workflows, page boundaries, calibration, paper-empty,
+jam and cancellation handling; these are *design requirements*, not
+implemented behavior. No scan acquisition, ADF actuation, USB vendor
+requests, firmware actions or register writes are added by this
+documentation. Never infer that interface `0x01` or `0x02`
+is the scanner solely from the observed mechanical features.
+Inspect the existing Brother macOS application/driver behavior
+and authorized passive USB capture before implementing commands.
+
+**Best next evidence target:** Match the scanner/ADF assembly and
+main-PCB cable headers in the *model-specific* service/parts drawings
+to documented CIS/ADF motor wiring. Use an authenticated, already
+available board photograph or component marking to identify
+any actual IC candidate; do not guess it from a feature list,
+open an energized machine or experimentally move the scanner.
+
+Primary references:
+- Brother MFC-290C US specifications (CIS, 15-sheet ADF,
+  document sizes, optical resolution, 32 MB):
+  https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all
+- Brother SM-FAX098, chapter 3, §3.2.1, pp. 3-5–3-7
+  (CIS, calibration, feeder, motors, sensors):
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- Brother model-specific FAQ on multi-page scan workflows:
+  https://support.brother.com/g/b/sp/faqend.aspx?c=us_ot&faqid=faq00002578_001&lang=en&prod=mfc290c_all
+
 ## Main PCB chips and USB command-processing candidates (2026-11-21)
 
 **Hardware evidence, not a working driver.** Brother's June 2008
