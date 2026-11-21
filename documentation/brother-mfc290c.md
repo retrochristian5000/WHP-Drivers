@@ -1553,7 +1553,75 @@ binding.
 | `Include=sti.inf` with `Needs=STI.USBSection` | Documented Windows USB still-image DDInstall pattern; **not yet observed here** |
 | Corresponding `.Services` section | Possible `sti.inf` / `STI.USBSection.Services` chain and any actual kernel driver registration |
 | `DeviceData`, `AddReg`, `USDClass`, `MicroDriver`, `TwainDS`, `CopyFiles` | Candidate WIA/TWAIN registrations and vendor binaries, conditional on real entries |
-| `Events`, `Capabilities`, `ICMProfiles` | Possible scan-button, notification or color-profile metadata—not guaranteed to be present |
+| `Events`, `ICMProfiles` | Possible scan-button event registrations or color-profile metadata—neither yet observed |
+
+### Scanner INF: decoding observed `Capabilities=0x39` (2026-11-21)
+
+**New user-reported Windows INF clue:** `Capabilities = 0x39`
+in the ongoing extracted imaging/possible scanner-driver investigation.
+The underlying INF's *actual lines* have not been provided, so
+the exact DDInstall section and MFC-290C model binding remain
+unverified. Microsoft documents `Capabilities` in the
+Still Image (STI)/Windows Image Acquisition (WIA) installation
+metadata as a bitmask whose flags populate
+`STI_DEV_CAPS.dwGeneric` for Windows imaging components.
+`0x39` is decimal **57**, binary **00111001**:
+
+| Bit | Mask | Flag | Status in 0x39 and correct interpretation |
+| --- | --- | --- | --- |
+| 0 | `0x01` | `STI_GENCAP_NOTIFICATIONS` | **Set:** Windows driver advertises STI event notifications |
+| 1 | `0x02` | `STI_GENCAP_POLLING_NEEDED` | **Clear:** no mandatory polling declared; not proof of functional asynchronous USB events |
+| 2 | `0x04` | `STI_GENCAP_GENERATE_ARRIVALEVENT` | **Clear:** no STI-generated device-arrival launch event requested through this bit |
+| 3 | `0x08` | `STI_GENCAP_AUTO_PORTSELECT` | **Set:** legacy Windows auto COM/LPT port-selection metadata; **not** evidence of a serial/modem USB interface |
+| 4 | `0x10` | `STI_GENCAP_WIA` | **Set:** imaging driver claims Windows WIA compatibility |
+| 5 | `0x20` | `STI_GENCAP_SUBSET` | **Set:** legacy subset-driver flag; Microsoft's WIA INF guidance says bit 5 is **currently not used**. Do not infer a missing hardware feature |
+
+**Comparison control:** Microsoft examples document `0x31`
+for notification-capable interrupt-style WIA events and
+`0x33` for notification handling with **polling required**.
+The observed `0x39` has bits `0x01` and `0x10`
+in common, but additionally `0x08` and `0x20` and
+**does not have bit `0x02`**. That distinction makes the
+Brother scanner's **notification path** worth tracing
+through the selected WIA minidriver and `Events`
+registry entries. It does **not** prove an interrupt
+USB endpoint, a physical scan-button message, a polling
+interval, CIS/ADF source-selection commands, or successful
+WIA interoperability on a modern Windows installation.
+
+**Safe next verification:** Trace `[Manufacturer]` /
+`[Models]` hardware IDs (including `04F9`, `01FD`
+and any actual `MI_01` suffix) to the **specific**
+`[DDInstall]` containing `SubClass=StillImage`,
+`DeviceType`, `Capabilities`, `DeviceData`, and
+`Events`. Confirm any `Include=sti.inf`,
+`Needs=STI.USBSection`, `USDClass`, `MicroDriver`,
+`TwainDS`, referenced DLLs and `CopyFiles` entries
+**from that actual file**; do not invent missing lines.
+Compare registered event GUIDs, `IStiUSD::GetCapabilities`
+and any `GetNotificationData` handling in legitimately
+inspectable Windows driver code. On macOS, a native
+ImageCaptureCore/ICA adapter can reuse verified
+**user-facing event semantics**, but not these Windows
+STI numeric bits or Windows COM DLLs as a direct ABI.
+
+**Security and hardware guard:** This is a read-only
+interpretation of Windows software metadata, not a
+driver implementation or evidence of new peripheral
+silicon. Do not transmit speculative USB status requests,
+move the scanner, alter firmware, send faxes, or
+publish proprietary installer binaries for the purpose
+of decoding this flag.
+
+References:
+- Microsoft STI/WIA INF bit assignments and bit-5 caveat:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/image/inf-files-for-wia-devices
+- Microsoft STI device capabilities and legacy auto-port semantics:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/sti/ns-sti-_sti_dev_caps
+- Microsoft scanner polling event example (`Capabilities=0x33`):
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/image/adding-polling-event-support
+- Microsoft scanner interrupt event example (`Capabilities=0x31`):
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/image/adding-interrupt-event-support
 
 **Two Windows install topologies are possible:** an imaging
 function with its own Plug and Play device object/INF, or
