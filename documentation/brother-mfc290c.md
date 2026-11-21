@@ -75,12 +75,18 @@ Sources:
 
 ## Rear rating-label frequency and power PCB variants (2026-11-21)
 
-**New user observation:** The physical MFC-290C rear rating label shows
-`50/60Hz`. That is the **accepted AC mains line frequency**, not the
-clock frequency of the main RISC ASIC, USB PHY, scanner interface, fax
-modem DSP or piezo printhead driver. No inference about the internal
-CPU ISA, USB command protocol, board oscillator or installed supply
-variant follows from that value alone.
+**Updated physical-label observations (2026-11-21):** The user has
+reported both `100-120V` and `50/60Hz` from the same MFC-290C
+rear rating label. The paired observations agree with the documented
+**North American 100-120 VAC, 50/60 Hz input class**. The current
+rating, exact power-supply assembly marking, and any repair/replacement
+history have **not** been reported or physically verified. The
+frequency is the accepted AC mains line frequency, not a clock
+frequency of the RISC ASIC, USB PHY, scanner interface, fax modem
+or piezo printhead driver. Voltage/frequency alone do not establish
+the CPU ISA, internal oscillator, USB command protocol or actual
+board assembly. Never infer `0.5A` as a measured or reported value
+from the user's unit.
 
 **Independent model evidence:** Brother's June 2008 parts reference list,
 PL-FAX154/8CAG13, illustrates an MFC-290CZ rating label with
@@ -88,15 +94,17 @@ PL-FAX154/8CAG13, illustrates an MFC-290CZ rating label with
 variant**, not a transcription of the user's unit. The model-family
 service manual SM-FAX098, §2.1.6, specifies US `100-120 VAC 50/60 Hz`
 and Europe/Asia/Oceania `220-240 VAC 50/60 Hz`; model-specific
-country/board codes still determine the actual variant. The frequency
-alone **does not imply dual-voltage 100-240V** operation.
+country/board codes still determine the actual variant. The observed
+`100-120V` range **does not imply dual-voltage 100-240V** operation,
+and the user's label is not evidence that the unit can be connected
+to 220-240 V mains.
 
 **New component-selection evidence:** Brother parts reference list,
 List 8 (PCB), item 2, assigns supply assemblies by region:
 
 | Supply assembly | Listed destination(s) | Confidence / distinction |
 | --- | --- | --- |
-| `LT0416001` | US/CAN; includes MFC-290C/MFC-290CZ | Published part-list match; **leading candidate** for the user's North American hardware, not a visually verified installed PCB |
+| `LT0416001` | US/CAN; includes MFC-290C/MFC-290CZ | Published part-list match **strengthened by observed 100-120V, 50/60Hz label**; still not a physically verified installed PCB |
 | `LT0485001` | European countries and several other markets | Region-specific supply, not proof of the same electrical design as US/CAN |
 | `LT0660001` | ZAF/ASA/RUS | Separate assembly code |
 | `LT0586001` | CHN | Separate assembly code |
@@ -114,9 +122,10 @@ has yet been verified for the actual unit.
 
 **Hardware search order (non-destructive):**
 
-1. Read the *complete* rear rating label's AC voltage, frequency and
-   current **without recording its device serial number**. The user has
-   reported only frequency, not voltage/current or an assembly code.
+1. Preserve the now-confirmed rear-label **100-120V, 50/60Hz** values.
+   Read the remaining **current/amperage** rating if available, without
+   recording or publishing any device serial number. No PCB assembly
+   code has yet been observed on this machine.
 2. Compare the region/model to the parts-list supply assembly and
    matching Appendix 6 power-supply schematic; record component
    designators and actual datasheet matches with provenance.
@@ -130,8 +139,8 @@ has yet been verified for the actual unit.
    clock tree, USB device controller and firmware command parser.
 5. Never transplant a PSU across regions, assume a universal-input
    supply, or derive USB commands from the mains rating. The
-   `50/60Hz` observation changes the **power-hardware research
-   path**, not the current USB parser or driver's compatibility flags.
+   `100-120V, 50/60Hz` observation narrows the **power-hardware
+   research path**, not the current USB parser or driver's compatibility flags.
 
 Primary documentation:
 - Brother parts reference list PL-FAX154, June 2008, front matter
