@@ -418,6 +418,7 @@ test_brother_mfc290c() {
         die "MFC-290C offline USB command analysis compilation failed"
     "$out_dir/brother-mfc290c-usb-commands-host-test" ||
         die "MFC-290C offline USB command regression failed"
+    test_probe_scope
 }
 
 # macOS has an independent USB-device observation path; no DOS/Win95 ABI.
@@ -449,6 +450,7 @@ build_brother_mfc290c_macos() {
         chmod 700 "$out_dir" || exit 1
         "$compiler" "$@" -std=c11 -Wall -Wextra -Werror -Wpedantic \
             -I"$root/drivers/usb/brother" \
+            "$root/tools/probe/probe_scope.c" \
             "$root/tools/macos/mfc290c_probe.c" \
             "$root/tools/macos/mfc290c_cups.c" \
             "$root/drivers/usb/brother/mfc290c_model_match.c" \
@@ -602,6 +604,11 @@ dos_probe_build() {
             "$root/tools/dos/probe_menu.c" || \
             die "DOS probe menu compilation failed"
         "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
+            "-i=$root/tools/probe" \
+            "-fo=$out_dir/probe_scope.obj" \
+            "$root/tools/probe/probe_scope.c" ||
+            die "DOS probe scope compile failed"
+        "$watcom_bin_dir/wcc" -zq -wx -bt=dos -ms \
             "-i=$root/tools/dos" \
             "-i=$root/drivers/usb" \
             "-i=$root/drivers/storage/fch_sata" \
@@ -624,6 +631,7 @@ dos_probe_build() {
             "file $out_dir/legacy_bios.obj" \
             "file $out_dir/whpprobe.obj" \
             "file $out_dir/probe_menu.obj" \
+            "file $out_dir/probe_scope.obj" \
             "file $out_dir/memory_survey.obj" \
             "name $out_dir/WHPPROBE.EXE" ||
             die "DOS hardware probe MZ EXE linking failed"
@@ -651,6 +659,21 @@ test_dos_memory_survey() {
         die "DOS memory survey synthetic regression failed"
 }
 
+# Shared, host-only provenance regression; C89 for OpenWatcom compatibility.
+test_probe_scope() {
+    need cc
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    cc -std=c89 -Wall -Wextra -Werror -Wpedantic \
+        -I"$root/tools/probe" \
+        "$root/tools/probe/probe_scope.c" \
+        "$root/tests/probe-scope.c" \
+        -o "$out_dir/probe-scope-host-test" ||
+        die "probe scope host compilation failed"
+    "$out_dir/probe-scope-host-test" ||
+        die "probe scope regression failed"
+}
+
 # Fast host-side synthetic menu/category tests, independent of DOS.
 test_probe_menu() {
     need cc
@@ -664,6 +687,7 @@ test_probe_menu() {
         die "DOS menu host compilation failed"
     "$out_dir/probe-menu-host-test" ||
         die "DOS menu regression failed"
+    test_probe_scope
 }
 
 # Portable, synthetic PCI configuration-register decoder test.
@@ -1158,6 +1182,7 @@ case "${1:-}" in
     test-pci95-bios-read) test_pci95_bios_read ;;
     test-pci-config-registers) test_pci_config_registers ;;
     test-probe-menu) test_probe_menu ;;
+    test-probe-scope) test_probe_scope ;;
     test-dos-memory-survey) test_dos_memory_survey ;;
     test-dos-version) test_dos_version ;;
     test-dos-legacy-bios) test_dos_legacy_bios ;;
@@ -1182,5 +1207,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-pci-config-registers|test-probe-menu|test-dos-memory-survey|test-dos-version|test-dos-legacy-bios|test-fch-sata-identity|test-usb-pci-hci|test-brother-mfc290c|build-brother-mfc290c-macos|probe-brother-mfc290c-macos|test-dos-mz|dos-probe-build|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-pci-config-registers|test-probe-menu|test-probe-scope|test-dos-memory-survey|test-dos-version|test-dos-legacy-bios|test-fch-sata-identity|test-usb-pci-hci|test-brother-mfc290c|build-brother-mfc290c-macos|probe-brother-mfc290c-macos|test-dos-mz|dos-probe-build|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
