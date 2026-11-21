@@ -19,6 +19,101 @@
 - Do not confuse standalone ITU-T fax modem signaling with Hayes AT commands on a PC COM port. Any future PC-FAX submission protocol requires independently captured, authorized device evidence.
 - USB transport, print stream encoding, scanner commands, PC-FAX sending, OS install packages, and real-hardware behavior remain **unimplemented**. No firmware updates, ink movement, phone calls, or USB requests occur in the identity tests or macOS observer.
 
+## Production-era chronology and chip eligibility (2026-11-21)
+
+**Conclusion:** MFC-290C is an **early-2008 engineering / late-2008
+commercial** generation. A specialist market catalogue places the
+model's *current retail listing* in **December 2008–January 2010**.
+This is **not an independently certified factory-production interval**:
+an official final build date has not been established.
+
+| Dated evidence | Event and confidence | Effect on silicon selection |
+| --- | --- | --- |
+| 2008-03-17 | Brother European declaration of conformity, including MFC-290C; official declaration date | Model and regulated design existed by early 2008, not proof of the first production day |
+| 2008-04-18 | Legacy Industry Canada certification record 1112C-8CAG13, MFC-250C / MFC-290C | Regulatory milestone before commercial rollout |
+| 2008-05-26 | Brother's English HTML user manual release | Product documentation existed by May |
+| 2008-06 | Brother SM-FAX098 service manual, including MFC-290C; MFC-290C hardware baseline and firmware/EEPROM sections | Original main ASIC, ROM, SDRAM, USB architecture must be evaluated as 2008-era designs |
+| 2008-06-26 | Brother English quick setup guide release | Installation flow available by June |
+| 2008-09-30 | US/Canada quick setup guide released | US-specific launch preparation |
+| 2008-10-08 | Contemporary product introduction / Brother US HTML manual | Commercial introduction publicly reported |
+| 2008-11-14 | Newegg MFC-290C first listing | Independent US retail presence |
+| 2009-11-10 | ENERGY STAR model-qualification date in published equipment list | Qualification occurred after introduction; **not** a launch or factory-build date |
+| 2008-12 through 2010-01 | Druckerchannel catalog's model-currency interval (`Nicht aktuell`) | Approximate period listed as current in **that regional catalogue**, not proof of continuing global manufacturing |
+| Undated | Brother UK and Ireland product pages now mark model discontinued | Confirms no longer current; does not establish a discontinuation or last-factory date |
+
+**Per-unit date-code hypothesis, private evidence:** A Brother production
+date reference (revision 2011-09-12) explains that a nine-character
+serial portion begins with a **month letter** followed by a **year
+digit** (`J` = September; `8` = 2008). The user's previously
+reported **macOS USB serial string** contains a nine-character ending
+consistent with **September 2008**, which would place that unit close
+to the initial launch. This is **provisional**, because we have not
+compared that nine-character portion with the physical 15-character
+machine label and LCD's nine-character display, nor confirmed
+this exact MFC-290C unit's serial coding scheme from an authenticated
+service-label image. **Do not store the actual serial, the complete
+date-bearing suffix or a serial fingerprint in this public repository.**
+Brother's own support FAQ (which lists MFC-290C among related models)
+confirms the 15-character exterior label / nine-character LCD
+distinction. The nine-character string may be visible in USB with
+additional manufacturer text; no such prefix is assumed universal.
+
+**Use as a chronological chip filter:**
+
+- **Documented availability by 2007 / early 2008:** acceptable
+  candidates subject to board markings, signal paths and specs.
+- **First commercially available during late 2008:** uncertain for
+  the original March–June 2008 documented hardware; require genuine
+  revision or production-lot evidence before treating as plausible.
+- **First released in 2009 or later:** exclude from the **initial
+  2008 controller design**, absent proof of replacement, late
+  production revision, or misdated component launch.
+- **First released in 2011 or later:** strongly implausible for
+  this model's original hardware; never infer merely because
+  macOS/AArch64 currently connects to the device.
+- The board family `B53K961`, including US early-production
+  assembly `LT0288052` (*first three months production* in
+  the parts catalogue) needs **physical board revision** and
+  markings for an exact cutoff. The three-month note does not
+  state the months or the factory's production start date.
+- Distinguish **silicon product launch date**, **actual IC package
+  date code**, **PCB assembly/manufacturing date**, **printer
+  serial date**, and **retail launch/discontinuation date**.
+  Dates of manuals and downstream host OS drivers do not date
+  chips on the main board.
+
+There is no verified exact CPU ISA, main ASIC IC marking, USB PHY
+manufacturer, final production date, or evidence to tie the machine's
+reported `FF/FF/FF` interface to one named silicon chip. We should
+**not** hard-code a manufacture date or a serial match in any driver.
+
+Sources:
+- Brother manuals and release-date catalogue:
+  https://support.brother.com/g/b/manualtop.aspx?c=us_ot&lang=en&prod=mfc290c_all
+- Brother 2008 service manual SM-FAX098 (hardware/controller and
+  production-era description):
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- Brother 2008 European Declaration of Conformity (printed in the
+  MFC-250C/290C/297C guide; 2008-03-17):
+  https://download.brother.com/welcome/doc002379/cv_mfc250cz_spa_chlarg_usr_lx0948015.pdf
+- Legacy Industry Canada model certification (2008-04-18):
+  https://fccid.io/1112C-8CAG13
+- Contemporary launch reporting (2008-10-08):
+  https://news.softpedia.com/news/Brother-Presents-Three-New-Inkjet-Wireless-AIO-Printers-95139.shtml
+- Newegg original catalogue listing:
+  https://www.newegg.com/brother-mfc-series-mfc-290c-inkjet/p/N82E16828113327
+- Specialist retail-currency interval, **not factory production**:
+  https://www.druckerchannel.de/device_info.php?ID=2375&t=mfc_290c
+- ENERGY STAR qualified-product list:
+  https://downloads.energystar.gov/bi/qplist/image_equip_prod_list.pdf
+- Brother model-specific serial-display instructions within FAQ family:
+  https://support.brother.com/g/b/faqend.aspx?c=ph&faqid=faq00000300_006&lang=en&prod=mfc1810_us_eu_as
+- Brother nine-character production date-code reference (unverified
+  applicability to this serial's USB presentation):
+  https://studylib.net/doc/18079277/how-to-determine-the-serial-number-production-date
+- Original parts family and first-three-months US assembly note:
+  https://www.laserexpressinc.com/manuals/Brother/brother-dcp-145c-163c-165c-167c-185c-383c-385c-387c-585cw-mfc-250c-250cz-290c-290cz-297c-297cz-490cw-790cw-990cw-parts-manual.pdf
+
 ## Main PCB chips and USB command-processing candidates (2026-11-21)
 
 **Hardware evidence, not a working driver.** Brother's June 2008
