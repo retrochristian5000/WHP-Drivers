@@ -54,6 +54,35 @@ WHP_DRIVER_PROFILE=hda "$tmp/build.sh" plan > "$tmp/hda-plan"
 [ ! -s "$WHP_TEST_LOG" ] || exit 1
 grep -Fx '  ./build smoke-hda' "$tmp/hda-plan" >/dev/null || exit 1
 
+# Brother profile stays portable: Linux runs synthetic tests; macOS additionally
+# builds the read-only native IOKit tool. Mock uname to verify both dispatch paths.
+mkdir -p "$tmp/fake-bin"
+cat > "$tmp/fake-bin/uname" <<'UNAME'
+#!/bin/sh
+printf '%s\n' "${WHP_TEST_PLATFORM:-Linux}"
+UNAME
+chmod 700 "$tmp/fake-bin/uname"
+: > "$WHP_TEST_LOG"
+WHP_TEST_PLATFORM=Linux PATH="$tmp/fake-bin:$PATH" \
+    WHP_DRIVER_PROFILE=brother-mfc290c "$tmp/build.sh" build
+printf 'test-brother-mfc290c\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+: > "$WHP_TEST_LOG"
+WHP_TEST_PLATFORM=Darwin PATH="$tmp/fake-bin:$PATH" \
+    WHP_DRIVER_PROFILE=brother-mfc290c "$tmp/build.sh" plan > "$tmp/brother-plan"
+[ ! -s "$WHP_TEST_LOG" ] || exit 1
+grep -Fx '  ./build test-brother-mfc290c' "$tmp/brother-plan" >/dev/null
+grep -Fx '  ./build build-brother-mfc290c-macos' "$tmp/brother-plan" >/dev/null
+WHP_TEST_PLATFORM=Darwin PATH="$tmp/fake-bin:$PATH" \
+    WHP_DRIVER_PROFILE=brother-mfc290c "$tmp/build.sh" test
+printf 'test-brother-mfc290c\nbuild-brother-mfc290c-macos\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+: > "$WHP_TEST_LOG"
+WHP_TEST_PLATFORM=Darwin PATH="$tmp/fake-bin:$PATH" \
+    WHP_DRIVER_PROFILE=brother-mfc290c "$tmp/build.sh" test-fast
+printf 'test-brother-mfc290c\n' > "$tmp/expected"
+cmp "$tmp/expected" "$WHP_TEST_LOG" >/dev/null || exit 1
+
 # DOS is a separate opt-in profile; it must not force a toolchain bootstrap.
 : > "$WHP_TEST_LOG"
 WHP_DRIVER_PROFILE=dos-pci "$tmp/build.sh" build
