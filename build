@@ -410,6 +410,14 @@ test_brother_mfc290c() {
         die "MFC-290C fax capability regression compilation failed"
     "$out_dir/brother-mfc290c-fax-host-test" ||
         die "MFC-290C fax capability and policy regression failed"
+    cc -std=c11 -Wall -Wextra -Werror -Wpedantic \
+        -I"$root/drivers/usb/brother" \
+        "$root/drivers/usb/brother/mfc290c_usb_commands.c" \
+        "$root/tests/brother-mfc290c-usb-commands.c" \
+        -o "$out_dir/brother-mfc290c-usb-commands-host-test" ||
+        die "MFC-290C offline USB command analysis compilation failed"
+    "$out_dir/brother-mfc290c-usb-commands-host-test" ||
+        die "MFC-290C offline USB command regression failed"
 }
 
 # macOS has an independent USB-device observation path; no DOS/Win95 ABI.
