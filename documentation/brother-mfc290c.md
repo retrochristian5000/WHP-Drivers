@@ -1523,6 +1523,83 @@ Authoritative references:
 - Apple ColorSync framework (macOS color management):
   https://developer.apple.com/documentation/colorsync
 
+### Scanner INF: observed `SubClass=StillImage` (2026-11-21)
+
+**New user observation:** A *different* extracted Brother Windows
+INF file contains `SubClass = StillImage`. Treat the exact
+directive as evidence from the user's package, but **not yet
+as a verified MFC-290C-specific install section**: this INF's
+filename, `[Version]`, section header, hardware-ID model
+row and other directives have not been supplied. Keep it
+**separate from the printer INF** that contains
+`FeatureScore=0xFE` and `Needs=sRGBPROFILE.OEM`.
+
+Microsoft documents `SubClass=StillImage` as a **required
+STI/WIA-compatible still-image installation entry** processed
+by the `sti_ci.dll` class installer when it is in a
+relevant `[DDInstall]` section. It can describe more than
+scanners: **`DeviceType=1` means scanner,
+`2` camera, and `3` video**. Until `DeviceType`
+and the MFC-290C `[Manufacturer]`/`[Models]` mapping
+are checked, this line is strong evidence of an **imaging**
+installation path, not proof of a model-specific scanner
+binding.
+
+| INF key or reference | What to validate in *this* INF |
+| --- | --- |
+| `[Version]`, `Class=Image`, `ClassGuid` | Image setup class and exact package identity |
+| `[Manufacturer]` and decorated model sections | MFC-290C model string and Windows PnP hardware ID; match `04F9:01FD` and any `MI_01` suffix only if actually present |
+| `SubClass=StillImage`, `DeviceType=1` | Legacy STI/WIA scanner install classification; `DeviceType` has **not** been observed |
+| `Include=sti.inf` with `Needs=STI.USBSection` | Documented Windows USB still-image DDInstall pattern; **not yet observed here** |
+| Corresponding `.Services` section | Possible `sti.inf` / `STI.USBSection.Services` chain and any actual kernel driver registration |
+| `DeviceData`, `AddReg`, `USDClass`, `MicroDriver`, `TwainDS`, `CopyFiles` | Candidate WIA/TWAIN registrations and vendor binaries, conditional on real entries |
+| `Events`, `Capabilities`, `ICMProfiles` | Possible scan-button, notification or color-profile metadata—not guaranteed to be present |
+
+**Two Windows install topologies are possible:** an imaging
+function with its own Plug and Play device object/INF, or
+the documented multifunction-device approach that exposes
+an Image-class interface through a single printer PDO and
+a `WIASection`. The latter has distinct rules and cannot
+be inferred solely from the existence of a second INF.
+Investigate the actual PnP IDs and INF linkage before
+selecting a topology.
+
+**Critical protocol boundary:** The Windows text
+`SubClass=StillImage` is **not** USB
+`bInterfaceClass=0x06`, not a USB endpoint, and not proof
+that observed vendor-defined MFC-290C interface
+`0x01` (`FF/FF/FF`) implements scanning. The
+existing `04f9:01fd` and scanner `MI_01` evidence
+remain **candidates**, not raw descriptor captures.
+This INF also cannot distinguish the shared-CIS flatbed
+and ADF command protocol, or establish a native macOS ICA
+driver by itself.
+
+**Next read-only inspection**, without executing any
+Windows driver or opening the physical machine:
+
+```sh
+# Choose the actual extracted scanner INF path.
+grep -nEi '^\[|Class|SubClass|DeviceType|04F9|01FD|MI_01|MFC[-_ ]?290C|sti\.inf|Needs|WIASection|DeviceData|TwainDS|CopyFiles|USDClass|Capabilities|Events' path/to/scanner.inf
+```
+
+Follow the device's `[Models]` entry to the selected
+`[DDInstall]` and `.Services` sections. Compare
+referenced binary filenames and versions with the
+printer INF and the already established USB/device
+and CIS/ADF hardware ledger. Do not copy proprietary
+binaries into the public repository or invent scanner
+USB requests based on INF keywords.
+
+Authoritative references:
+- Microsoft, WIA INF entries, `DeviceType` and
+  `sti.inf` USB sections:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/image/inf-files-for-wia-devices
+- Microsoft, legacy still-image INF installer:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/image/inf-files-for-still-image-devices
+- Microsoft, multifunction scanning via single PDO:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/image/installing-scanning-functionality-in-an-mfp-with-a-single-pdo
+
 **Do not confuse extensions:** Windows Brother `.PDD` is
 **not automatically** a CUPS/PostScript `.PPD` (PostScript Printer
 Description). Brother's official method for producing a PPD from
