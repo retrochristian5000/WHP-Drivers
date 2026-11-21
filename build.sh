@@ -13,8 +13,32 @@ plan_only=0
 
 fail() { printf '%s\n' "WHP-Drivers: $*" >&2; exit 1; }
 
+# Share accepted profile names between configuration and direct selection.
+valid_profile() {
+    case "$1" in
+        abi|vxd|radeon6410d|rtl8111e|hda|brother-mfc290c|dos-probe|dos-pci|all)
+            return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+show_profiles() {
+    cat <<'PROFILES'
+WHP-Drivers profiles:
+  abi              Windows 95 ABI object smoke (default)
+  vxd              Experimental VxD format/link probe
+  radeon6410d      Radeon HD 6410D smoke
+  rtl8111e         RTL8111E network smoke
+  hda              Read-only HDA PCI/ABI smoke; not a sound driver
+  brother-mfc290c  Offline USB tests; macOS native read-only observer
+  dos-probe        16-bit WHPPROBE.EXE build (OpenWatcom required)
+  all              Core ABI/VxD/Radeon/network/HDA smoke; excludes DOS and Brother
+  dos-pci          Legacy name for DOS probe (existing configurations only)
+PROFILES
+}
+
 validate() {
-    case "$profile" in abi|vxd|radeon6410d|rtl8111e|hda|brother-mfc290c|dos-probe|dos-pci|all) ;; *) fail "invalid profile: $profile" ;; esac
+    valid_profile "$profile" || fail "invalid profile: $profile"
     case "$vxd_backend" in llvm|openwatcom) ;; *) fail "invalid VxD backend: $vxd_backend" ;; esac
     case "$bootstrap" in
         on) bootstrap=llvm ;; # backwards-compatible .whpconfig migration
@@ -57,7 +81,7 @@ apply_env() {
 
 show_config() {
     printf '%s\n' 'WHP-Drivers configuration'
-    printf '  Workflow:        %s\n' "$profile"
+    printf '  Profile:         %s\n' "$profile"
     printf '  VxD backend:     %s\n' "$vxd_backend"
     printf '  Tool bootstrap:  %s\n' "$bootstrap"
     printf '  LLVM jobs:       %s\n' "$jobs"
@@ -80,15 +104,40 @@ save_config() {
     printf 'WHP-Drivers: saved %s\n' "$config"
 }
 
+choose_profile() {
+    show_profiles
+    printf 'Profile name: '
+    IFS= read -r candidate || fail 'menu closed without saving'
+    if valid_profile "$candidate"; then
+        profile=$candidate
+    else
+        printf 'Unknown profile; unchanged: %s\n' "$candidate" >&2
+    fi
+}
+
+choose_bootstrap() {
+    printf '%s\n' 'Bootstrap choices: off / llvm / openwatcom / both'
+    printf 'Bootstrap choice: '
+    IFS= read -r candidate || fail 'menu closed without saving'
+    case "$candidate" in
+        off|llvm|openwatcom|both) bootstrap=$candidate ;;
+        *) printf 'Unknown bootstrap choice; unchanged: %s\n' "$candidate" >&2 ;;
+    esac
+}
+
 menuconfig() {
     while :; do
         printf '\n%s\n' '=== WHP-Drivers menuconfig ==='
         show_config
-        printf '%s\n' '  1) Cycle workflow (abi -> vxd -> radeon6410d -> rtl8111e -> hda -> brother-mfc290c -> dos-probe -> all)'
-        printf '%s\n' '  2) Toggle VxD backend (llvm / openwatcom)'
-        printf '%s\n' '  3) Cycle toolchain bootstrap (off / llvm / openwatcom / both)'
-        printf '%s\n' '  4) Set LLVM build jobs (1-16)'
-        printf '%s\n' '  s) Save and exit  q) Exit without saving'
+        printf '%s\n' '  Workflow:'
+        printf '%s\n' '    1) Cycle profile (legacy control)    p) Choose profile by name'
+        printf '%s\n' '  Toolchains:'
+        printf '%s\n' '    2) Toggle VxD backend (llvm / openwatcom)'
+        printf '%s\n' '    3) Cycle bootstrap (off / llvm / openwatcom / both)'
+        printf '%s\n' '    b) Choose bootstrap by name'
+        printf '%s\n' '    4) Set LLVM build jobs (1-16)'
+        printf '%s\n' '  Actions:'
+        printf '%s\n' '    s) Save and exit    q) Exit without saving'
         printf '> '
         IFS= read -r choice || { printf '\n' >&2; fail 'menu closed without saving'; }
         case "$choice" in
@@ -97,9 +146,11 @@ menuconfig() {
                   hda) profile=brother-mfc290c ;;
                   brother-mfc290c) profile=dos-probe ;;
                   dos-probe|dos-pci) profile=all ;; all) profile=abi ;; esac ;;
+            p|P) choose_profile ;;
             2) if [ "$vxd_backend" = llvm ]; then vxd_backend=openwatcom; else vxd_backend=llvm; fi ;;
             3) case "$bootstrap" in off) bootstrap=llvm ;; llvm) bootstrap=openwatcom ;;
                   openwatcom) bootstrap=both ;; both) bootstrap=off ;; esac ;;
+            b|B) choose_bootstrap ;;
             4) printf 'LLVM jobs [1-16]: '
                IFS= read -r candidate || fail 'menu closed without saving'
                old=$jobs; jobs=$candidate
@@ -161,6 +212,34 @@ run_profile() {
              step smoke-hda ;;
     esac
 }
+
+# Host-only DOS checks: no 16-bit compiler or real hardware access.
+run_dos_host_tests() {
+    step test-dos-version
+    step test-dos-legacy-bios
+    step test-fch-sata-identity
+    step test-usb-pci-hci
+    step test-hda-probe
+    step test-pci95-bridge
+    step test-amd12-pcie-topology
+    step test-pci-dos-memory
+    step test-pci95-bios-read
+    step test-pci-config-registers
+    step test-probe-menu
+    step test-dos-memory-survey
+    step test-rtl8111e-pci-snapshot
+    step test-dos-mz
+    step test-dos-packages
+}
+
+# Both fast and full network test plans use this NDIS regression group.
+run_ndis31_tests() {
+    step test-ndis31-audit
+    step test-ndis31-libs
+    step test-ndis31-adapter
+    step test-ndis31-llvm
+}
+
 run_fast_tests() {
     if [ "$profile" = brother-mfc290c ]; then
         step test-brother-mfc290c
@@ -171,21 +250,7 @@ run_fast_tests() {
         return
     fi
     if [ "$profile" = dos-pci ] || [ "$profile" = dos-probe ]; then
-        step test-dos-version
-        step test-dos-legacy-bios
-        step test-fch-sata-identity
-        step test-usb-pci-hci
-        step test-hda-probe
-        step test-pci95-bridge
-        step test-amd12-pcie-topology
-        step test-pci-dos-memory
-        step test-pci95-bios-read
-        step test-pci-config-registers
-        step test-probe-menu
-        step test-dos-memory-survey
-        step test-rtl8111e-pci-snapshot
-        step test-dos-mz
-        step test-dos-packages
+        run_dos_host_tests
         return
     fi
     step test-format
@@ -199,10 +264,7 @@ run_fast_tests() {
             step test-pci95-bios-read
             step test-rtl8111e-pci-snapshot
             step test-dos-mz
-            step test-ndis31-audit
-            step test-ndis31-libs
-            step test-ndis31-adapter
-            step test-ndis31-llvm ;;
+            run_ndis31_tests ;;
     esac
 }
 run_tests() {
@@ -228,10 +290,7 @@ run_tests() {
         rtl8111e|all)
             step test-pci95-bios-read
             step test-dos-mz
-            step test-ndis31-audit
-            step test-ndis31-libs
-            step test-ndis31-adapter
-            step test-ndis31-llvm ;;
+            run_ndis31_tests ;;
     esac
     run_profile
 }
@@ -264,41 +323,58 @@ clean_tests() {
 }
 usage() {
     cat <<'HELP'
-Usage: ./build.sh [menuconfig|config|plan|build|incremental|test|test-fast|clean-tests|bootstrap|bootstrap-watcom|bootstrap-all|<legacy target>]
-  menuconfig      Configure build profile using portable interactive menu
-  config          Show active settings (environment overrides .whpconfig)
-  plan            Print selected build steps without running them
-  build           Run selected compile/smoke workflow; no driver installation
-  incremental     Run selected workflow without toolchain bootstrapping
-  test            Run full checks, including applicable NDIS regressions
-  test-fast       Run host-only regression checks (no toolchain bootstrap)
-  clean-tests     Remove only default .build/llvm-native/whp-tests artifacts
-  clean-dos-probe Remove only .build/dos-pci generated artifacts
-  clean-dos-pci   Legacy alias for clean-dos-probe
-  bootstrap       Explicit LLVM bootstrap (existing backend)
-  bootstrap-watcom Explicit native OpenWatcom host + release toolchain bootstrap
-  bootstrap-all   Build both pinned LLVM and OpenWatcom toolchains
-  test-menuconfig Run isolated build.sh configuration regression checks
-  <legacy target> Pass through to ./build (smoke, smoke-vxd, verify-vxd, ...)
-  build-brother-mfc290c-macos Compile macOS probe; WHP_MFC290C_MACOS_ARCH=native|arm64|x86_64|universal2
-  probe-brother-mfc290c-macos Compile and run read-only macOS USB registry probe
-  probe-system-macos         Compile and run read-only macOS system summary
-Profiles: abi (default), vxd, radeon6410d, rtl8111e, hda, brother-mfc290c, dos-probe, all
-Legacy profile: dos-pci (accepted for existing configurations)
-HDA profile: read-only PCI/GCAP probes, never a sound driver
-Brother profile: cross-platform C identity tests; native macOS IOKit probe build
-DOS probe profile: opt-in OpenWatcom 16-bit MZ build; no real-mode execution
-VxD backends: llvm (default), openwatcom (explicit and LE-verified only)
-Bootstrap choices: off, llvm, openwatcom, both (legacy on = llvm)
-Defaults: bootstrap OFF; LLVM build jobs 2 (max configured 16)
-Config: .whpconfig (data only, ignored by Git)
-Overrides: WHP_DRIVER_PROFILE, WHP_DRIVER_VXD_BACKEND,
-           WHP_DRIVER_BOOTSTRAP, WHP_LLVM_JOBS, WHP_WATCOM_CLANG
+Usage: ./build.sh [command]
+       ./build.sh <existing ./build target> [target arguments...]
+
+Discover and configure:
+  help, -h, --help Show this help
+  profiles         List build profiles and their boundaries
+  menuconfig       Configure profile, VxD backend, bootstrap and LLVM jobs
+  config           Show effective settings
+  plan             Print configured build steps without running them
+
+Build and test:
+  build            Build selected profile; no driver installation
+  incremental      Build selected profile without toolchain bootstrapping
+  test-fast        Host-only profile regressions; no compiler bootstrap
+  test             Full profile tests and build; may bootstrap if configured
+  test-menuconfig  Isolated configuration/dispatch regression tests
+
+Explicit toolchain bootstrap:
+  bootstrap        Build pinned LLVM toolchain
+  bootstrap-watcom Build pinned OpenWatcom toolchain
+  bootstrap-all    Build LLVM, then OpenWatcom
+
+Cleanup (generated outputs only):
+  clean-tests      Remove default LLVM test outputs
+  clean-dos-probe  Remove DOS probe outputs (legacy: clean-dos-pci)
+
+Other existing backend targets:
+  ./build.sh <target> [arguments] passes through to ./build unchanged.
+  Examples: smoke-vxd, verify-vxd, build-brother-mfc290c-macos,
+            probe-brother-mfc290c-macos, probe-system-macos.
+  Native macOS Brother build slices: WHP_MFC290C_MACOS_ARCH=
+    native / arm64 / x86_64 / universal2.
+
+Configuration:
+  .whpconfig is validated data, not sourced as shell code.
+  WHP_DRIVER_PROFILE, WHP_DRIVER_VXD_BACKEND, WHP_DRIVER_BOOTSTRAP,
+  WHP_LLVM_JOBS override saved settings. WHP_WATCOM_CLANG chooses
+  a native compiler for explicit OpenWatcom bootstrap.
+  Bootstrap defaults to off; LLVM jobs default to 2 (range 1-16).
+  Legacy bootstrap=on maps to llvm. VxD backends: llvm / openwatcom.
+
+Profiles are listed with './build.sh profiles'.
+  'all' excludes the opt-in DOS and Brother device workflows.
+  DOS builds are 16-bit OpenWatcom MZ; no DOS runtime/hardware tests.
+  VxD LE structure checks do not establish Windows 95 loading.
 HELP
 }
 
 case "${1:-build}" in
     -h|--help|help) usage; exit 0 ;;
+    profiles) [ "$#" -eq 1 ] || fail 'profiles takes no arguments'
+              show_profiles; exit 0 ;;
     test-menuconfig) [ "$#" -eq 1 ] || fail "test-menuconfig takes no arguments"
                      exec sh "$root/tests/build-menuconfig.sh" ;;
 esac

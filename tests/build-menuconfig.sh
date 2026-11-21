@@ -120,6 +120,32 @@ WHP_DRIVER_PROFILE=dos-probe "$tmp/build.sh" plan > "$tmp/probe-plan"
 grep -Fx '  ./build dos-probe-build' "$tmp/probe-plan" >/dev/null || exit 1
 
 
+# Direct profile/bootstrap selection must preserve legacy numeric controls
+# and avoid unexpected changes when the user enters an invalid value.
+"$tmp/build.sh" profiles > "$tmp/profiles"
+grep -F 'dos-probe        16-bit WHPPROBE.EXE' "$tmp/profiles" >/dev/null
+grep -F 'all              Core ABI/VxD/Radeon/network/HDA smoke; excludes DOS and Brother' "$tmp/profiles" >/dev/null
+"$tmp/build.sh" --help > "$tmp/help"
+grep -F 'Discover and configure:' "$tmp/help" >/dev/null
+grep -F 'Build and test:' "$tmp/help" >/dev/null
+grep -F 'Explicit toolchain bootstrap:' "$tmp/help" >/dev/null
+grep -F 'Cleanup (generated outputs only):' "$tmp/help" >/dev/null
+if "$tmp/build.sh" profiles extra >/dev/null 2>&1; then
+    printf '%s\n' 'profiles accepted unexpected arguments' >&2
+    exit 1
+fi
+
+printf 'p\ndos-probe\nb\nopenwatcom\ns\n' | "$tmp/build.sh" menuconfig >/dev/null
+grep -qx 'WHP_DRIVER_PROFILE=dos-probe' "$tmp/.whpconfig"
+grep -qx 'WHP_DRIVER_BOOTSTRAP=openwatcom' "$tmp/.whpconfig"
+printf 'p\nnonexistent\nb\non\ns\n' | "$tmp/build.sh" menuconfig >/dev/null 2>&1
+grep -qx 'WHP_DRIVER_PROFILE=dos-probe' "$tmp/.whpconfig"
+grep -qx 'WHP_DRIVER_BOOTSTRAP=openwatcom' "$tmp/.whpconfig"
+: > "$WHP_TEST_LOG"
+WHP_DRIVER_BOOTSTRAP=off "$tmp/build.sh" plan > "$tmp/named-plan"
+[ ! -s "$WHP_TEST_LOG" ] || exit 1
+grep -Fx '  ./build dos-probe-build' "$tmp/named-plan" >/dev/null
+
 cp "$tmp/.whpconfig" "$tmp/expected-config"
 printf '1\nq\n' | "$tmp/build.sh" menuconfig >/dev/null
 cmp "$tmp/.whpconfig" "$tmp/expected-config" >/dev/null || exit 1

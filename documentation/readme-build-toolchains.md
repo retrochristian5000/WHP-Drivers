@@ -66,6 +66,24 @@ unless LLVM bootstrap is explicitly selected. This menu is a portable
 text interface, not a curses dependency.
 
 
+### Build command organization (2026-11-21)
+
+Use `./build.sh --help` for commands grouped by discovery,
+building/testing, explicit toolchain bootstrapping, cleanup and backend
+pass-through. `./build.sh profiles` enumerates supported profiles and
+explains which workflows are excluded from `all`. In `menuconfig`,
+**p** selects a profile by its exact name and **b** selects a bootstrap
+mode directly. The original numeric 1-4 cycle/toggle controls remain
+available. `dos-pci` remains valid for saved legacy configurations,
+while new DOS work should select `dos-probe`.
+
+The frontend's DOS host checks and NDIS regressions now have named
+dispatch helpers, without changing their commands or execution order.
+This organization change does **not** change compiler flags, hardware
+access, CI cache keys, saved configuration format, cleanup boundaries
+or `incremental` behavior. Invalid direct selections leave the
+previous menu values unchanged.
+
 ## Pinned Water source (Win32 headers and import-library research)
 
 The existing [Water fork](https://github.com/retrochristian5000/water) is pinned
