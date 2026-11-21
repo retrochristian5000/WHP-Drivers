@@ -39,7 +39,7 @@ jobs:
         run: |
           sh -n build build.sh tests/build-menuconfig.sh
           ./build.sh test-menuconfig
-      - name: Compile and test USB identity and CUPS model-label guards
+      - name: Test USB identity, CUPS, location and fax policy guards
         run: ./build test-brother-mfc290c
       - name: Compile native macOS IOKit and CUPS read-only observer
         if: runner.os == 'macOS'
