@@ -371,6 +371,21 @@ test_usb_pci_hci() {
         die "USB PCI HCI synthetic regression failed"
 }
 
+# Brother MFC-290C: host-only USB device identity, not a functional driver.
+test_brother_mfc290c() {
+    need cc
+    out_dir="$build_dir/whp-tests"
+    mkdir -p "$out_dir"
+    cc -std=c11 -Wall -Wextra -Werror -Wpedantic \
+        -I"$root/drivers/usb/brother" \
+        "$root/drivers/usb/brother/mfc290c.c" \
+        "$root/tests/brother-mfc290c.c" \
+        -o "$out_dir/brother-mfc290c-host-test" ||
+        die "MFC-290C USB identity test compilation failed"
+    "$out_dir/brother-mfc290c-host-test" ||
+        die "MFC-290C synthetic USB identity checks failed"
+}
+
 # AMD Family 12h APU and Hudson FCH root-port matching on synthetic PCI data.
 test_amd12_pcie_topology() {
     need cc
@@ -1050,6 +1065,7 @@ case "${1:-}" in
     test-dos-legacy-bios) test_dos_legacy_bios ;;
     test-fch-sata-identity) test_fch_sata_identity ;;
     test-usb-pci-hci) test_usb_pci_hci ;;
+    test-brother-mfc290c) test_brother_mfc290c ;;
     test-dos-mz) need python3; python3 -m unittest discover -s "$root/tests" -p 'test_dos_mz.py' ;;
     test-dos-packages) need python3; python3 -m unittest discover -s "$root/tests" -p 'test_dos_packages.py' ;;
     dos-probe-build|dos-pci-build) dos_probe_build ;;
@@ -1066,5 +1082,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-pci-config-registers|test-probe-menu|test-dos-memory-survey|test-dos-version|test-dos-legacy-bios|test-fch-sata-identity|test-usb-pci-hci|test-dos-mz|dos-probe-build|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-pci-config-registers|test-probe-menu|test-dos-memory-survey|test-dos-version|test-dos-legacy-bios|test-fch-sata-identity|test-usb-pci-hci|test-brother-mfc290c|test-dos-mz|dos-probe-build|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
