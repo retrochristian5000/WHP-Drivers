@@ -22,6 +22,57 @@ These reported observations do not supply the installed firmware version, raw en
 - Brother documents printing, scanning, card access, and **sending** PC-FAX. Standalone incoming fax is supported, but **PC-FAX receive is not available** on MFC-290C. A telephone line connects to the machine's LINE jack, not to a PC serial/modem port.
 - Brother lists legacy Windows and Mac software and maintains Linux downloads. Existing third-party scanner software also supports this model. The aim is portable *new* support where feasible, not an unsupported claim that no drivers exist.
 
+## FCC Part 15, Part 68 and ACTA evidence (2026-11-21)
+
+**Scope:** US regulatory evidence constrains the MFC-290C's electrical
+and analog telephone interfaces, not the computer-facing USB protocol.
+These are three distinct identifiers: a Part 15 conformity statement,
+a Part 68/ACTA telephone-equipment product label and the USB VID/PID.
+
+| Evidence | Confirmed statement | Driver boundary |
+| --- | --- | --- |
+| Brother US User's Guide, Safety and Legal, pp. 89-91 | MFC-290C is declared compliant with FCC Part 15 as a Class B digital device | Emissions compliance does not establish an FCC radio-transmitter ID, WLAN hardware or USB interface behavior |
+| Same guide, p. 89 | Part 68/ACTA telephone-terminal requirements; standard USOC RJ11C line connection | Applies to the analog LINE / telephone-network path, not a PC serial modem or USB CDC/ACM interface |
+| Same guide, p. 89 | Rear equipment label carries an ACTA-formatted US product identifier, shown in the guide as `US:AAAEQ##TXXXX`; the `##` digits encode REN in tenths | This is a **format example**, not the machine's recovered exact identifier or REN. Do not synthesize either |
+| Historical Canadian record `1112C-8CAG13`, approved 2008-04-18 | Legacy Industry Canada listing names both MFC-250C and MFC-290C | Canadian approval ID is **not** an FCC ID; family listing does not prove identical boards or firmware |
+| FCC 2003 Public Notice DA 03-1061; ACTA filing database | Part 68-approved telephone equipment is listed with ACTA; the approval may use a TCB or supplier declaration | ACTA is the appropriate next US registration search; do not misinterpret the FCC's radio-device filing database as the sole authority for this fax machine |
+
+**Verification status:** Brother's user guide establishes the existence
+and expected *format* of the rear telephone-equipment label. An
+authenticated exact MFC-290C US product-identifier/REN value has **not**
+been recovered or verified against a physical label. No MFC-290C-specific
+public FCC radio equipment authorization, internal photo exhibit, USB
+firmware image, main-ASIC pinout or vendor command list was established
+from these regulatory documents. This negative finding is a search
+boundary, **not** proof that those materials can never exist.
+
+**Next safe evidence pass:**
+
+1. Inspect an authentic MFC-290C US rear rating label for the
+   `US:` Part 68/ACTA identifier and REN. Keep serial numbers,
+   owner information and other per-unit identifiers out of public logs.
+2. Search ACTA's [Filing Search](https://part68.org/filing-search/)
+   with the verified label/product ID, model and responsible party.
+   Preserve the source, filing type and any applicable revision.
+3. Compare any filing's **telephone-side** information with the
+   service-manual MODEM/SDAA/MJ-PCB block diagram; do not translate
+   analog fax compliance into USB fax command bytes.
+4. Continue the independent, read-only USB descriptor inventory for
+   `04f9:01fd`: all interface alternate settings, endpoints and
+   packet sizes. The reported `07/01/02` interface and vendor-defined
+   interface do not acquire new roles from Part 15 or Part 68.
+
+Sources:
+- Brother MFC-290C US User's Guide, *Safety and Legal*, pp. 89-91:
+  https://www.bhphotovideo.com/lit_files/142624.pdf
+- FCC Wireline Competition Bureau, Public Notice DA 03-1061
+  (2003-04-02), Part 68 approvals and ACTA database:
+  https://docs.fcc.gov/public/attachments/DA-03-1061A1.pdf
+- ACTA official filing search:
+  https://part68.org/filing-search/
+- Legacy Canadian model record:
+  https://fccid.io/1112C-8CAG13
+
 ## Code contract
 
 `drivers/usb/brother/mfc290c.{h,c}` parses a caller-owned USB device descriptor, validates its fixed 18-byte framing and checks the exact VID/PID. A match exposes raw descriptor identity fields; it **does not** imply a usable interface, endpoint, negotiated speed, driver binding, or fax connection. The feature mask describes the physical model and documented host features, not implemented operations. It deliberately excludes PC-FAX reception.
