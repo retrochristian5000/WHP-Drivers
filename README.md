@@ -87,9 +87,12 @@ runtime entry points and hardware access remain separate:
   `tools/dos/`. PCI USB-controller detection does **not**
   enumerate connected USB printers.
 - **macOS:** native user-space Mach-O
-  `mfc290c-probe`, IOKit/CUPS metadata, and a process-ISA
-  check under `tools/macos/`. Registry observations do **not**
-  claim raw descriptor or functional driver support.
+  `mfc290c-probe` for Brother IOKit/CUPS metadata, plus
+  `whp-system-probe` for Darwin kernel, installed physical
+  memory and existing PCI/serial IOKit service counts. These
+  are separate read-only tools under `tools/macos/`.
+  Registry observations do **not** claim raw PCI/USB
+  descriptors or functional driver support.
 
 Both tools keep their existing arguments. The shared source line
 uses `usbDevices=not-enumerated` for DOS, `registry-only`
@@ -101,10 +104,12 @@ from a DOS PCI-controller observation.
 ./build test-probe-scope        # pure C89, no hardware access
 ./build test-probe-menu         # DOS menu + shared scope test
 ./build test-brother-mfc290c    # USB model tests + shared scope test
+./build.sh probe-system-macos   # macOS kernel, memory, PCI and serial services
 ```
 
 See the [DOS probe](documentation/readme-dos-probe.md)
-and [MFC-290C evidence](documentation/brother-mfc290c.md)
+[MFC-290C evidence](documentation/brother-mfc290c.md), and
+[DOS-to-macOS API mapping](documentation/probe-api-portability.md)
 for platform-specific work.
 
 ## Validation and development rules

@@ -40,6 +40,30 @@ and Brother MFC-290C host regression paths. Passing host tests
 cannot substitute for an actual DOS MZ link or DOS execution;
 the separate DOS CI workflow verifies linking and packaging.
 
+#### DOS APIs and native macOS replacements
+
+The macOS system companion is run through
+`./build.sh probe-system-macos`. It reports Darwin's kernel
+release using `uname()`, installed physical RAM using
+`sysctlbyname("hw.memsize")`, and published `IOPCIDevice`
+and `IOSerialBSDClient` service counts using IOKit.
+These are **native observations**, not substitute values
+for DOS INT 12h's conventional-memory boundary, the
+INT 11h BIOS equipment word, or the INT 1Ah PCI BIOS
+configuration-space reads. A zero IOKit service count
+does not establish that no corresponding hardware exists.
+
+The DOS tool continues using BIOS, the BDA, the DOS
+video/menu APIs and OpenWatcom 16-bit addressing. Neither
+macOS tool has a DOS BIOS dependency. The generic Mac
+tool reports no USB peripheral enumeration; the Brother
+tool still handles its own read-only USB-device registry
+inspection. The two executables are separate.
+
+See the [per-API compatibility map](probe-api-portability.md)
+for supported replacements, non-equivalences, safety limits
+and validation gates.
+
 #### GitHub Actions DOS source build and archives
 
 The separate [DOS source-build workflow](../.github/workflows/dos-probe-build.yml)
