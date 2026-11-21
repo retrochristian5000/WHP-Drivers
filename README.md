@@ -2023,16 +2023,21 @@ WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh build  # also builds IOKit tool on
 ```
 
 The `brother-mfc290c` profile is selectable in `./build.sh menuconfig`.
-It keeps the C11 identity regression portable: Linux and other supported
-hosts can run its synthetic tests without a Brother printer, USB access,
-LLVM or OpenWatcom. On macOS, it also compiles a native read-only IOKit
-inventory executable in `.build/brother-mfc290c-macos/`. The explicit
-`probe-brother-mfc290c-macos` target compiles and runs it, observing the
-connected USB registry for `04f9:01fd` and reporting visible interface
-metadata without opening the device or issuing USB transfers.
+It keeps the C11 USB identity and **CUPS model-label** regressions
+portable: Linux and other supported hosts can run synthetic tests without a
+Brother printer, USB access, LLVM or OpenWatcom. On macOS it also compiles
+a read-only IOKit/CUPS diagnostic in `.build/brother-mfc290c-macos/`.
+The explicit `probe-brother-mfc290c-macos` target compiles and runs it,
+observing the `04f9:01fd` USB identity, visible interface information,
+and attached-service bundle hints. It separately counts candidate
+`Brother MFC-290C` CUPS make/model labels. The macOS process never
+opens the USB device, submits print jobs, or changes printer queues.
+**CUPS queue labels do not prove a physical USB match or working driver.**
+Brother's historical Mac path used CUPS printing and ICA scanning, which
+remain separate implementation targets.
 
 [Identity CI](.github/workflows/mfc290c-identity.yml) now runs the portable
-tests on Linux and macOS and checks the native IOKit compile on macOS.
+tests on Linux and macOS and checks the native IOKit/CUPS compile on macOS.
 **This is not yet an installable printer, scanner, or fax driver.**
 OS-supplied registry discovery is not proof of raw USB endpoint descriptors,
 functional print/scan/fax protocols, or real-machine compatibility. The
