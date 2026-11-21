@@ -76,22 +76,21 @@ Sources:
 ## Rear rating-label frequency and power PCB variants (2026-11-21)
 
 **Updated physical-label observations (2026-11-21):** The user has
-reported both `100-120V` and `50/60Hz` from the same MFC-290C
-rear rating label. The paired observations agree with the documented
-**North American 100-120 VAC, 50/60 Hz input class**. The current
-rating, exact power-supply assembly marking, and any repair/replacement
-history have **not** been reported or physically verified. The
-frequency is the accepted AC mains line frequency, not a clock
-frequency of the RISC ASIC, USB PHY, scanner interface, fax modem
-or piezo printhead driver. Voltage/frequency alone do not establish
-the CPU ISA, internal oscillator, USB command protocol or actual
-board assembly. Never infer `0.5A` as a measured or reported value
-from the user's unit.
+reported `100-120V`, `50/60Hz` and `0.5A` from the same MFC-290C
+rear rating label. Together they match the published **North American
+100-120 VAC, 50/60 Hz, 0.5 A input class**. The current value is a
+**nameplate input rating**, not a measured idle/printing load or proof
+of internal DC rail voltages. The exact installed power-supply assembly,
+its IC markings and any repair/replacement history remain unverified.
+Mains frequency is not a clock frequency of the RISC ASIC, USB PHY,
+scanner interface, fax modem or piezo printhead driver. These ratings
+do not establish CPU ISA, USB command protocol or actual board identity.
 
 **Independent model evidence:** Brother's June 2008 parts reference list,
 PL-FAX154/8CAG13, illustrates an MFC-290CZ rating label with
 `100-120V~ 50/60Hz 0.5A`. This is a **published exemplar of the Z
-variant**, not a transcription of the user's unit. The model-family
+variant**, independently consistent with the user's own label, not
+proof that their unit is a Z variant. The model-family
 service manual SM-FAX098, §2.1.6, specifies US `100-120 VAC 50/60 Hz`
 and Europe/Asia/Oceania `220-240 VAC 50/60 Hz`; model-specific
 country/board codes still determine the actual variant. The observed
@@ -99,12 +98,28 @@ country/board codes still determine the actual variant. The observed
 and the user's label is not evidence that the unit can be connected
 to 220-240 V mains.
 
+**New rating-label safety mark (user's reading):** `L.T.E.: 1T22`.
+Keep that exact reading separate from the **likely normalization**
+`I.T.E. 1T22`. Brother's June 2008 MFC-290CZ label illustration
+places `I.T.E.` with the **UL LISTED** mark, and Brother manuals for
+other models explicitly reproduce `I.T.E. 1T22`. Historical UL
+documentation expands **I.T.E.** to **Information Technology Equipment**
+and describes UL Listing marks with category identifiers and control
+numbers. Therefore treat `1T22` as a **probable UL listing/control
+marking**, not a PSU IC marking, 1T22 chip, device serial number,
+FCC ID, USB command, radio/LTE hardware or fax registration number.
+The user's visually read **L** versus printed **I** and the exact
+MFC-290C UL record require independent checking. Searching Brother
+or the model in UL Product iQ is a non-destructive certification
+follow-up, **not** proof that a model-specific listing has been found.
+Do not infer a PSU topology or specific component from this mark.
+
 **New component-selection evidence:** Brother parts reference list,
 List 8 (PCB), item 2, assigns supply assemblies by region:
 
 | Supply assembly | Listed destination(s) | Confidence / distinction |
 | --- | --- | --- |
-| `LT0416001` | US/CAN; includes MFC-290C/MFC-290CZ | Published part-list match **strengthened by observed 100-120V, 50/60Hz label**; still not a physically verified installed PCB |
+| `LT0416001` | US/CAN; includes MFC-290C/MFC-290CZ | Published regional match **strengthened by observed 100-120V, 50/60Hz, 0.5A label**; still not a physically verified installed PCB |
 | `LT0485001` | European countries and several other markets | Region-specific supply, not proof of the same electrical design as US/CAN |
 | `LT0660001` | ZAF/ASA/RUS | Separate assembly code |
 | `LT0586001` | CHN | Separate assembly code |
@@ -122,9 +137,8 @@ has yet been verified for the actual unit.
 
 **Hardware search order (non-destructive):**
 
-1. Preserve the now-confirmed rear-label **100-120V, 50/60Hz** values.
-   Read the remaining **current/amperage** rating if available, without
-   recording or publishing any device serial number. No PCB assembly
+1. Preserve the now-reported rear-label **100-120V, 50/60Hz, 0.5A**
+   values without publishing any device serial number. No PCB assembly
    code has yet been observed on this machine.
 2. Compare the region/model to the parts-list supply assembly and
    matching Appendix 6 power-supply schematic; record component
@@ -139,7 +153,7 @@ has yet been verified for the actual unit.
    clock tree, USB device controller and firmware command parser.
 5. Never transplant a PSU across regions, assume a universal-input
    supply, or derive USB commands from the mains rating. The
-   `100-120V, 50/60Hz` observation narrows the **power-hardware
+   `100-120V, 50/60Hz, 0.5A` observation narrows the **power-hardware
    research path**, not the current USB parser or driver's compatibility flags.
 
 Primary documentation:
@@ -149,6 +163,16 @@ Primary documentation:
 - Brother SM-FAX098, §2.1.6 (regional AC input) and Appendix 6
   (power-supply and MJ-PCB circuit diagrams):
   https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- Brother June 2008 parts-reference rating-label illustration
+  (I.T.E. adjacent to UL Listed):
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+- Brother older FAX-2820/MFC-7220 service-manual label
+  (explicit I.T.E. 1T22; cross-model comparison only):
+  https://www.manualslib.com/manual/3821054/Brother-Fax-2910.html
+- UL explanation of I.T.E. listing-mark elements and control numbers:
+  https://iaeimagazine.org/2001/2001january/listing-requirements-for-ite-installed-in-computer-rooms/
+- UL Product iQ certification database:
+  https://productiq.ulprospector.com/en/
 - Brother US MFC-290C/250C user guide, general specifications
   (North American input range):
   https://www.brother-usa.com/-/media/brother/product-catalog-media/documents/2020/08/17/10/11/um_mfc_250c_290c_es_1772.pdf
