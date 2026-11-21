@@ -1,6 +1,6 @@
 # Brother MFC-290C — USB multifunction driver evidence and boundaries
 
-**Status:** identity decoder and synthetic host tests only. **Not an installable driver.**
+**Status:** portable USB identity decoder, synthetic host tests, and read-only macOS IORegistry observer. **Not an installable driver.**
 
 ## Identified hardware
 
@@ -17,7 +17,49 @@
 - USB controller PCI inventory (`drivers/usb/pci_hci.*`) does **not** enumerate attached USB devices; `WHPPROBE.EXE` must not report MFC-290C from an EHCI/OHCI/UHCI/xHCI controller alone.
 - Do not assume the device is USB printer class or USB communications class without actual configuration/interface/endpoint descriptors. Do not send vendor requests or reset the device based on this identity alone.
 - Do not confuse standalone ITU-T fax modem signaling with Hayes AT commands on a PC COM port. Any future PC-FAX submission protocol requires independently captured, authorized device evidence.
-- USB transport, print stream encoding, scanner commands, PC-FAX sending, OS install packages, and real-hardware behavior remain **unimplemented**. No firmware updates, ink movement, phone calls, or hardware access occur in the identity test.
+- USB transport, print stream encoding, scanner commands, PC-FAX sending, OS install packages, and real-hardware behavior remain **unimplemented**. No firmware updates, ink movement, phone calls, or USB requests occur in the identity tests or macOS observer.
+
+## Native macOS USB evidence (IOKit)
+
+macOS is an **independent target**, not a Windows 95 or DOS compatibility
+wrapper. The dedicated source `tools/macos/mfc290c_probe.c` enumerates IOKit
+`IOUSBHostDevice` registry services, falling back to the historical
+`IOUSBDevice` class when the first search has no matching Brother device.
+It verifies numeric `idVendor=04f9` and `idProduct=01fd` and prints a
+reported `bcdDevice` revision, USB location ID and any matching child
+interface-class/number/subclass/protocol properties that are visible. Missing
+properties appear as unknown rather than guessed values. Enumeration is bounded
+to prevent runaway registry walks; the tool does **not** output serial numbers.
+
+The macOS program reads the host's registry only. It never opens, claims,
+reconfigures, resets, or sends transfers to the device. These **registry
+observations are not raw USB descriptors** and cannot establish endpoint
+addresses, active alternate settings, negotiated USB speed, scanning protocol,
+print encoding or PC-FAX command semantics. If no matching registry service is
+visible, that does not prove the hardware is disconnected or unsupported.
+
+`sh`
+`WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh plan`
+`WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh test-fast`
+`WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh build`
+`./build.sh probe-brother-mfc290c-macos`
+``
+
+The `build` profile runs the cross-platform host test and compiles the IOKit
+probe when the **build host** is macOS. The explicit `probe-brother-mfc290c-macos`
+command then compiles and **runs** the read-only physical registry observation;
+it requires macOS with its native C compiler and IOKit/CoreFoundation SDK.
+Both use a separate private output directory under
+`.build/brother-mfc290c-macos/`. No LLVM bootstrap, old Windows DDK,
+real-mode DOS driver or kernel extension is used. Modern macOS implementation
+should separately evaluate user-space frameworks versus USBDriverKit and their
+actual security/entitlement requirements before binding device interfaces.
+
+Observations from macOS, Linux, Windows or DOS can disagree because their host
+stacks enumerate and expose different metadata. Record the source, machine,
+operating-system version and raw/report-derived status of each value; never
+silently choose the "most accurate" OS as authoritative without hardware
+documentation and descriptor evidence.
 
 ## Portability gates
 
@@ -27,15 +69,19 @@
 | Windows 95 RTM | A compatible USB host stack (RTM has no native USB support), plus the appropriate model/function driver ABI. Do not relabel a Windows 98 driver as RTM-compatible. |
 | Windows 95 OSR2.x / Windows 98 | Verify exact release's USB stack and printer/scanner/fax function interfaces; do not silently borrow NT/WDM components. |
 | Linux / BSD | Enumerate actual USB interfaces; integrate printing, scanning and PC-FAX with applicable user-space APIs only after protocol verification. Existing Brother Linux packages are separate prior art. |
-| Modern macOS / Windows | Use supported, architecture-correct driver and USB APIs; confirm host OS restrictions and actual function protocols. |
+| macOS (Intel / Apple Silicon) | **Native observation target added:** IOKit IORegistry inventory; current support is a read-only command-line probe, not printing/scanning/fax operation. Future drivers require the correct macOS frameworks, security/entitlements and verified USB protocols. | 
+| Modern Windows | Use supported, architecture-correct driver and USB APIs; confirm host OS restrictions and actual function protocols. |
 
 ## Verification
 
-Run `./build.sh test-brother-mfc290c` (or `./build test-brother-mfc290c`). This uses a native C11 host compiler and synthetic descriptors; it does not need LLVM, OpenWatcom, USB permissions, or a printer. The targeted GitHub Actions job runs the same command when relevant code changes.
+Run `./build.sh test-brother-mfc290c` (or `./build test-brother-mfc290c`). This uses a native C11 host compiler and synthetic descriptors; it does not need LLVM, OpenWatcom, USB permissions, or a printer. The targeted GitHub Actions job runs this test on Linux and macOS, and additionally compiles the native macOS IOKit probe. A CI Mac without an attached MFC-290C cannot verify physical-device behavior.
 
 ## Primary and corroborating references
 
 - Brother, *Quick Setup Guide*, 2008 (USB speed, cable, physical phone connections): https://download.brother.com/welcome/doc002385/cv_mfc290_usaeng_qsg.pdf
+- Apple IOUSBHostDevice (IOKit/IOUSBHost): https://developer.apple.com/documentation/iousbhost/iousbhostdevice
+- Apple USBDriverKit: https://developer.apple.com/documentation/usbdriverkit
+- Brother OS compatibility listing: https://support.brother.com/g/b/oslist.aspx?c=us&lang=en&prod=mfc290c_all
 - Brother MFC-290C manuals (User's Guide and Software User's Guide): https://support.brother.com/g/b/manualtop.aspx?c=us&lang=en&prod=mfc290c_all
 - Brother MFC-290C specifications: https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all
 - Brother PC-FAX receive exclusion: https://support.brother.com/g/s/id/htmldoc/mfc/mfc-5895cw/gb/html/sug/chapter6_3.html
