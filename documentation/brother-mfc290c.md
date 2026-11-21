@@ -351,6 +351,64 @@ operating-system version and raw/report-derived status of each value; never
 silently choose the "most accurate" OS as authoritative without hardware
 documentation and descriptor evidence.
 
+## Apple macOS open-source integration audit (2026-11-21)
+
+**Source pinning and scope:** Apple's published system components are
+valuable for **how the host enumerates and binds USB printers**, but
+they do **not** provide the MFC-290C's proprietary print raster format,
+scanner transport, PC-FAX job language, flash contents or ASIC ISA.
+Do not treat historical IOKit classes as modern Apple Silicon driver
+APIs or mistake macOS framework documentation for published source.
+
+| Apple reference | Verified content | MFC-290C consequence |
+| --- | --- | --- |
+| `apple-oss-distributions/cups`, `cups/backend/usb-darwin.c` | Historical macOS CUPS USB backend: printer-class interface matching; class-plugin binding; IEEE 1284 GET_DEVICE_ID; USB device-descriptor and string fallback; serial and location selection | Inspect host-side binding and identity **without** copying a full backend or claiming proprietary Brother output encoding |
+| `cups/backend/usb.c` | Selects macOS `usb-darwin.c` unless configured with libusb | Do not assume that every newer macOS CUPS installation uses this exact historical backend path |
+| `cups/backend/org.cups.usb-quirks` | Contains older Brother HL-1250/1430/1440/1450 entries and no exact `0x04f9:0x01fd` entry in reviewed file | No MFC-290C-specific reset, unidirectional or no-reattach quirk is established |
+| `apple-oss-distributions/IOUSBFamily`, `IOUSBFamily/Headers/IOUSBLib.h` | Historical `GetInterfaceClass`, `GetAlternateSetting`, `GetNumEndpoints`, `GetLocationID`, USB serial string index; read-only accessor calls do not all require interface-open | Confirms intent of our non-mutating observer, but this vintage API is **not** the modern DriverKit interface |
+| XNU / IOKit open components | General IORegistry and kernel-driver interface architecture | Supports driver-boundary design, not Brother-specific USB protocol or firmware |
+| ImageCaptureCore / USBDriverKit | Apple SDK documentation for scanning and supported modern USB driver interfaces | Investigate scanner integration and signed USB drivers **separately** after real interface metadata and entitlements are established |
+
+**Identity source separation:** The legacy CUPS backend's
+`copy_printer_interface_deviceid` retrieves an **IEEE 1284 printer ID**
+through a USB printer-class control request (including manufacturer,
+model and sometimes `SERN`). It separately falls back to standard USB
+device and USB **string descriptors** (`iManufacturer`, `iProduct`,
+`iSerialNumber`) if needed. These are distinct encodings and retrieval
+paths; a CUPS queue's model string and URI serial are not direct proof
+of a device's raw USB `iSerialNumber` index. The user's previously
+reported System Information serial is **not embedded** in the project.
+
+The Apple backend's `GET_DEVICE_ID` performs actual USB I/O. Our
+existing `mfc290c_usb_commands` module only *classifies captured*
+printer requests and does not send them. Do not call the old backend
+directly from an observer, steal a claimed USB interface, or issue
+reset/print/scan/fax commands merely to obtain metadata.
+
+**New passive diagnostic:** the macOS IOKit probe checks for Apple's
+historical interface property `USB Printing Class` (the CUPS source's
+`kUSBClassDriverProperty`) and reports only
+`legacyCupsPlugin=present` or `legacyCupsPlugin=unavailable`.
+Neither the plugin's absolute path nor its contents are printed.
+Presence is an historical binding hint **only**; absence is not proof
+that no current print path exists. The check does not load the plugin,
+open the interface, enumerate a new descriptor or send USB traffic.
+
+**Most useful next evidence:** read-only, sanitized actual MFC-290C
+USB device/configuration/interface/endpoint descriptors, plus
+driver/class service hints. With that evidence, compare printer-class
+binding to CUPS support and separately inspect ImageCaptureCore for
+the scanner. Only then choose a current macOS print/scan integration
+without assuming DriverKit is needed for all functions.
+
+Frozen source references (source revision to prevent silent drift):
+- Apple CUPS: https://github.com/apple-oss-distributions/cups/tree/2716564fcd1f5bf4cd4082279e97625a8f98204e
+- macOS USB backend: https://github.com/apple-oss-distributions/cups/blob/2716564fcd1f5bf4cd4082279e97625a8f98204e/cups/backend/usb-darwin.c
+- CUPS quirks: https://github.com/apple-oss-distributions/cups/blob/2716564fcd1f5bf4cd4082279e97625a8f98204e/cups/backend/org.cups.usb-quirks
+- Historical IOUSBLib: https://github.com/apple-oss-distributions/IOUSBFamily/blob/main/IOUSBFamily/Headers/IOUSBLib.h
+- Apple ImageCaptureCore: https://developer.apple.com/documentation/imagecapturecore
+- Apple USBDriverKit: https://developer.apple.com/documentation/usbdriverkit
+
 ## macOS print and scan driver logic (evidence versus implementation)
 
 Brother's original Mac software used a **CUPS printer-driver path** and an

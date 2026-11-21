@@ -146,6 +146,29 @@ static void print_bundle_hint(io_registry_entry_t entry)
     CFRelease(value);
 }
 
+/* Apple's published legacy CUPS backend reads "USB Printing Class" on
+ * its interface service when locating a class plugin. Checking for this
+ * property is passive; it neither loads the plugin nor opens USB pipes.
+ * On newer macOS versions absence is not evidence of driver failure.
+ * Do not leak the path: it may reveal installed software details.
+ */
+static void print_legacy_cups_class_hint(io_registry_entry_t interface)
+{
+    CFTypeRef value = IORegistryEntryCreateCFProperty(
+        interface, CFSTR("USB Printing Class"), kCFAllocatorDefault, 0);
+
+    if (value != NULL &&
+        CFGetTypeID(value) == CFStringGetTypeID() &&
+        CFStringGetLength((CFStringRef)value) > 0) {
+        printf(" legacyCupsPlugin=present");
+    } else {
+        printf(" legacyCupsPlugin=unavailable");
+    }
+    if (value != NULL) {
+        CFRelease(value);
+    }
+}
+
 /* The immediate client services are only provider-tree clues. There may be
  * multiple matching clients and the actual print/scan processes live above
  * this registry layer. Limit diagnostics to eight children per interface.
@@ -203,6 +226,7 @@ static void print_interfaces(io_registry_entry_t entry, unsigned depth,
             print_interface_field(child, CFSTR("bInterfaceClass"), "class");
             print_interface_field(child, CFSTR("bInterfaceSubClass"), "subclass");
             print_interface_field(child, CFSTR("bInterfaceProtocol"), "protocol");
+            print_legacy_cups_class_hint(child);
             print_bundle_hint(child);
             putchar('\n');
             print_service_hints(child);
