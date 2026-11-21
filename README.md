@@ -2002,3 +2002,27 @@ Evidence:
   https://techshelps.github.io/MSDN/WIN95DDK/HTML/S2D14.HTM
 - Linux `r8169_main.c` RTL8168E/8111E revision mask and TxConfig:
   https://linux.googlesource.com/linux/kernel/git/torvalds/linux/+/6c790212c588fddeb0d852f2790840753bb604b1/drivers/net/ethernet/realtek/r8169_main.c
+
+## Brother MFC-290C USB multifunction target (2026-11-21)
+
+The first model-specific USB identity decoder is in
+`drivers/usb/brother/mfc290c.{h,c}`, backed by synthetic descriptor and
+capability regressions in `tests/brother-mfc290c.c`. The documented USB
+identity is `04f9:01fd`; this is a USB **device** identity, not a PCI
+host-controller ID. The hardware uses USB 2.0 **Full-Speed** (12 Mbit/s)
+rather than Hi-Speed. The MFC-290C can print, scan, and handle standalone
+fax; the original PC-FAX application supports sending but **not receiving**
+faxes. See [the evidence ledger](documentation/brother-mfc290c.md).
+
+```sh
+./build.sh test-brother-mfc290c
+```
+
+This host-only C11 test does not require a physical Brother printer, a USB
+stack, LLVM or OpenWatcom. The path-filtered
+[identity CI](.github/workflows/mfc290c-identity.yml) invokes the same test.
+**This is not yet an installable printer, scanner, or fax driver.** USB
+enumeration, endpoint mapping, function protocols, real-device testing and
+OS-specific driver packaging are not implemented. WHPPROBE's existing USB
+PCI host-controller inventory must not claim to identify this attached USB
+device. Windows 95 RTM additionally needs an explicitly supported USB stack.
