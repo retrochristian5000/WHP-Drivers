@@ -1704,6 +1704,100 @@ Sources:
 - Microsoft, push-model aware applications and INF event registration:
   https://learn.microsoft.com/en-us/windows-hardware/drivers/image/creating-push-model-aware-applications
 
+### Scanner INF: `BrScnUsb` function-service lead (2026-11-21)
+
+**New exact user-observed line from the extracted Windows scanner
+INF:** `AddService = BrScnUsb, 0x00000002,
+BrScnUsb.AddService`. This is materially stronger than a
+feature flag: Microsoft's documented `AddService` grammar
+makes `BrScnUsb` the **service name**, `0x00000002`
+the **`SPSVCINST_ASSOCSERVICE`** flag, and
+`BrScnUsb.AddService` a **service-install section
+reference**, not an installed binary filename.
+The flag associates the named service with the device's
+**Plug and Play function driver** when that INF's
+`[DDInstall.Services]` entry is selected. It is
+**not** a USB interface number, subclass, firmware
+value, Win32 service startup type or guarantee that
+the Windows driver actually installed on the user's host.
+
+**Cross-model software corroboration:** Independent older Windows
+inventories identify `BrScnUsb.sys` as a *Brother USB
+Scanner Driver*; inventories of another Brother MFC family
+package contain that file. **Neither verifies** the exact
+MFC-290C package's binary name, hash, architecture or version.
+We must read `ServiceBinary` from the actual
+`[BrScnUsb.AddService]` section before promoting
+`BrScnUsb.sys` from a comparative candidate to
+a supported MFC-290C driver dependency.
+
+**Targeted read-only mapping, in order:**
+
+1. Locate the **actual model row**, e.g. the MFC-290C
+   hardware-ID match, and follow its chosen decorated
+   `[DDInstall]` then `[DDInstall.Services]` section.
+   Do not transplant a service from another Brother model
+   or conflate the printer INF with this scanner INF.
+2. Read the exact `[BrScnUsb.AddService]` section:
+   `ServiceType`, `StartType`, `ErrorControl`,
+   `ServiceBinary`, `DisplayName`, `AddReg`,
+   `Dependencies` and `LoadOrderGroup` if present.
+   In particular, `ServiceType=1` would identify a
+   kernel driver; no such value has yet been observed.
+3. Follow the named binary through `CopyFiles`,
+   `SourceDisksFiles` and `DestinationDirs`.
+   Record filename, version, selected architecture,
+   byte size and cryptographic hash **from the real
+   extracted file**. Do not assume `%12%` or a
+   `.sys` extension before inspecting `ServiceBinary`.
+4. Analyze **offline**, not by loading the legacy
+   Windows driver: inspect PE/COFF headers, imports/exports,
+   recognizable IOCTL names and any WIA/STI/TWAIN
+   dependencies using non-executing tools. Even if
+   `BrScnUsb.sys` proves to be the function driver,
+   **its commands, IOCTL layout and USB endpoint binding
+   remain unrecovered**.
+5. Correlate the Windows hardware-ID match and service
+   with the physical device's `04f9:01fd`
+   descriptors. An `MI_01` suffix, if observed,
+   would be a separate software-binding hint, not
+   proof of endpoint roles without raw descriptors.
+   Preserve the shared CIS, flatbed and ADF capability
+   boundaries, and the host-assisted scan-to-email
+   distinction already documented.
+
+**Safe local inspection**, using the real extracted INF path
+and its actual text encoding:
+
+```sh
+grep -nEi '^\[|AddService|BrScnUsb|ServiceType|StartType|ErrorControl|ServiceBinary|CopyFiles|SourceDisksFiles|DestinationDirs|VID_04F9|PID_01FD|MFC[-_ ]?290C' path/to/scanner.inf
+find . -type f -iname 'brscnusb*' -print
+```
+
+**macOS design:** This reveals a Windows *driver-stack
+entry point*, not code directly portable to Apple Silicon.
+We can reuse only independently verified device protocol
+semantics in a native scanner implementation using
+ImageCaptureCore/ICA or another supported macOS interface.
+No speculative USB controls, device resets, scans,
+firmware writes, binary execution or privileged driver
+installation are introduced by this research.
+
+References:
+- Microsoft AddService directive and
+  `SPSVCINST_ASSOCSERVICE`:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/install/inf-addservice-directive
+- Microsoft service-install entries and `ServiceBinary`:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/install/hklm-system-currentcontrolset-services-registry-tree
+- Brother model's Windows scanner-driver download listing:
+  https://support.brother.com/g/b/downloadlist.aspx?c=us&lang=en&os=6&prod=mfc290c_all
+- Cross-model older Windows scanner-driver inventory
+  (not proof of the user's package):
+  https://www.nirsoft.net/utils/csv_file_comparison.html
+- Cross-model Brother driver-package file inventory
+  (not proof of MFC-290C binding):
+  https://www.runonpc.com/driverdownload/brother-mfc-j430w-driver-download/
+
 **Two Windows install topologies are possible:** an imaging
 function with its own Plug and Play device object/INF, or
 the documented multifunction-device approach that exposes
