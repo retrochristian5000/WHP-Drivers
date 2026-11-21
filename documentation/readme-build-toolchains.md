@@ -212,6 +212,38 @@ a working 16-bit DOS executable. The DOS source-build workflow must
 still compile, link, and independently verify `WHPPROBE.EXE` before
 its archives are accepted.
 
+### One-command native macOS OpenWatcom bootstrap (2026-11-21)
+
+On macOS, the pinned fork offers a dedicated entrypoint that verifies the
+active Apple Command Line Tools and SDK before the expensive compiler
+bootstrap. Full Xcode is not required if the Command Line Tools are
+installed and selected. For a WHP-Drivers checkout:
+
+```sh
+git submodule update --init -- toolchains/openwatcom
+sh toolchains/openwatcom/ci/macos-bootstrap.sh --check
+sh toolchains/openwatcom/ci/macos-bootstrap.sh
+./build watcom-check
+```
+
+The first script invocation is a **non-building preflight**; the second
+runs the existing OpenWatcom `boot` and `build` stages. It uses the
+current `xcrun` macOS SDK and Clang, with no forced SDK version, no
+full-Xcode dependency, and no rewrite of `SDKROOT` or `DEVELOPER_DIR`.
+Optional explicit `OWCLANG` and `OWHOSTMAKE` overrides are supported.
+Expected native compiler outputs are `rel/armo64` on Apple Silicon or
+`rel/bino64` on Intel. The local `wmake` and `builder` remain the
+OpenWatcom stage tools; a host POSIX `make` is only used to create the
+initial `wmake`.
+
+The existing `./build.sh bootstrap-watcom` still works as the
+WHP-Drivers-integrated host bootstrap, with its own Clang-selection
+rules including `WHP_WATCOM_CLANG`. Do not confuse that variable
+with the standalone helper's `OWCLANG`. The helper builds the pinned
+source tree only and neither installs the compiler globally nor runs
+a real-mode DOS program. Its entrypoint is covered by mocked regression
+tests, but an end-to-end macOS release build still needs verification.
+
 ### Bootstrapping OpenWatcom independently
 
 The OpenWatcom build uses the pinned fork's CI stages directly:
