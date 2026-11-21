@@ -10,6 +10,7 @@ on:
       - build.sh
       - toolchains/openwatcom
       - tools/dos/**
+      - tools/probe/**
       - tools/verify_dos_mz.py
       - tools/package_dos_probe.py
       - drivers/bus/pci95/**
@@ -21,6 +22,7 @@ on:
       - tests/test_dos_*.py
       - tests/pci*.c
       - tests/probe-menu.c
+      - tests/probe-scope.c
       - tests/rtl8111e-pci-snapshot.c
   workflow_dispatch:
 

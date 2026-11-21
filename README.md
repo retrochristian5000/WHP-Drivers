@@ -73,6 +73,40 @@ and the actual Brother print/scan/fax USB commands remain unverified.
 See the [Brother evidence ledger](documentation/brother-mfc290c.md) before
 drawing conclusions from a shared model family or standard USB request.
 
+### Shared DOS and macOS probe core
+
+The DOS `WHPPROBE.EXE` and the macOS MFC-290C observer now
+use one **portable evidence-source core** at
+`tools/probe/probe_scope.{h,c}`. It reports the backend and
+what that backend can actually see; it contains no operating-system
+headers or hardware I/O. The executable formats, compilers,
+runtime entry points and hardware access remain separate:
+
+- **DOS:** 16-bit OpenWatcom MZ `WHPPROBE.EXE`, BIOS/PCI
+  scanning, COM/LPT/memory discovery and DOS menu, all under
+  `tools/dos/`. PCI USB-controller detection does **not**
+  enumerate connected USB printers.
+- **macOS:** native user-space Mach-O
+  `mfc290c-probe`, IOKit/CUPS metadata, and a process-ISA
+  check under `tools/macos/`. Registry observations do **not**
+  claim raw descriptor or functional driver support.
+
+Both tools keep their existing arguments. The shared source line
+uses `usbDevices=not-enumerated` for DOS, `registry-only`
+for the Mac's USB observer, and `not-queried` for the Mac's
+`--architecture-only` mode. It never reports a peripheral
+from a DOS PCI-controller observation.
+
+```sh
+./build test-probe-scope        # pure C89, no hardware access
+./build test-probe-menu         # DOS menu + shared scope test
+./build test-brother-mfc290c    # USB model tests + shared scope test
+```
+
+See the [DOS probe](documentation/readme-dos-probe.md)
+and [MFC-290C evidence](documentation/brother-mfc290c.md)
+for platform-specific work.
+
 ## Validation and development rules
 
 - **Evidence first:** preserve model, OS/ABI, source provenance, negative

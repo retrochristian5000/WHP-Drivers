@@ -657,6 +657,24 @@ References:
 - FreeBSD `usbconfig(8)`: https://man.freebsd.org/cgi/man.cgi?query=usbconfig&sektion=8
 - Apple USB interface descriptor: https://developer.apple.com/documentation/kernel/iousbinterfacedescriptor
 
+## Shared probe core and platform-specific boundaries
+
+The MFC-290C macOS observer shares a small source-reporting
+module with the DOS `WHPPROBE.EXE`:
+`tools/probe/probe_scope.{h,c}`. This **unifies report
+provenance, not hardware access**. The macOS tool obtains
+interface metadata through IOKit and CUPS; DOS probes
+BIOS/PCI devices and cannot enumerate the MFC-290C through
+a USB host-controller identity. Both commands remain
+read-only; their distinct USB visibility is explicit in
+the shared report preamble. Neither gains another operating
+system's drivers or commands from this arrangement.
+
+Use `./build test-probe-scope` to validate the common
+contract without accessing a device. Physical-device
+USB transfers, print/scan commands and DOS USB peripheral
+enumeration remain unimplemented.
+
 ## Native macOS USB evidence (IOKit)
 
 macOS is an **independent target**, not a Windows 95 or DOS compatibility

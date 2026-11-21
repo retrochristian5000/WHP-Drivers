@@ -16,6 +16,30 @@ Previously built `WHPPCI.EXE` files in that folder are historical
 artifacts, not aliases for the current executable; the build does not
 silently delete them.
 
+#### Shared probe core — DOS stays DOS-bound
+
+The DOS probe and macOS observer share **only**
+`tools/probe/probe_scope.{h,c}`, a C89-compatible reporting
+function describing the evidence source and its limitations.
+A DOS report now begins with a common `WHP probe platform=dos`
+scope line, explicitly stating that USB **peripherals** were not
+enumerated. This changes the report *preamble*, not its original
+BIOS/PCI observations, menu options or data collection.
+
+All 16-bit OpenWatcom, BIOS interrupt, BDA, PCI BIOS and DOS
+console logic remains in `tools/dos/`. The main DOS build
+links the shared pure-C module as a 16-bit DOS object and still
+produces `WHPPROBE.EXE`; it does not link IOKit or CUPS.
+On macOS, the same source compiles into its native
+`mfc290c-probe` process, without any DOS headers or runtime.
+
+The portable `./build test-probe-scope` regression checks all
+three scope reports (DOS, macOS USB, macOS architecture-only) and
+rejects unknown scope values. It runs from both existing DOS-menu
+and Brother MFC-290C host regression paths. Passing host tests
+cannot substitute for an actual DOS MZ link or DOS execution;
+the separate DOS CI workflow verifies linking and packaging.
+
 #### GitHub Actions DOS source build and archives
 
 The separate [DOS source-build workflow](../.github/workflows/dos-probe-build.yml)

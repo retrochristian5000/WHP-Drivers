@@ -5,6 +5,8 @@ on:
     paths:
       - 'drivers/usb/brother/**'
       - 'tools/macos/mfc290c*'
+      - 'tools/probe/**'
+      - 'tests/probe-scope.c'
       - 'tests/brother-mfc290c*.c'
       - 'tests/build-menuconfig.sh'
       - 'documentation/brother-mfc290c.md'
@@ -15,6 +17,8 @@ on:
     paths:
       - 'drivers/usb/brother/**'
       - 'tools/macos/mfc290c*'
+      - 'tools/probe/**'
+      - 'tests/probe-scope.c'
       - 'tests/brother-mfc290c*.c'
       - 'tests/build-menuconfig.sh'
       - 'documentation/brother-mfc290c.md'
