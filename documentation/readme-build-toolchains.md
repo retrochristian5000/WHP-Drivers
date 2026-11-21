@@ -195,8 +195,18 @@ default `cc` even when the initial compiler probe selected Clang.
 The default `OWDEFPATH` no longer appends an empty `PATH` element,
 which could cause an implicit search of the current directory.
 
+The initial host `make` remains necessary to compile OpenWatcom's own
+`wmake` from source; WHP-Drivers resolves that POSIX make executable
+once as `OWHOSTMAKE`. After the first `wmake` exists, the pinned
+`ci/buildx.sh` requires the locally built `wmake` and `builder`
+and dispatches the builder by its exact path. Missing local tools
+produce an error, rather than using unrelated commands from `PATH`.
+The native OpenWatcom `builder` itself is responsible for the
+release stages; the DOS compiler/linker remain `wcc` and `wlink`.
+
 Isolated regression tests check compiler selection, missing-compiler
-failure, and the unchanged inherited PATH. These are **mocked host
+failure, the unchanged inherited PATH, missing local utilities and
+the explicit POSIX make selection. These are **mocked host
 bootstrap checks**, not proof of a completed OpenWatcom release or
 a working 16-bit DOS executable. The DOS source-build workflow must
 still compile, link, and independently verify `WHPPROBE.EXE` before

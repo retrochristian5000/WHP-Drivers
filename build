@@ -822,7 +822,16 @@ smoke_rtl8111e() {
 # of any Windows 95 VxD linkage or driver selection.
 bootstrap_watcom() {
     check_watcom_source
+    # Host make is only needed to create the first OpenWatcom wmake.
     need make
+    watcom_host_make=$(command -v make) ||
+        die 'cannot resolve POSIX make for the initial wmake bootstrap'
+    case "$watcom_host_make" in
+        /*) ;;
+        *) die "initial POSIX make must resolve to an absolute path: $watcom_host_make" ;;
+    esac
+    [ -x "$watcom_host_make" ] ||
+        die "initial POSIX make not executable: $watcom_host_make"
     [ -f "$watcom_src/ci/buildx.sh" ] ||
         die "pinned OpenWatcom source lacks ci/buildx.sh"
     [ -f "$watcom_src/cmnvars.sh" ] ||
@@ -868,12 +877,14 @@ bootstrap_watcom() {
         OWRELROOT="$watcom_src/rel"
         OWTOOLS=CLANG
         OWCLANG="$clang_host"
+        OWHOSTMAKE="$watcom_host_make"
         PATH="${clang_host%/*}:$PATH"
         OWOBJDIR=binbuild
         OWDOCBUILD=0
         OWNOWGML=1
         OWGUINOBUILD=1
-        export PATH OWROOT OWRELROOT OWTOOLS OWCLANG OWOBJDIR OWDOCBUILD OWNOWGML OWGUINOBUILD
+        export PATH OWROOT OWRELROOT OWTOOLS OWCLANG OWHOSTMAKE OWOBJDIR OWDOCBUILD OWNOWGML OWGUINOBUILD
+        printf 'WHP-Drivers: POSIX make for initial wmake bootstrap only: %s\n' "$OWHOSTMAKE"
         # Do not source setvars.sh: it unconditionally overrides OWTOOLS=GCC.
         # ci/buildx.sh sources cmnvars.sh like upstream macOS CI.
         printf '%s\n' "WHP-Drivers: OpenWatcom stage 1/2 (native bootstrap tools)"
