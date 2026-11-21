@@ -2044,6 +2044,15 @@ workflow is **black-and-white only** and PC-FAX receive is unavailable.
 The regression suite prevents mixing those features and treats the
 170-page test-chart memory specification as a rating, not a hard job
 limit. The fax USB submission protocol remains unverified.
+
+A cross-model fax comparison identifies the **MFC-250C** as the closest
+2008 service-manual counterpart, the **MFC-490CW/790CW/990CW** as higher-tier
+controls, and nonfax **DCP** models as negative controls for print/scan
+traffic. Brother's Linux `BRFAX` spooler and `brmfcfaxdrv` filter identify
+a promising **software** path for static inspection, but no verified
+MFC-290C fax USB opcode has been recovered. The
+[family evidence and command-recovery protocol](documentation/brother-mfc290c.md)
+keeps that boundary explicit.
 The portable offline USB command classifier
 (`drivers/usb/brother/mfc290c_usb_commands.{h,c}`) now recognizes captured
 standard USB GET requests and conditional printer-class `GET_DEVICE_ID`
