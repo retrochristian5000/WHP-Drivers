@@ -24,9 +24,10 @@ Use `./build.sh` as the new top-level entry point; the historical executable
 WHP_DRIVER_PROFILE=dos-probe ./build.sh plan      # DOS-only plan
 WHP_DRIVER_PROFILE=dos-probe ./build.sh build     # opt-in DOS MZ executable
 WHP_DRIVER_PROFILE=hda ./build.sh test-fast  # HDA PCI/GCAP host-only checks
+WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh test-fast  # USB identity tests
 ```
 
-The menu selects one workflow (`abi`, `vxd`, `radeon6410d`, `rtl8111e`, `hda`, `dos-probe`, or `all`),
+The menu selects one workflow (`abi`, `vxd`, `radeon6410d`, `rtl8111e`, `hda`, `brother-mfc290c`, `dos-probe`, or `all`),
 the VxD backend (`llvm` or optional `openwatcom`), and **independent**
 toolchain bootstrap (`off`, `llvm`, `openwatcom`, or `both`), plus LLVM
 parallel jobs (1–16, default 2). Earlier `WHP_DRIVER_BOOTSTRAP=on` profiles
