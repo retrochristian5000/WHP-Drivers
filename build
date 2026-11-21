@@ -440,7 +440,8 @@ build_brother_mfc290c_macos() {
     need lipo
     out_dir="$root/.build/brother-mfc290c-macos"
     [ ! -L "$root/.build" ] && [ ! -L "$out_dir" ] &&
-        [ ! -L "$out_dir/mfc290c-probe" ] ||
+        [ ! -L "$out_dir/mfc290c-probe" ] &&
+        [ ! -L "$out_dir/whp-system-probe" ] ||
         die 'MFC-290C build refuses symlinked output paths'
     [ ! -e "$root/.build" ] || [ -d "$root/.build" ] ||
         die 'MFC-290C build output parent is not a directory'
@@ -457,8 +458,13 @@ build_brother_mfc290c_macos() {
             "$root/drivers/usb/brother/mfc290c_location.c" \
             "$root/drivers/usb/brother/mfc290c_usb_commands.c" \
             -framework IOKit -framework CoreFoundation -lcups \
-            -o "$out_dir/mfc290c-probe"
-    ) || die 'MFC-290C macOS probe build failed'
+            -o "$out_dir/mfc290c-probe" || exit 1
+        "$compiler" "$@" -std=c11 -Wall -Wextra -Werror -Wpedantic \
+            "$root/tools/probe/probe_scope.c" \
+            "$root/tools/macos/whp_system_probe.c" \
+            -framework IOKit -framework CoreFoundation \
+            -o "$out_dir/whp-system-probe" || exit 1
+    ) || die 'macOS native probe builds failed'
     slices=$(lipo -archs "$out_dir/mfc290c-probe") ||
         die 'cannot inspect MFC-290C Mach-O architecture'
     case "$arch_mode" in
@@ -476,8 +482,13 @@ build_brother_mfc290c_macos() {
                 *) die "universal2 requires exactly arm64 and x86_64: $slices" ;;
             esac ;;
     esac
+    system_slices=$(lipo -archs "$out_dir/whp-system-probe") ||
+        die "cannot inspect macOS system probe architecture"
+    [ "$system_slices" = "$slices" ] ||
+        die "macOS system/probe slice mismatch ($system_slices vs $slices)"
     printf '%s\n' "WHP-Drivers: macOS probe Mach-O slices=$slices ($arch_mode)"
     printf '%s\n' "WHP-Drivers: macOS USB inventory tool built at $out_dir/mfc290c-probe"
+    printf '%s\n' "WHP-Drivers: macOS native system inventory at $out_dir/whp-system-probe"
 }
 
 probe_brother_mfc290c_macos() {
