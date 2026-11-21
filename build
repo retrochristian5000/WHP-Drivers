@@ -497,6 +497,13 @@ probe_brother_mfc290c_macos() {
         die 'MFC-290C macOS IOKit observation failed'
 }
 
+# Native general system inventory; no BIOS interrupts or DOS ABI.
+probe_system_macos() {
+    build_brother_mfc290c_macos
+    "$root/.build/brother-mfc290c-macos/whp-system-probe" "$@" ||
+        die 'macOS system inventory failed'
+}
+
 # AMD Family 12h APU and Hudson FCH root-port matching on synthetic PCI data.
 test_amd12_pcie_topology() {
     need cc
@@ -1202,6 +1209,7 @@ case "${1:-}" in
     test-brother-mfc290c) test_brother_mfc290c ;;
     build-brother-mfc290c-macos) build_brother_mfc290c_macos ;;
     probe-brother-mfc290c-macos) shift; probe_brother_mfc290c_macos "$@" ;;
+    probe-system-macos) shift; probe_system_macos "$@" ;;
     test-dos-mz) need python3; python3 -m unittest discover -s "$root/tests" -p 'test_dos_mz.py' ;;
     test-dos-packages) need python3; python3 -m unittest discover -s "$root/tests" -p 'test_dos_packages.py' ;;
     dos-probe-build|dos-pci-build) dos_probe_build ;;
@@ -1218,5 +1226,5 @@ case "${1:-}" in
         cd "$root"
         exec python3 -m unittest discover -s tests -p 'test_vxd_format.py'
         ;;
-    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-pci-config-registers|test-probe-menu|test-probe-scope|test-dos-memory-survey|test-dos-version|test-dos-legacy-bios|test-fch-sata-identity|test-usb-pci-hci|test-brother-mfc290c|build-brother-mfc290c-macos|probe-brother-mfc290c-macos|test-dos-mz|dos-probe-build|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
+    *) printf 'Usage: %s {bootstrap|bootstrap-watcom|display-win16-check|display-ddk-check|audio-win16-check|audio-ddk-check|llvm-ndis31-abi-check|llvm-ndis31-core-audit|test-ndis31-llvm|ndis31-ddk-check|ndis31-adapter-check|test-ndis31-adapter|ndis31-ddk-inventory|ndis31-link-inventory|ndis31-link-audit|test-ndis31-libs|test-ndis31-audit|minivdd-check|check|smoke|smoke-vxd|smoke-radeon6410d|smoke-hda|test-hda-probe|test-hda-water|smoke-rtl8111e|test-rtl8111e-pci-snapshot|test-pci95-bridge|test-amd12-pcie-topology|test-pci-dos-memory|test-pci95-bios-read|test-pci-config-registers|test-probe-menu|test-probe-scope|test-dos-memory-survey|test-dos-version|test-dos-legacy-bios|test-fch-sata-identity|test-usb-pci-hci|test-brother-mfc290c|build-brother-mfc290c-macos|probe-brother-mfc290c-macos|probe-system-macos|test-dos-mz|dos-probe-build|dos-pci-build|inf-check|rtl8111e-inf-check|watcom-check|watcom-smoke-vxd|test-le|verify-vxd <file>|test-format}\n' "$0" >&2; exit 2 ;;
 esac
