@@ -114,6 +114,64 @@ Sources:
 - Original parts family and first-three-months US assembly note:
   https://www.laserexpressinc.com/manuals/Brother/brother-dcp-145c-163c-165c-167c-185c-383c-385c-387c-585cw-mfc-250c-250cz-290c-290cz-297c-297cz-490cw-790cw-990cw-parts-manual.pdf
 
+## Inkjet-only print-engine chip filter (2026-11-21)
+
+**Confirmed engine, not merely an ink-cartridge inference.** Brother
+service manual **SM-FAX098** (June 2008), chapter 3, describes the
+MFC-290C hardware family as an **inkjet, drop-on-demand piezoelectric
+(PZT) head**. Section 3.2.2, pp. 3-7 and 3-11–3-13, details ink
+supply tubes, dampers, a nozzle plate, piezoelectric actuators and
+a **head-driver IC on the printhead's flexible circuit board**.
+This driver IC is **not automatically the main-board RISC ASIC** and
+is not necessarily a separate easily identifiable package on the
+B53K961 main PCB. Its exact chip marking is not established.
+
+The manual depicts a **376-nozzle, four-color** family head arrangement
+(47 nozzles × two staggered lines × black/yellow/cyan/magenta) and
+describes manufacturing-specific piezo response data being written
+to **EEPROM on the main PCB**. The CPU uses that information for
+actuator drive correction. These are **physical print-engine
+requirements**, **not a USB packet format**; no safe inference about
+Brother's raster encoding, nozzle firing commands or head voltage
+registers follows from them.
+
+| Candidate hardware | Filter decision for original 2008 MFC-290C |
+| --- | --- |
+| Piezoelectric inkjet head driver, head/carriage flex connection | **Prioritize**; manual explicitly places this driver on the head flexible board |
+| Main ASIC, USB controller/transceiver, SDRAM, flash and EEPROM | **Retain**; general electronic functions are compatible with both inkjet and laser equipment. Main ASIC and USB silicon remain unnamed |
+| Carriage / paper-feed / ASF motor drivers, three encoders, CIS scan interface | **Retain**; these are documented machine functions, not evidence of laser printing |
+| Ink cartridge/ink-empty sensors, nozzle capping, purge/wiper and ink supply | **Retain**; documented inkjet maintenance and supply system |
+| Laser-beam scanning unit and laser-diode/laser-mirror drivers | **Exclude as MFC-290C print-engine components**; incompatible with documented piezo ink deposition |
+| Electrophotographic drum-charge, toner developer/transfer and fuser-specific controllers | **Exclude as MFC-290C print-engine components**; require a toner/photoconductor/fuser path absent from this inkjet design |
+| Generic power converter, temperature sensor, motor IC, processor found in a laser printer | **Do not reject solely by product association**; validate part number, pinout, electrical function and 2008 availability |
+| Thermal bubble-jet printhead driver | **Exclude as the known original printhead actuation technology**; the service manual specifically identifies PZT actuation |
+
+**Two different command layers must not be merged:**
+
+1. The Mac may transfer print-job data on the **standard bidirectional
+   USB printer interface** reported by the user (`07/01/02`), or
+   exchange other data on the **vendor-defined interface 1**
+   (`ff/ff/ff`, three declared endpoints). Endpoint roles and
+   actual command bytes remain unverified.
+2. The machine's firmware/main ASIC then drives the **piezo head IC,
+   carriage motors, paper feed and maintenance apparatus**. The
+   internal printhead waveform is **not** an instruction that the Mac
+   should construct, nor is the ASIC instruction set revealed by
+   the printhead's actuator technology.
+
+**Safety/quality guard:** EEPROM head-property data can be specific
+to the installed head. Never initialize/write that EEPROM, issue
+maintenance/purge/nozzle firing commands, or test with speculative
+laser/inkjet commands during passive chip identification. Preserve
+board revision and physical chip markings before mapping signals.
+
+Primary manual sections and independent Brother confirmation:
+- Brother SM-FAX098, §3.2.2 (printing mechanism and PZT head),
+  pp. 3-7, 3-11–3-13; §3.2.3 (sensors and actuators):
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- Brother regular cleaning-cycle explanation (includes MFC-290C):
+  https://support.brother.com/g/b/faqend.aspx?c=in&faqid=faq00002016_000&lang=en&prod=dcp145c_eu_as
+
 ## Main PCB chips and USB command-processing candidates (2026-11-21)
 
 **Hardware evidence, not a working driver.** Brother's June 2008
