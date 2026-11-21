@@ -1,0 +1,27 @@
+name: Brother MFC-290C USB identity
+
+on:
+  push:
+    paths:
+      - 'drivers/usb/brother/**'
+      - 'tests/brother-mfc290c.c'
+      - 'build'
+      - '.github/workflows/mfc290c-identity.yml'
+  pull_request:
+    paths:
+      - 'drivers/usb/brother/**'
+      - 'tests/brother-mfc290c.c'
+      - 'build'
+      - '.github/workflows/mfc290c-identity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and test synthetic MFC-290C USB descriptors
+        run: ./build test-brother-mfc290c
