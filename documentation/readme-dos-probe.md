@@ -77,6 +77,26 @@ exact repository and OpenWatcom commit IDs and executable SHA-256.
 `SHA256SUMS` accompanies the two archives outside them. The `.tgz`
 suffix is the conventional shorter form of `.tar.gz`.
 
+#### Incremental CI toolchain reuse
+
+The DOS workflow restores an **exact-match OpenWatcom release cache** when
+available. Its key includes the pinned OpenWatcom commit, Ubuntu runner
+OS/architecture, host Clang fingerprint, and an explicit cache-format version.
+Only the Linux 64-bit OpenWatcom release tools (`rel/binl64`), headers
+(`rel/h`) and 16-bit libraries (`rel/lib286`) are cached. On a miss,
+the existing two-stage source bootstrap runs as before. The cache is saved
+only after real `WHPPROBE.EXE` compilation, linking and MZ verification
+succeed. There is no partial-key restore of potentially incompatible binaries.
+
+Each CI run still verifies the exact pinned source checkout, checks the
+restored native tools, reruns host regressions, rebuilds `WHPPROBE.EXE`
+from current source, and verifies and packages the newly produced image.
+Cached compiler artifacts are **not** proof of a functioning DOS executable
+or actual hardware behavior. A cache miss or eviction means a fresh
+bootstrap; a cache hit with missing or invalid tools fails the job rather
+than silently using an unverified replacement. Caches are only a CI
+optimization and may incur storage/transfer overhead.
+
 The built-in packager uses Python standard-library TAR/GZIP/ZIP writers;
 it refuses invalid MZ binaries and symlinked executable inputs and uses
 stable archive metadata. Run its synthetic regression without any compiler:

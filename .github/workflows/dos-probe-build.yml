@@ -53,6 +53,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_dos_packages.py'
 
       - name: Fetch precisely pinned OpenWatcom source
+        id: watcom_source
         shell: bash
         run: |
           set -euo pipefail
@@ -61,20 +62,61 @@ jobs:
           actual="$(git -C toolchains/openwatcom rev-parse HEAD)"
           test "$actual" = "$pinned"
           printf 'WHP-Drivers: pinned OpenWatcom %s\n' "$pinned"
+          printf 'revision=%s\n' "$pinned" >> "$GITHUB_OUTPUT"
 
-      - name: Verify native bootstrap prerequisites
+      - name: Verify native bootstrap prerequisites and compiler identity
+        id: host
         shell: bash
         run: |
           set -euo pipefail
-          for tool in clang make cc c++ git python3; do
+          for tool in clang make cc c++ git python3 sha256sum; do
             command -v "$tool" >/dev/null
           done
+          clang_path="$(command -v clang)"
+          clang_hash="$(
+            {
+              printf '%s\n' "$clang_path"
+              "$clang_path" --version
+              "$clang_path" -dumpmachine
+            } | sha256sum | cut -d' ' -f1
+          )"
+          printf 'clang_hash=%s\n' "$clang_hash" >> "$GITHUB_OUTPUT"
+          printf 'WHP-Drivers: host Clang fingerprint %s\n' "$clang_hash"
 
-      - name: Build pinned OpenWatcom from source (not a precompiled package)
+      # Only release artifacts needed for real-mode DOS compilation are
+      # cached. No source checkout, intermediate objects, DOS EXE or archive
+      # is reused. The key is exact: no stale-revision restore prefixes.
+      - name: Restore pinned OpenWatcom DOS release cache
+        id: watcom_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            toolchains/openwatcom/rel/binl64
+            toolchains/openwatcom/rel/h
+            toolchains/openwatcom/rel/lib286
+          key: ow-dos-rel-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.watcom_source.outputs.revision }}-${{ steps.host.outputs.clang_hash }}
+
+      - name: Build pinned OpenWatcom from source on cache miss
+        if: steps.watcom_cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
           WHP_WATCOM_CLANG="$(command -v clang)" sh ./build.sh bootstrap-watcom
+
+      - name: Check restored or rebuilt OpenWatcom release
+        shell: bash
+        run: |
+          set -euo pipefail
+          release=toolchains/openwatcom/rel
+          for dir in "$release" "$release/binl64" "$release/h" "$release/lib286" "$release/lib286/dos"; do
+            test -d "$dir"
+            test ! -L "$dir"
+          done
+          for tool in wcc wcc386 wlink; do
+            test -x "$release/binl64/$tool"
+            test ! -L "$release/binl64/$tool"
+          done
+          sh ./build watcom-check
 
       - name: Run DOS synthetic tests and link WHPPROBE.EXE
         shell: bash
@@ -84,6 +126,18 @@ jobs:
           sh ./build dos-probe-build
           test -s .build/dos-pci/WHPPROBE.EXE
           python3 tools/verify_dos_mz.py .build/dos-pci/WHPPROBE.EXE
+
+      # Save only after actual WHPPROBE compilation, DOS linking and MZ
+      # validation succeed. A failed or partial bootstrap is never cached.
+      - name: Cache validated OpenWatcom DOS release
+        if: steps.watcom_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            toolchains/openwatcom/rel/binl64
+            toolchains/openwatcom/rel/h
+            toolchains/openwatcom/rel/lib286
+          key: ow-dos-rel-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.watcom_source.outputs.revision }}-${{ steps.host.outputs.clang_hash }}
 
       - name: Create and inspect TGZ and ZIP packages
         shell: bash
