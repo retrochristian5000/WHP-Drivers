@@ -22,6 +22,7 @@
 #include "legacy_bios.h"
 #include "identity.h" /* storage mode evidence only */
 #include "pci_hci.h" /* USB HCI evidence only */
+#include "../probe/probe_scope.h"
 
 static uint8_t config_bytes[WHP_PCI95_BIOS_CONFIG_SIZE];
 static struct whp_pci95_bridge bridge_info;
@@ -1054,6 +1055,7 @@ static int menu_main(void)
 
 int main(int argc, char **argv)
 {
+    puts(whp_probe_scope_line(WHP_PROBE_SCOPE_DOS_BIOS_PCI));
     if (argc == 2 && (strcmp(argv[1], "/M") == 0 ||
                       strcmp(argv[1], "--memory") == 0))
         return report_memory_resources(0);

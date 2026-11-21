@@ -13,6 +13,7 @@
 #include "mfc290c_location.h"
 #include "mfc290c_cups.h"
 #include "mfc290c_usb_commands.h"
+#include "../probe/probe_scope.h"
 
 /* Process ISA and translation never describe the USB peripheral firmware. */
 static void report_process_architecture(void)
@@ -368,6 +369,7 @@ int main(int argc, char **argv)
 
     if (argc == 2 && strcmp(argv[1], "--architecture-only") == 0) {
         puts("Brother MFC-290C macOS architecture audit (read-only)");
+        puts(whp_probe_scope_line(WHP_PROBE_SCOPE_MACOS_ARCHITECTURE));
         report_process_architecture();
         puts("No USB registry or CUPS inspection was performed.");
         return 0;
@@ -381,6 +383,7 @@ int main(int argc, char **argv)
     }
 
     puts("Brother MFC-290C macOS USB registry observation (read-only)");
+    puts(whp_probe_scope_line(WHP_PROBE_SCOPE_MACOS_USB_REGISTRY));
     report_process_architecture();
     if (have_location_hint) {
         printf("Expected topology hint=0x%08x (comparison only; never a filter)\n",
