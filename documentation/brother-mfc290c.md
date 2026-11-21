@@ -172,6 +172,101 @@ Primary manual sections and independent Brother confirmation:
 - Brother regular cleaning-cycle explanation (includes MFC-290C):
   https://support.brother.com/g/b/faqend.aspx?c=in&faqid=faq00002016_000&lang=en&prod=dcp145c_eu_as
 
+## Dual USB-role topology: computer connection versus front media (2026-11-21)
+
+**Confirmed model-specific external functions.** Brother's US MFC-290C
+product specifications list `PC Interface: USB` independently of the
+`PictBridge (USB) Port` and PhotoCapture removable-disk features.
+Brother's USB-connection FAQ locates the computer-facing receptacle
+**inside the scanner housing on the right**: route its USB cable
+through the internal channel and out the rear to the Mac. Calling
+this simply a "rear USB port" is physically misleading.
+The machine is a **USB peripheral/device** on that computer link
+and communicates as vendor `04f9` / product `01fd`.
+
+The **front USB Direct / PictBridge port** is a different USB role:
+the machine is the **host** for an inserted USB flash drive or a
+compatible digital camera. The original MFC-290C user guide
+limits the direct port to USB flash storage or supported cameras,
+including those using USB Mass Storage Class / PictBridge.
+The manual specifies FAT12/FAT16/FAT32 for USB storage and
+a period-specific capacity limit of 8 GB. These requirements
+describe the **front port's attached peripheral**; they do
+**not** imply that the Brother computer-facing interface has
+`bInterfaceClass=0x08` or that the front device appears directly
+in the Mac's USB topology. Likewise the model's front SD/MS/xD
+card slots are locally attached media, not additional Mac USB ports.
+
+| Port/path | Who is USB host? | What can be concluded |
+| --- | --- | --- |
+| Mac ⇄ Brother computer port (internal socket, cable exits rear) | **Mac** | Read-only IOKit probe describes the MFC-290C's computer-facing USB device and its interfaces |
+| Brother front USB Direct ⇄ USB flash drive | **Brother** | Brother runs a local USB host-side media service; flash drive is a **peripheral to Brother**, not to macOS |
+| Brother front USB Direct ⇄ supported PictBridge camera | **Brother** (supported direct-print use) | Local camera/photo workflow; not a Mac PictBridge USB port |
+| Mac ⇄ Brother computer port ⇄ inserted flash/card | **Mac for outer link; Brother for front flash link** | Brother's **legacy Macintosh** Software User's Guide explicitly documents a desktop **Removable Disk** for media inserted into the machine |
+
+**Important verified bridge:** Brother's *Software User's Guide*,
+*Remote Setup & PhotoCapture Center*, **For USB cable users**,
+explains that Macintosh users can access an inserted USB flash
+drive or memory card through the printer's computer connection,
+including reading and editing files. Brother's model specifications
+also say `Removable Disk: Yes (Read/Write)`. Therefore **do not
+discard host-side media access** merely because the removable drive
+is physically plugged into the *front* port. However the manual
+does not establish whether the computer-facing function uses a
+USB Mass Storage Class interface, a vendor-specific protocol,
+or another translation mechanism. The user has already reported
+`07/01/02` (printer-bidirectional) and interface `0x01`
+`ff/ff/ff` with three declared endpoints; **neither is
+authenticated as the removable-media transport**. An additional
+interface or alternate setting is possible and must be observed
+rather than assumed.
+
+Our documented capability mask now exposes a distinct
+`WHP_MFC290C_PC_MEDIA_ACCESS` flag alongside
+`WHP_MFC290C_PHOTO_CAPTURE`. The first describes a
+**legacy host-computer-accessible feature**, and the second
+describes **local PhotoCapture**. This is not a macOS filesystem
+driver, disk enumerator, USB storage class binding or implemented
+Brother transport.
+
+**Driver scope and non-destructive test order:**
+
+1. Prioritize the **Mac-to-printer computer-facing connection**,
+   not the front flash drive. Identify all interface numbers,
+   alternate settings, class/subclass/protocol, and actual
+   endpoint descriptors of `04f9:01fd`.
+2. Distinguish the observed printer-class path, vendor-class
+   path and any separately proven media-access function.
+   Do **not** attach a USB-host driver to the front port
+   from macOS or conflate USB host-side mass storage with
+   USB-device-side `bInterfaceClass=08`.
+3. Keep read-only device enumeration separate from media I/O.
+   Brother cautions not to remove media, disconnect USB/power,
+   or interrupt data transfers while the Photo Capture light
+   blinks. Avoid inserting media merely for probe testing;
+   if inspecting an existing mounted volume, do not modify
+   files and observe proper OS ejection procedures.
+4. Do not infer how many controller ICs or PHYs are on
+   `B53K961`. The two role-specific ports require host
+   and device functionality at the system level, but these
+   functions may be integrated or distributed among chips.
+   Only a main-PCB netlist/clear IC markings can distinguish.
+
+Primary sources:
+- Brother MFC-290C computer USB connector location:
+  https://support.brother.com/g/b/faqend.aspx?c=us&faqid=faq00000557_002&lang=en&prod=mfc290c_all
+- Brother MFC-290C US specifications (separate PC USB, PictBridge,
+  read/write removable disk):
+  https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all
+- Brother MFC-290C user's guide, PhotoCapture Center, chapter 11:
+  https://manualzz.com/doc/1596870/brother-mfc-290c-all-in-one-printer-user-s-guide
+- Brother *Software User's Guide*, *Remote Setup & PhotoCapture Center*,
+  **For USB cable users** (Macintosh; printed page 221):
+  https://static.bhphoto.com/lit_files/35.pdf
+- Brother MFC-290C service manual SM-FAX098, chapter 1 front/back
+  connector identification and chapter 3 main-controller block diagram:
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+
 ## Illuminated mode keys, control-panel PCB, and host workflow boundaries (2026-11-21)
 
 The **four illuminated physical mode keys** are **Fax**, **Scan**,
@@ -217,8 +312,10 @@ Service functions are not part of a host driver interface.
 **Do not merge the machine's two USB roles:** the rear connector
 enumerates as the Brother `04f9:01fd` **USB device** on macOS;
 the front photo/card/USB flash/PictBridge facilities concern
-**locally inserted media** and may operate in a different USB
-host/device role. A front USB socket is *not* evidence that
+**locally inserted media**, which the device may also expose as
+a **legacy read/write Removable Disk** through its separate
+computer-facing link. The computer link remains the relevant
+driver target. A front USB socket is *not* evidence that
 `interface 0x01` (`ff/ff/ff`, 3 endpoints) maps to PhotoCapture
 or that the bidirectional `07/01/02` interface carries button
 events. No USB endpoint addresses, transfer types or key-event

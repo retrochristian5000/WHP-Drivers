@@ -37,5 +37,5 @@ unsigned int whp_mfc290c_documented_features(void)
 {
     return WHP_MFC290C_PRINT | WHP_MFC290C_SCAN |
            WHP_MFC290C_STANDALONE_FAX | WHP_MFC290C_PC_FAX_SEND |
-           WHP_MFC290C_PHOTO_CAPTURE;
+           WHP_MFC290C_PHOTO_CAPTURE | WHP_MFC290C_PC_MEDIA_ACCESS;
 }
