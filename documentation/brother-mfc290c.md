@@ -331,6 +331,65 @@ describe the **front port's attached peripheral**; they do
 in the Mac's USB topology. Likewise the model's front SD/MS/xD
 card slots are locally attached media, not additional Mac USB ports.
 
+### Physical SD/xD card-slot evidence (2026-11-21)
+
+**New physical observation:** The user reports visible **SD** and
+**xD** logos on their MFC-290C. Brother's original *User's Guide*,
+chapter 11, pp. 64-66 and *Specifications*, p. 136, independently
+confirms that these are actual **local PhotoCapture Center card slots**,
+not decorations or USB device-interface descriptors. Brother labels
+four insertion positions: front USB flash/PictBridge; SD/SDHC;
+Memory Stick/PRO; and xD-Picture Card. The **front USB connector** is
+separate from the **card contacts**, although both support local
+PhotoCapture features.
+
+| Medium | Official MFC-290C compatibility | Evidence boundary |
+| --- | --- | --- |
+| SD | 16 MB to 2 GB; miniSD/microSD via adapters | No SDXC, UHS or SDIO controller support established |
+| SDHC | 4 GB to 8 GB | Listed 2008 capacity limit; not a claim about all theoretically possible SDHC cards |
+| xD-Picture Card | Conventional 16-512 MB; Type M and H 256 MB-2 GB; Type M+ 1 GB / 2 GB | Different physical/protocol family from SD; presence does **not** establish a discrete xD controller chip |
+| Memory Stick | 16-128 MB; Duo/Micro variants via appropriate adapters | MagicGate protected music reading not claimed |
+| Memory Stick PRO | 256 MB to 8 GB | Same limitation concerning MagicGate content |
+| CompactFlash | **Not supported** on MFC-290C, per Brother *Software User's Guide* | Do not copy a shared-family/retailer CompactFlash claim into MFC-290C's driver |
+
+**Hardware hypothesis, not a board identification:** These media
+types require machine-side card contacts and compatible control logic,
+either integrated with the main ASIC or on a discrete reader/controller
+assembly. The badges identify **supported media formats**, not how many
+controllers, buses, chips, clock oscillators or PCB revisions exist.
+Do not assume the card path is an internal USB mass-storage device,
+a standalone SD host controller, or a memory-mapped interface.
+The correct component candidate must fit the 2008-era board/assembly
+and be checked against an actual part marking, service illustration
+or genuine wiring record.
+
+Brother documents **local print from card, scan to card and legacy
+computer-side read/write access to inserted cards** through its
+PhotoCapture software. Those are separate operation paths. The USB
+transport from the Mac to the machine's media storage is still
+unclassified: neither `07/01/02` nor `ff/ff/ff` nor interface `0x02`
+is yet proven to be a mass-storage bridge. A visible SD/xD logo
+therefore does **not** justify attaching a USB storage driver or sending
+speculative vendor commands.
+
+**Next safe research sequence:** First identify the reader/slot assembly
+by model-specific Brother parts diagrams and external slot labels;
+then compare authentic *unpowered*, pre-existing PCB photographs (if
+available) to a reader IC datasheet. For physical testing, collect
+only passive existing OS enumeration and protect user media: avoid
+writes, card formatting, hot removal during activity and unknown
+protocol requests. No disassembly or card insertion is required to
+record these compatibility facts.
+
+Primary sources:
+- Brother MFC-290C US model specifications, PhotoCapture Center:
+  https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all
+- Brother MFC-290C US User's Guide, pp. 64-66, 136:
+  https://www.bhphotovideo.com/lit_files/142624.pdf
+- Brother *Software User's Guide*, PhotoCapture notes including
+  model-specific CompactFlash exclusion:
+  https://static.bhphoto.com/lit_files/35.pdf
+
 | Port/path | Who is USB host? | What can be concluded |
 | --- | --- | --- |
 | Mac ⇄ Brother computer port (internal socket, cable exits rear) | **Mac** | Read-only IOKit probe describes the MFC-290C's computer-facing USB device and its interfaces |
