@@ -2015,14 +2015,26 @@ fax; the original PC-FAX application supports sending but **not receiving**
 faxes. See [the evidence ledger](documentation/brother-mfc290c.md).
 
 ```sh
-./build.sh test-brother-mfc290c
+./build.sh test-brother-mfc290c                 # cross-platform synthetic USB tests
+WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh plan
+WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh build  # also builds IOKit tool on Mac
+./build.sh probe-brother-mfc290c-macos           # macOS only: read-only registry scan
 ```
 
-This host-only C11 test does not require a physical Brother printer, a USB
-stack, LLVM or OpenWatcom. The path-filtered
-[identity CI](.github/workflows/mfc290c-identity.yml) invokes the same test.
-**This is not yet an installable printer, scanner, or fax driver.** USB
-enumeration, endpoint mapping, function protocols, real-device testing and
-OS-specific driver packaging are not implemented. WHPPROBE's existing USB
-PCI host-controller inventory must not claim to identify this attached USB
-device. Windows 95 RTM additionally needs an explicitly supported USB stack.
+The `brother-mfc290c` profile is selectable in `./build.sh menuconfig`.
+It keeps the C11 identity regression portable: Linux and other supported
+hosts can run its synthetic tests without a Brother printer, USB access,
+LLVM or OpenWatcom. On macOS, it also compiles a native read-only IOKit
+inventory executable in `.build/brother-mfc290c-macos/`. The explicit
+`probe-brother-mfc290c-macos` target compiles and runs it, observing the
+connected USB registry for `04f9:01fd` and reporting visible interface
+metadata without opening the device or issuing USB transfers.
+
+[Identity CI](.github/workflows/mfc290c-identity.yml) now runs the portable
+tests on Linux and macOS and checks the native IOKit compile on macOS.
+**This is not yet an installable printer, scanner, or fax driver.**
+OS-supplied registry discovery is not proof of raw USB endpoint descriptors,
+functional print/scan/fax protocols, or real-machine compatibility. The
+original DOS/Win95 profiles remain unchanged. WHPPROBE's existing USB PCI
+host-controller inventory must not claim to identify attached USB devices.
+Windows 95 RTM still needs an explicitly supported USB stack.
