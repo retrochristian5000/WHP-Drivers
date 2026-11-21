@@ -1445,6 +1445,84 @@ References:
 - Microsoft driver package selection:
   https://learn.microsoft.com/en-us/windows-hardware/drivers/install/overview-of-the-driver-selection-process
 
+### Meaning of the observed `Needs=sRGBPROFILE.OEM` (2026-11-21)
+
+**New user-observed Brother Windows INF line:**
+`Needs=sRGBPROFILE.OEM`. Microsoft's *Printer INF File Install
+Sections* explicitly defines **`[sRGBPROFILE.OEM]`** in the
+Windows **`NTPRINT.INF`** core printer INF as the section
+that **installs the Windows system sRGB color profile**.
+This is a **Windows printer installation dependency**, not
+evidence of a Brother-specific ICC profile, printhead color
+register, USB request or color-fax data path.
+
+An INF references **external named install sections** using
+`Include=NTPRINT.INF` with `Needs=...`, or, on supported
+Windows versions, package-aware **`CoreDriverSections`**.
+The user's actual `Include` line, installation-section
+header, associated printer model row, target Windows version
+and any local `[sRGBPROFILE.OEM]` section have **not been seen**.
+Therefore the strongest supported reading is a conventional
+reference to Microsoft's standard print-profile section;
+do not assert that it ran for the MFC-290C without tracing
+the device's **model → selected DDInstall → included section**
+on the relevant Windows architecture. The literal `Needs`
+token is the user's evidence; `Include=NTPRINT.INF` is
+**expected context, not an observed line**.
+
+**Do not merge color-related layers:**
+
+| Layer | What is supported | What remains unknown |
+| --- | --- | --- |
+| Windows print installation | Standard system sRGB ICC profile install-section exists in `NTPRINT.INF` | Whether the extracted Brother INF selects the section for MFC-290C |
+| Printing color management | Windows can use an ICC color profile; MFC-290C prints in color | Which profile is actually assigned, any Brother `.icm`/`.icc`/conversion tables, and host-versus-firmware RGB-to-ink processing |
+| Scanning | Brother model has a color CIS and supported host scanning | Whether its WIA/TWAIN package assigns a scanner-specific ICC profile; WIA scanner profile handling is separate |
+| Standalone color fax | Brother advertises color fax; telecom-side JPEG/color encoding is separately documented | No inference about fax protocol, scan-to-fax color management, or PC-FAX color support from this printer INF |
+| macOS printing | Apple ColorSync provides ICC profile APIs and color-space conversions | A usable MFC-290C output profile, native raster encoder, actual USB print data and validated print result |
+
+Microsoft's printer *Installing ICC Profiles* documentation
+shows printer `CopyFiles` sections for `.icm` profiles and
+`DestinationDirs` profile dirid **66003**; look for
+`ICMProfiles`, `CopyFiles`, `.icm`, `.icc`, `AddReg`,
+`DataFile` and `CoreDriverSections` in the model's
+relevant install sections. A generic system sRGB input/workflow
+profile must **not** be silently represented as the MFC-290C's
+calibrated ink/paper *output* profile. Similarly, the presence of
+this line does not prove a particular Windows GDI, Pscript or
+Unidrv rendering backend; cross-check the model's `DataFile`,
+`DriverFile`, `DataSection` and `Needs` chain.
+
+**Safe static inspection of the already extracted file:**
+
+```sh
+# Use the real path to the extracted INF; this reads but never installs it.
+grep -nEi '^[[:space:]]*\[|FeatureScore|Needs|Include|CoreDriverSections|sRGBPROFILE|ICMProfiles|\.icm|\.icc|CopyFiles|DataFile|DriverFile|MFC[-_ ]?290C' path/to/driver.inf
+find . -type f \( -iname '*.icm' -o -iname '*.icc' \) -print
+```
+
+Review the *entire section* containing `Needs=sRGBPROFILE.OEM`,
+then follow its actual model mapping. Read-only parsing or
+hashing can later test any authentic ICC profile; do not run
+the Windows installer, upload proprietary binary profiles to
+the repository, or change a Mac-wide color configuration
+from these historical INF findings. First identify which
+device-function INF this belongs to and distinguish a
+generic installed sRGB profile from an authentic Brother
+output profile.
+
+Authoritative references:
+- Microsoft printer INF core install sections
+  (`sRGBPROFILE.OEM` and `NTPRINT.INF`):
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/print/printer-inf-file-install-sections
+- Microsoft INF DDInstall `Needs` and `Include` context:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/install/inf-ddinstall-section
+- Microsoft printer ICC profile installation, profile directory 66003:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/print/installing-icc-profiles
+- Microsoft WIA scanner INF profiles (independent of printer install):
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/image/inf-files-for-wia-devices
+- Apple ColorSync framework (macOS color management):
+  https://developer.apple.com/documentation/colorsync
+
 **Do not confuse extensions:** Windows Brother `.PDD` is
 **not automatically** a CUPS/PostScript `.PPD` (PostScript Printer
 Description). Brother's official method for producing a PPD from
