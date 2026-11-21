@@ -40,7 +40,7 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout source without persisted token
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: false
           persist-credentials: false
@@ -99,7 +99,7 @@ jobs:
       # is reused. The key is exact: no stale-revision restore prefixes.
       - name: Restore pinned OpenWatcom DOS release cache
         id: watcom_cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             toolchains/openwatcom/rel/binl64
@@ -142,7 +142,7 @@ jobs:
       # validation succeed. A failed or partial bootstrap is never cached.
       - name: Cache validated OpenWatcom DOS release
         if: steps.watcom_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             toolchains/openwatcom/rel/binl64
@@ -162,7 +162,7 @@ jobs:
           test "$(find . -maxdepth 1 -type f -name '*.zip' | wc -l)" -eq 1
 
       - name: Upload DOS packages (not a driver installation)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: whpprobe-dos-${{ github.sha }}
           path: |
