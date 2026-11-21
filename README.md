@@ -2043,7 +2043,18 @@ fax modem and accepts standalone color faxing, but Brother's PC-FAX send
 workflow is **black-and-white only** and PC-FAX receive is unavailable.
 The regression suite prevents mixing those features and treats the
 170-page test-chart memory specification as a rating, not a hard job
-limit. The fax USB submission protocol remains unverified. The observed macOS USB location
+limit. The fax USB submission protocol remains unverified.
+The portable offline USB command classifier
+(`drivers/usb/brother/mfc290c_usb_commands.{h,c}`) now recognizes captured
+standard USB GET requests and conditional printer-class `GET_DEVICE_ID`
+and `GET_PORT_STATUS` records, while flagging printer `SOFT_RESET` and
+host-to-device requests as state-changing. Printer Bulk IN/OUT endpoint
+labels require **actual printer-class descriptor evidence**; scanning
+and PC-FAX USB commands remain **unknown**. The model's reported Windows
+scanner binding `USB\\VID_04F9&PID_01FD&MI_01` is a research clue, not
+an endpoint map. This module never sends requests or drives hardware;
+the existing Brother test target includes synthetic protocol regressions.
+See the [USB command recovery ledger](documentation/brother-mfc290c.md). The observed macOS USB location
 `0x00120000` is retained as a **topology hint only**. The optional
 `--location-hint` argument compares it to current registry values without
 filtering model detection; an MFC-290C connected through a different
