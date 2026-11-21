@@ -2020,6 +2020,7 @@ faxes. See [the evidence ledger](documentation/brother-mfc290c.md).
 WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh plan
 WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh build  # also builds IOKit tool on Mac
 ./build.sh probe-brother-mfc290c-macos           # macOS only: read-only registry scan
+./build.sh probe-brother-mfc290c-macos --location-hint 0x00120000
 ```
 
 The `brother-mfc290c` profile is selectable in `./build.sh menuconfig`.
@@ -2034,7 +2035,11 @@ and attached-service bundle hints. It separately counts candidate
 opens the USB device, submits print jobs, or changes printer queues.
 **CUPS queue labels do not prove a physical USB match or working driver.**
 Brother's historical Mac path used CUPS printing and ICA scanning, which
-remain separate implementation targets.
+remain separate implementation targets. The observed macOS USB location
+`0x00120000` is retained as a **topology hint only**. The optional
+`--location-hint` argument compares it to current registry values without
+filtering model detection; an MFC-290C connected through a different
+port or hub must still match its USB VID/PID.
 
 [Identity CI](.github/workflows/mfc290c-identity.yml) now runs the portable
 tests on Linux and macOS and checks the native IOKit/CUPS compile on macOS.
