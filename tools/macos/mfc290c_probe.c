@@ -254,6 +254,7 @@ int main(int argc, char **argv)
         puts("No matching 04f9:01fd device visible in the macOS USB registry.");
     }
     puts("Location IDs describe USB topology, not an immutable device identity.");
+    puts("USB bcdDevice is a device revision, not the installed Brother firmware letter.");
     puts("No USB transfer performed; registry values are not raw descriptors.");
     whp_mfc290c_report_cups();
     return 0;
