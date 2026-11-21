@@ -172,6 +172,98 @@ Primary manual sections and independent Brother confirmation:
 - Brother regular cleaning-cycle explanation (includes MFC-290C):
   https://support.brother.com/g/b/faqend.aspx?c=in&faqid=faq00002016_000&lang=en&prod=dcp145c_eu_as
 
+## Illuminated mode keys, control-panel PCB, and host workflow boundaries (2026-11-21)
+
+The **four illuminated physical mode keys** are **Fax**, **Scan**,
+**Copy** and **Photo Capture**, as documented in Brother's MFC-290C
+User's Guide, control panel overview, and SM-FAX098
+§2.1.3 *LCD/LED/Panel*. They indicate **local selectable operating
+modes**, **not four USB interfaces** or four particular endpoint
+addresses. Brother's *Mode Timer* setting (User's Guide, ch. 3)
+returns the machine from Scan, Copy or PhotoCapture to Fax
+mode after a configured delay, or remains in the last mode
+when disabled. This implies a machine-managed user-interface
+state, not an externally authenticated LED-control protocol.
+The exact LED GPIO signals, driver ICs and firmware handlers
+have **not** been identified.
+
+The parts-reference manual (List 7, PANEL) establishes a separate
+**control-panel PCB family `B53K976`** for MFC-290C:
+
+| PCB / replaceable part | Brother code | Relevance |
+| --- | --- | --- |
+| Main PCB, initial control/USB candidate | `B53K961` | Main RISC ASIC and memory; USB controller/PHY relationship unverified |
+| **Control-panel PCB, non-China models** | **`B53K976`, `LT0434001`** | Shared service-board family with MFC-250C/290C/297C; LED/button/LCD electronics path, *not automatically an independent microcontroller* |
+| Control-panel PCB, China models | `LT0434002` | Region-specific assembly; compare physical marking before equating circuitry |
+| Monochrome LCD, non-China | `LT0498001` | Display is a separately listed part, not evidence of an LCD bus exposed over USB |
+| Rubber keypad sets | `LS5346001` (L), `LS5348001` (M), `LS5350001` (R) | Mechanical key contact assemblies; cannot infer a particular GPIO/key-matrix scan algorithm |
+
+The service manual's chapter 7 replacement procedures and chapter 9
+**panel PCB operational-check code 13** corroborate that the panel
+is its own serviceable subsystem. **Do not enter maintenance/service
+mode** solely to observe keys: its other functions can initialize
+EEPROM, update firmware, reset counters or alter calibration.
+Service functions are not part of a host driver interface.
+
+### Functional triangulation (not a verified netlist)
+
+| Physical key | Documented user function | Subsystem candidate and software boundary |
+| --- | --- | --- |
+| **Fax** | Select standalone fax mode | Panel PCB -> main firmware -> analog fax modem / SDAA/MJ PCB; does not create a macOS COM port or imply PC-FAX reception |
+| **Scan** | Select scan mode / computer Scan-to workflow | Panel PCB -> main firmware -> CIS; Brother documents **ControlCenter's Device Button** association with the machine's Scan-to key. Actual macOS event delivery, protocol and device-service owner remain **unverified** |
+| **Copy** | Select standalone copy mode | Panel PCB -> main firmware -> CIS scan + local raster/inkjet print engine; a copy need not be a USB print job |
+| **Photo Capture** | Select local PhotoCapture Center mode | Panel PCB -> main firmware -> media/card interface and inkjet engine. The manual also documents access to inserted media from a computer, but **USB mass-storage or vendor-protocol binding is unverified** |
+
+**Do not merge the machine's two USB roles:** the rear connector
+enumerates as the Brother `04f9:01fd` **USB device** on macOS;
+the front photo/card/USB flash/PictBridge facilities concern
+**locally inserted media** and may operate in a different USB
+host/device role. A front USB socket is *not* evidence that
+`interface 0x01` (`ff/ff/ff`, 3 endpoints) maps to PhotoCapture
+or that the bidirectional `07/01/02` interface carries button
+events. No USB endpoint addresses, transfer types or key-event
+bytes are identified by the visible buttons.
+
+The documented feature mask `WHP_MFC290C_PHOTO_CAPTURE` is now
+added to `whp_mfc290c_documented_features()`, and synthetic host
+tests assert it is distinct from PRINT and SCAN. This fixes
+a **capability omission**, not a host-side PhotoCapture implementation.
+The device may also scan to card, but no direct USB command is
+inferred from that user-facing mode.
+
+### Safe verification order
+
+1. With the printer idle, observe only the **currently illuminated
+   mode key** and LCD as the mode changes; use normal front-panel
+   menus only. Do not press Start, dial, or access service mode.
+2. Record how the LCD and mode LEDs respond and whether the mode
+   timer returns to Fax. These are **human observations** of
+   local firmware state, not USB requests.
+3. On macOS, use the existing **read-only** IOKit probe before
+   and after a mode change only to compare interface/service
+   metadata; expect **no change** unless independently observed.
+4. Search actual Brother macOS ControlCenter / scanner-button
+   service evidence before implementing event notifications,
+   LED setters, media-card transport, or key-triggered scans.
+   Keep user serial, fax numbers and media file names private.
+
+References:
+- Brother MFC-290C user guide, control panel and mode timer:
+  https://support.brother.com/g/s/id/htmldoc/mfc/cv_mfc250c/encee/html/ug/chapter1_4.html
+  https://support.brother.com/g/b/faqend.aspx?c=sg&faqid=faq00002523_001&lang=en&pfs=1&prod=mfc290c_all
+- Brother SM-FAX098, §2.1.3 (illuminated keys), §3.3.1
+  (main controller), ch. 7 and 9 (panel assembly and service checks):
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- Brother parts-reference list, List 7 (PANEL), control-panel
+  PCB, monochrome LCD and rubber keypad codes:
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+- Brother scan-key ControlCenter/Device Button guidance,
+  listing MFC-290C:
+  https://help.brother-usa.com/app/answers/detail/a_id/52533/
+- Brother MFC-290C user guide, PhotoCapture Center
+  and computer access to inserted media:
+  https://www.manualslib.com/manual/558310/brother-version-0-mfc-290c.html
+
 ## Main PCB chips and USB command-processing candidates (2026-11-21)
 
 **Hardware evidence, not a working driver.** Brother's June 2008

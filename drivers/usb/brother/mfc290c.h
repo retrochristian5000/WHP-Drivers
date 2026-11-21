@@ -32,7 +32,11 @@ enum whp_mfc290c_documented_feature {
     WHP_MFC290C_SCAN = 1u << 1,
     WHP_MFC290C_STANDALONE_FAX = 1u << 2,
     WHP_MFC290C_PC_FAX_SEND = 1u << 3,
-    WHP_MFC290C_PC_FAX_RECEIVE = 1u << 4
+    WHP_MFC290C_PC_FAX_RECEIVE = 1u << 4,
+    /* PhotoCapture Center from memory card/USB media: not a host USB
+     * mass-storage binding or proof of device firmware commands.
+     */
+    WHP_MFC290C_PHOTO_CAPTURE = 1u << 5
 };
 
 /* Parse a caller-supplied raw USB *device* descriptor (not a PCI header).
@@ -45,6 +49,8 @@ enum whp_mfc290c_usb_result whp_mfc290c_identify_usb(
     struct whp_mfc290c_usb_identity *out);
 
 /* Features documented for this model, not implemented host-side operations.
+ * PhotoCapture is a local media feature, not an authenticated USB host
+ * transport or a control-panel button event exposed to the computer.
  * In particular, standalone fax reception does not imply PC-FAX reception.
  */
 unsigned int whp_mfc290c_documented_features(void);

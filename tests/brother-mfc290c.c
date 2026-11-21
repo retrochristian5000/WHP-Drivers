@@ -27,6 +27,9 @@ int main(void)
     CHECK((features & WHP_MFC290C_STANDALONE_FAX) != 0u);
     CHECK((features & WHP_MFC290C_PC_FAX_SEND) != 0u);
     CHECK((features & WHP_MFC290C_PC_FAX_RECEIVE) == 0u);
+    CHECK((features & WHP_MFC290C_PHOTO_CAPTURE) != 0u);
+    CHECK(WHP_MFC290C_PHOTO_CAPTURE != WHP_MFC290C_PRINT);
+    CHECK(WHP_MFC290C_PHOTO_CAPTURE != WHP_MFC290C_SCAN);
 
     memset(&identity, 0xa5, sizeof(identity));
     prior = identity;
