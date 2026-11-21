@@ -98,21 +98,26 @@ country/board codes still determine the actual variant. The observed
 and the user's label is not evidence that the unit can be connected
 to 220-240 V mains.
 
-**New rating-label safety mark (user's reading):** `L.T.E.: 1T22`.
-Keep that exact reading separate from the **likely normalization**
-`I.T.E. 1T22`. Brother's June 2008 MFC-290CZ label illustration
-places `I.T.E.` with the **UL LISTED** mark, and Brother manuals for
-other models explicitly reproduce `I.T.E. 1T22`. Historical UL
-documentation expands **I.T.E.** to **Information Technology Equipment**
-and describes UL Listing marks with category identifiers and control
-numbers. Therefore treat `1T22` as a **probable UL listing/control
-marking**, not a PSU IC marking, 1T22 chip, device serial number,
-FCC ID, USB command, radio/LTE hardware or fax registration number.
-The user's visually read **L** versus printed **I** and the exact
-MFC-290C UL record require independent checking. Searching Brother
-or the model in UL Product iQ is a non-destructive certification
-follow-up, **not** proof that a model-specific listing has been found.
-Do not infer a PSU topology or specific component from this mark.
+**Physical-label safety marking confirmed by the user (2026-11-21):**
+`I.T.E. 1T22`, with a visible **UL logo** next to the marking.
+The earlier `L.T.E.` transcription was explicitly corrected to
+**I.T.E.** by the observer and must not remain a separate identifier
+or unresolved letter reading. The user has confirmed a UL logo, but
+has not separately transcribed every word or symbol surrounding it.
+
+Brother's June 2008 MFC-290CZ reference-label illustration places
+`I.T.E.` beside a **UL LISTED** mark, and service manuals for other
+Brother models reproduce `I.T.E. 1T22`. In this safety-label context,
+**I.T.E.** denotes *Information Technology Equipment*. `1T22`
+is a **probable UL listing/control marking**, not an identified
+electronic chip, PSU controller, serial number, FCC ID, USB command,
+LTE modem or fax registration number. The exact meaning of the
+`1T22` suffix and the MFC-290C's specific certification-file
+entry remain **unverified by an authoritative UL record**.
+The observed UL logo increases confidence in the safety-mark
+interpretation, not in the internal PSU topology or semiconductor
+identity. UL Product iQ may be used to verify the certification
+entry without accessing or operating internal hardware.
 
 **New component-selection evidence:** Brother parts reference list,
 List 8 (PCB), item 2, assigns supply assemblies by region:
