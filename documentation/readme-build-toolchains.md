@@ -168,6 +168,22 @@ git submodule update --init toolchains/openwatcom
 ./build watcom-smoke-vxd      # only if a built Watcom linker exists
 ```
 
+### DOS bootstrap compiler consistency (2026-11-21)
+
+The pinned fork now forwards the selected `OWCLANG` to the POSIX
+`wmake` bootstrap via `make ... CC=...` and to the `builder` preboot
+via `wmake ... CL=...`. Previously, both stages could use the host's
+default `cc` even when the initial compiler probe selected Clang.
+The default `OWDEFPATH` no longer appends an empty `PATH` element,
+which could cause an implicit search of the current directory.
+
+Isolated regression tests check compiler selection, missing-compiler
+failure, and the unchanged inherited PATH. These are **mocked host
+bootstrap checks**, not proof of a completed OpenWatcom release or
+a working 16-bit DOS executable. The DOS source-build workflow must
+still compile, link, and independently verify `WHPPROBE.EXE` before
+its archives are accepted.
+
 ### Bootstrapping OpenWatcom independently
 
 The OpenWatcom build uses the pinned fork's CI stages directly:
