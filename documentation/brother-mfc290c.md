@@ -38,12 +38,12 @@ addresses, active alternate settings, negotiated USB speed, scanning protocol,
 print encoding or PC-FAX command semantics. If no matching registry service is
 visible, that does not prove the hardware is disconnected or unsupported.
 
-`sh`
-`WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh plan`
-`WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh test-fast`
-`WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh build`
-`./build.sh probe-brother-mfc290c-macos`
-``
+```sh
+WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh plan
+WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh test-fast
+WHP_DRIVER_PROFILE=brother-mfc290c ./build.sh build
+./build.sh probe-brother-mfc290c-macos
+```
 
 The `build` profile runs the cross-platform host test and compiles the IOKit
 probe when the **build host** is macOS. The explicit `probe-brother-mfc290c-macos`
