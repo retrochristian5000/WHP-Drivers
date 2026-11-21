@@ -97,6 +97,40 @@ bootstrap; a cache hit with missing or invalid tools fails the job rather
 than silently using an unverified replacement. Caches are only a CI
 optimization and may incur storage/transfer overhead.
 
+#### CI capacity planning and measurement (2026-11-21)
+
+Both the OpenWatcom fork and WHP-Drivers are public repositories. GitHub
+currently provides free standard hosted-runner time for public repositories,
+but **not unlimited CPU, disk, concurrency or storage**. The Ubuntu 24.04
+public runner provides 4 vCPUs, 16 GB RAM and 14 GB SSD. GitHub-hosted jobs
+have a platform limit of 6 hours; this DOS workflow imposes a tighter
+120-minute limit. GitHub's included repository cache is 10 GB, and caches
+untouched for more than 7 days may be evicted. The DOS packages use a
+7-day artifact retention setting. Account/organization concurrency and
+storage policies remain independent limits. Do not raise paid storage
+limits or switch to larger paid runners without a measured need.
+
+The workflow records its starting runner capacity and adds an always-run
+diagnostic summary of cache-hit status, ending disk/memory snapshots and
+the sizes of cached OpenWatcom release components and DOS outputs. The
+report adds **no compiler build**. Snapshot memory is not peak RSS, and
+these diagnostics do not measure actual wall-clock time per build stage.
+Use Actions job/step timings and successful *uncached versus cached*
+runs before setting smaller timeouts or parallelism. A successful mock
+test does not prove that a complete OpenWatcom bootstrap fits the runner.
+
+Current workflow budgets:
+- OpenWatcom mock bootstrap regressions: 3 minutes.
+- WHP-Drivers frontend/host regressions: 6 minutes.
+- Source-built or cached OpenWatcom plus DOS link/packages: 120 minutes.
+- Avoid caching DOS EXEs, object files and archives; rebuild/verify them
+  from their pinned inputs. Keep source checkout and compiler identities
+  explicit when comparing runs.
+
+References: [GitHub Actions limits](https://docs.github.com/en/actions/reference/limits),
+[hosted runner resources](https://docs.github.com/en/actions/reference/runners/github-hosted-runners),
+[dependency-cache policy](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
+
 The built-in packager uses Python standard-library TAR/GZIP/ZIP writers;
 it refuses invalid MZ binaries and symlinked executable inputs and uses
 stable archive metadata. Run its synthetic regression without any compiler:

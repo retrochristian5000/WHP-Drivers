@@ -45,6 +45,17 @@ jobs:
           submodules: false
           persist-credentials: false
 
+      - name: Record initial runner capacity
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' 'WHP-Drivers: runner CPU count'
+          nproc
+          printf '%s\n' 'WHP-Drivers: available disk'
+          df -h .
+          printf '%s\n' 'WHP-Drivers: initial memory snapshot (not peak usage)'
+          free -h
+
       - name: Validate portable scripts and archive tests
         shell: bash
         run: |
@@ -161,3 +172,38 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
+
+      # Diagnostic only: do not start an additional build or hide
+      # earlier compiler/linker failures with a successful summary.
+      - name: Report DOS CI resource usage
+        if: always()
+        shell: bash
+        env:
+          WHP_CACHE_HIT: ${{ steps.watcom_cache.outputs.cache-hit }}
+        run: |
+          set -euo pipefail
+          {
+            printf '### WHPPROBE CI resource snapshot\n\n'
+            printf 'OpenWatcom cache hit: %s\n\n' "$WHP_CACHE_HIT"
+            printf 'Remaining runner disk:\n\n'
+            printf '~~~text\n'
+            df -h . || printf '%s\n' 'Disk metric unavailable'
+            printf '~~~\n\n'
+            printf 'Memory snapshot (not peak usage):\n\n'
+            printf '~~~text\n'
+            free -h || printf '%s\n' 'Memory metric unavailable'
+            printf '~~~\n\n'
+            printf 'Relevant workspace sizes:\n\n'
+            printf '~~~text\n'
+            for path in toolchains/openwatcom/rel/binl64 \
+                        toolchains/openwatcom/rel/h \
+                        toolchains/openwatcom/rel/lib286 \
+                        .build/dos-pci .build/dos-packages; do
+              if [ -e "$path" ]; then
+                du -sh "$path" || printf 'Could not measure %s\n' "$path"
+              else
+                printf 'Not present: %s\n' "$path"
+              fi
+            done
+            printf '~~~\n'
+          } >> "$GITHUB_STEP_SUMMARY"
