@@ -19,6 +19,30 @@
 - Do not confuse standalone ITU-T fax modem signaling with Hayes AT commands on a PC COM port. Any future PC-FAX submission protocol requires independently captured, authorized device evidence.
 - USB transport, print stream encoding, scanner commands, PC-FAX sending, OS install packages, and real-hardware behavior remain **unimplemented**. No firmware updates, ink movement, phone calls, or USB requests occur in the identity tests or macOS observer.
 
+## Firmware, flash ROM and service-mode boundary (2026-11-21)
+
+Brother confirms an MFC-290C firmware update tool and a published firmware
+release marked **G** (2011-09-08). The 2008 family service manual distinguishes
+**main-PCB flash firmware**, **model/region/calibration EEPROM** and
+**firmware switches (WSW)**. These are not synonymous with USB command
+types, and a release letter is not proof of the firmware installed on this
+particular printer. Brother also documents a physical-LCD firmware-version
+check using the `*` and `#` keys together. The macOS USB `bcdDevice`
+field reports **USB device revision**, not that Brother firmware letter.
+
+The maintenance USB printer driver described in the service manual is a
+separate software/update context from ordinary print, scan and PC-FAX
+operation. No authenticated MFC-290C flash/update command, image format,
+bootloader endpoint, device-side command dispatcher or firmware binary has
+yet been recovered. Do **not** replay another Brother model's update
+sequence or enter maintenance mode merely to inspect the firmware.
+
+For the official source links, evidence categories, safe LCD observation
+and offline firmware-analysis plan, see the
+[dedicated MFC-290C firmware evidence page](brother-mfc290c-firmware.md).
+That page is authoritative for this firmware investigation; this ledger
+retains the shared USB, printing, scanning and PC-FAX integration boundaries.
+
 ## macOS USB Location ID observation (2026-11-21)
 
 A connected MFC-290C was reported by macOS with **Location ID
