@@ -1367,15 +1367,20 @@ the physical MFC-290C:** current IOKit/CUPS observations, raw endpoint
 descriptors, Brother print/scan/fax command streams, modern ICA support
 or actual printing/scanning/media access. CI has no attached printer.
 
-## Windows BRMF250C.PDD forensic lead (2026-11-21)
+## Windows INF FeatureScore and PDD resource mapping (2026-11-21)
 
-**New user-supplied artifact observation:** An extracted Brother Windows
-driver package for the MFC-290C includes the filename
-`BRMF250C.PDD`. **Its file bytes, size, hash, format signature,
-installed Windows/driver version and the package's exact INF mapping
-have not been supplied or examined.** Record the exact filename as
-observed; the presence of an MFC-250C-named file in a family driver
-bundle does not establish that the MFC-290C actually loads it.
+**Updated user-supplied observations:** The user has extracted a Brother
+Windows MFC-290C driver package, read an **INF file that references a
+PDD-like file**, and observed the literal directive
+`FeatureScore=0xFE`. The user subsequently **corrected the earlier
+filename report as containing a typo**, but has not supplied the
+corrected name or INF excerpt. Therefore the formerly reported
+`BRMF250C.PDD` is **not a verified filename in this particular
+extraction**. Do not hard-code it, rename files based on it, or
+claim the MFC-290C loads that resource. Actual INF section,
+file bytes, paths, driver version, INF model matching and installed
+configuration remain **uninspected**; the user-reported
+`FeatureScore=0xFE` is the new confirmed clue.
 
 A published **third-party file inventory** of a Brother 2009-era
 multi-model inkjet Windows driver lists *both*
@@ -1385,11 +1390,60 @@ multi-model inkjet Windows driver lists *both*
 `briu08b.dll` and `.bcm` files. This is evidence of
 **multiple model-named resources distributed together**,
 not verification of the user's particular bundle or of the
-function each binary serves. **Check first for
-`BRMF290C.PDD` in the extracted directory**, and then
-inspect the actual INF/install-section and companion INI
-references to determine which model and driver DLL select
-which data files.
+function each binary serves. **Check first for the actual file names and references in the
+user's extracted INF**, including any `BRMF290C.PDD` if present,
+then inspect its model-specific install section and companion
+INI references to determine which resources and driver DLL
+are used.
+
+### Meaning of the observed `FeatureScore=0xFE`
+
+Microsoft's [INF FeatureScore directive](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/inf-featurescore-directive)
+is a **Windows Vista-and-later driver-selection rank**, processed
+**only when directly present in a relevant `[DDInstall]` section**.
+The single-byte score is `0x00`–`0xFF`, where **lower is preferred**
+and an **omitted score defaults to `0xFF`**. The observed
+`0xFE` contributes `0x00FE0000` to a composite rank formatted
+`0xSSGGTHHH` (signature score, feature score, device-ID match score).
+This is a **slight preference against an otherwise comparable
+default-`0xFF` candidate**, not a guarantee of driver selection.
+Windows also considers signature and hardware/compatible ID matching;
+driver date/version can then influence selection. The fact that
+a directive is present does **not** prove the section belongs to
+the MFC-290C printer function or is effective on Windows XP.
+
+**The crucial contextual check** is which section contains the
+`FeatureScore` and whether the MFC-290C model row actually points
+there on the target Windows architecture/OS. Inspect the exact
+`[Version]` and `Class`, `[Manufacturer]`, decorated
+`[Models]` entries, device IDs, `[DDInstall]`/
+`[DDInstall.NT...]` variants, `CopyFiles`, `Include`,
+`Needs`, `AddReg`, `[SourceDisksFiles]` and
+`[DestinationDirs]` references. A file **listed for copying**
+is not by itself proof that the selected print pipeline reads it.
+If a companion scanner INF has its own section, investigate that
+separately; printer/scanner/PC-FAX installs must not be merged
+because this is one all-in-one machine. No authentic INF excerpt
+has yet been inspected, so the specific installed function and
+effective rank remain unknown.
+
+**Driver boundary:** `0xFE` is not USB endpoint `0xFE`,
+a firmware revision, print resolution, ink capability, scanner
+mode or a vendor request. This directive is useful as a map
+through Windows **installation wiring** toward real binary/data
+resources; it does not itself reveal the Brother protocol.
+Cross-check resource names with MFC-290C INF model rows before
+porting any independently validated settings to macOS.
+
+References:
+- Microsoft FeatureScore directive:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/install/inf-featurescore-directive
+- Microsoft package-ranking format and significance:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/install/how-windows-ranks-driver-packages
+- Microsoft INF DDInstall section structure:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/install/inf-ddinstall-section
+- Microsoft driver package selection:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/install/overview-of-the-driver-selection-process
 
 **Do not confuse extensions:** Windows Brother `.PDD` is
 **not automatically** a CUPS/PostScript `.PPD` (PostScript Printer
@@ -1401,15 +1455,17 @@ PCL metadata, a standard file format or an executable.
 Classify its structure only from a real bounded byte inspection.
 
 **Safe, read-only local workflow, macOS shell; run in the
-extracted driver directory, changing filenames if needed:**
+extracted driver directory:**
 
 ```sh
-find . -type f \( -iname 'brmf250c.*' -o -iname 'brmf290c.*' -o -iname '*.inf' \) -print
-file BRMF250C.PDD
-wc -c < BRMF250C.PDD
-shasum -a 256 BRMF250C.PDD
-hexdump -C -n 128 BRMF250C.PDD
-LC_ALL=C strings -a BRMF250C.PDD | head -n 80
+find . -type f \( -iname '*.inf' -o -iname '*.pdd' -o -iname '*.ini' \) -print
+# After choosing the actual INF path:
+grep -nEi 'FeatureScore|MFC[-_ ]?290C|VID_04F9|PID_01FD|BRMF' path/to/driver.inf
+# After choosing the actual PDD file path:
+file path/to/confirmed.pdd
+wc -c < path/to/confirmed.pdd
+shasum -a 256 path/to/confirmed.pdd
+hexdump -C -n 128 path/to/confirmed.pdd
 ```
 
 The first-pass inventory must preserve **original bytes**; do
@@ -1428,7 +1484,7 @@ this public repository.
 
 | Question | Minimum required evidence | Driver implication |
 | --- | --- | --- |
-| Is `BRMF250C.PDD` shared with MFC-290C? | Exact package's INF/model mapping and DLL/resource references | Family reuse hypothesis; not a model alias |
+| Is the earlier `BRMF250C.PDD` filename accurate? | Corrected user-provided INF text and directory inventory | Previous filename is **not confirmed**; no family resource alias inferred |
 | Is a `BRMF290C.PDD` present? | Verified directory listing and hashes of both files | Prefer the model-specific resource when mapping options |
 | What is the PDD format? | Size, first bytes/magic, string and record layout from actual file | Write a **read-only offline parser** only for a validated format |
 | Which features are recorded? | Authenticated records cross-checked with Brother manuals | May yield paper sizes, print modes, DPI, inks, media and constraints |
