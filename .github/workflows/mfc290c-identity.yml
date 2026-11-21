@@ -47,3 +47,11 @@ jobs:
       - name: Smoke macOS registry and CUPS queue observations (printer not required)
         if: runner.os == 'macOS'
         run: ./.build/brother-mfc290c-macos/mfc290c-probe
+      - name: Verify location hint is optional and malformed hints fail
+        if: runner.os == 'macOS'
+        run: |
+          ./.build/brother-mfc290c-macos/mfc290c-probe --location-hint 0x00120000
+          if ./.build/brother-mfc290c-macos/mfc290c-probe --location-hint 0x0012000; then
+            printf '%s\n' 'Malformed location hint unexpectedly accepted' >&2
+            exit 1
+          fi
