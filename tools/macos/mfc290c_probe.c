@@ -8,6 +8,7 @@
 #include <stdio.h>
 
 #include "mfc290c.h"
+#include "mfc290c_cups.h"
 
 #define MAX_REGISTRY_DEPTH 8u
 #define MAX_REGISTRY_NODES 512u
@@ -56,6 +57,62 @@ static void print_interface_field(io_registry_entry_t entry,
     }
 }
 
+/* Registry class and bundle strings are diagnostic hints, not proof of a
+ * functional Brother driver or an endpoint claim. Never print arbitrary
+ * property values, queue names, serial numbers, or device URIs.
+ */
+static void print_bundle_hint(io_registry_entry_t entry)
+{
+    CFTypeRef value = IORegistryEntryCreateCFProperty(
+        entry, CFSTR("CFBundleIdentifier"), kCFAllocatorDefault, 0);
+    char bundle[128];
+    size_t i;
+
+    if (value == NULL) {
+        return;
+    }
+    if (CFGetTypeID(value) == CFStringGetTypeID() &&
+        CFStringGetCString((CFStringRef)value, bundle,
+                           sizeof(bundle), kCFStringEncodingUTF8)) {
+        for (i = 0u; bundle[i] != '\0'; ++i) {
+            unsigned char c = (unsigned char)bundle[i];
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                  (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_')) {
+                bundle[i] = '_';
+            }
+        }
+        printf(" bundleHint=%s", bundle);
+    }
+    CFRelease(value);
+}
+
+/* The immediate client services are only provider-tree clues. There may be
+ * multiple matching clients and the actual print/scan processes live above
+ * this registry layer. Limit diagnostics to eight children per interface.
+ */
+static void print_service_hints(io_registry_entry_t interface)
+{
+    io_iterator_t children = 0;
+    io_registry_entry_t child;
+    unsigned int printed = 0u;
+
+    if (IORegistryEntryGetChildIterator(interface, kIOServicePlane,
+                                        &children) != KERN_SUCCESS) {
+        return;
+    }
+    while (printed < 8u && (child = IOIteratorNext(children)) != 0) {
+        io_name_t class_name;
+        if (IOObjectGetClass(child, class_name) == KERN_SUCCESS) {
+            printf("    childServiceClass=%s", class_name);
+            print_bundle_hint(child);
+            putchar('\n');
+        }
+        ++printed;
+        IOObjectRelease(child);
+    }
+    IOObjectRelease(children);
+}
+
 /* Interface services may not be exposed as immediate children on every
  * release. Bound the traversal; unavailable metadata is not an empty device.
  */
@@ -83,7 +140,9 @@ static void print_interfaces(io_registry_entry_t entry, unsigned depth,
             print_interface_field(child, CFSTR("bInterfaceClass"), "class");
             print_interface_field(child, CFSTR("bInterfaceSubClass"), "subclass");
             print_interface_field(child, CFSTR("bInterfaceProtocol"), "protocol");
+            print_bundle_hint(child);
             putchar('\n');
+            print_service_hints(child);
         }
         print_interfaces(child, depth + 1u, remaining, found);
         IOObjectRelease(child);
@@ -170,5 +229,6 @@ int main(int argc, char **argv)
         puts("No matching 04f9:01fd device visible in the macOS USB registry.");
     }
     puts("No USB transfer performed; registry values are not raw descriptors.");
+    whp_mfc290c_report_cups();
     return 0;
 }
