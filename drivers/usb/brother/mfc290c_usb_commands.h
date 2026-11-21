@@ -65,7 +65,9 @@ struct whp_mfc290c_usb_setup_report {
 
 /* Caller supplies a captured eight-byte USB SETUP packet and the class of
  * its target interface, if independently verified from a raw descriptor.
- * Pass 0xff when unknown. No MFC-290C interface class is yet verified.
+ * Pass 0xff when the target interface class is unknown. The machine
+ * has host-reported printer/vendor interfaces, but no authenticated
+ * raw configuration descriptor or actual command transcript is available.
  * The output is unchanged on invalid input. Returns 1 for parsed input.
  * A *_CANDIDATE label confirms only standard request syntax, not that the
  * particular Brother device accepts the request or uses it for printing.

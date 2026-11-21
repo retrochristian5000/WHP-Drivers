@@ -1,6 +1,18 @@
 # Brother MFC-290C — USB multifunction driver evidence and boundaries
 
-**Status:** portable USB identity/model-label decoders, synthetic host tests, and read-only macOS IORegistry/CUPS observers. **Not an installable driver.**
+**Status:** portable USB identity/model-label decoders, synthetic host tests, and read-only macOS IORegistry/CUPS observers. **Not an installable driver.** Printing, scanning, PC-FAX, and media transport remain unimplemented.
+
+**Evidence levels:** **Documented** = explicitly supported by Brother or a published standard; **observed** = reported by the user from a physical MFC-290C on macOS (not yet a saved raw descriptor); **implemented** = actual inspectable code and tests; **candidate** = a hypothesis requiring validation. Do not convert an observed class into proof of a working driver.
+
+**Current host-reported USB interfaces:**
+
+| Interface | Class / subclass / protocol | What is established |
+| --- | --- | --- |
+| `0x00` | `07/01/02` | Bidirectional USB printer class, not verified print stream |
+| `0x01` | `FF/FF/FF`; three declared endpoints | Brother vendor class, not proven to be the scanner |
+| `0x02` | Unknown | Class, role, endpoints and any media transport unverified |
+
+These reported observations do not supply the installed firmware version, raw endpoint descriptors, or command bytes.
 
 ## Identified hardware
 
@@ -15,7 +27,7 @@
 `drivers/usb/brother/mfc290c.{h,c}` parses a caller-owned USB device descriptor, validates its fixed 18-byte framing and checks the exact VID/PID. A match exposes raw descriptor identity fields; it **does not** imply a usable interface, endpoint, negotiated speed, driver binding, or fax connection. The feature mask describes the physical model and documented host features, not implemented operations. It deliberately excludes PC-FAX reception.
 
 - USB controller PCI inventory (`drivers/usb/pci_hci.*`) does **not** enumerate attached USB devices; `WHPPROBE.EXE` must not report MFC-290C from an EHCI/OHCI/UHCI/xHCI controller alone.
-- Do not assume the device is USB printer class or USB communications class without actual configuration/interface/endpoint descriptors. Do not send vendor requests or reset the device based on this identity alone.
+- The user has observed a printer-class interface, a vendor-defined interface and a third interface of unknown type; no complete raw configuration/endpoint descriptor has been preserved. Do not infer a communications-class modem, scanner or storage role from the model name or interface number. Do not send vendor requests or reset the device.
 - Do not confuse standalone ITU-T fax modem signaling with Hayes AT commands on a PC COM port. Any future PC-FAX submission protocol requires independently captured, authorized device evidence.
 - USB transport, print stream encoding, scanner commands, PC-FAX sending, OS install packages, and real-hardware behavior remain **unimplemented**. No firmware updates, ink movement, phone calls, or USB requests occur in the identity tests or macOS observer.
 
@@ -221,13 +233,11 @@ authenticated as the removable-media transport**. An additional
 interface or alternate setting is possible and must be observed
 rather than assumed.
 
-Our documented capability mask now exposes a distinct
-`WHP_MFC290C_PC_MEDIA_ACCESS` flag alongside
-`WHP_MFC290C_PHOTO_CAPTURE`. The first describes a
-**legacy host-computer-accessible feature**, and the second
-describes **local PhotoCapture**. This is not a macOS filesystem
-driver, disk enumerator, USB storage class binding or implemented
-Brother transport.
+The source distinguishes **local PhotoCapture** from **legacy host
+access to inserted media**. These are model capability flags, not a
+macOS filesystem driver, disk enumerator, USB storage-class binding
+or implemented Brother transport. The exact symbols are defined in
+`mfc290c.h`.
 
 **Driver scope and non-destructive test order:**
 
@@ -321,9 +331,8 @@ or that the bidirectional `07/01/02` interface carries button
 events. No USB endpoint addresses, transfer types or key-event
 bytes are identified by the visible buttons.
 
-The documented feature mask `WHP_MFC290C_PHOTO_CAPTURE` is now
-added to `whp_mfc290c_documented_features()`, and synthetic host
-tests assert it is distinct from PRINT and SCAN. This fixes
+The source's documented-feature function includes PhotoCapture and
+tests that it is distinct from printing and scanning. This corrects
 a **capability omission**, not a host-side PhotoCapture implementation.
 The device may also scan to card, but no direct USB command is
 inferred from that user-facing mode.
@@ -487,27 +496,24 @@ Sources:
 
 ## Firmware, flash ROM and service-mode boundary (2026-11-21)
 
-Brother confirms an MFC-290C firmware update tool and a published firmware
-release marked **G** (2011-09-08). The 2008 family service manual distinguishes
-**main-PCB flash firmware**, **model/region/calibration EEPROM** and
-**firmware switches (WSW)**. These are not synonymous with USB command
-types, and a release letter is not proof of the firmware installed on this
-particular printer. Brother also documents a physical-LCD firmware-version
-check using the `*` and `#` keys together. The macOS USB `bcdDevice`
-field reports **USB device revision**, not that Brother firmware letter.
+Brother publishes a historical MFC-290C firmware release **G**
+dated **2011-09-08**. That release listing does **not** establish
+the firmware installed on the user's machine.
 
-The maintenance USB printer driver described in the service manual is a
-separate software/update context from ordinary print, scan and PC-FAX
-operation. No authenticated MFC-290C flash/update command, image format,
-bootloader endpoint, device-side command dispatcher or firmware binary has
-yet been recovered. Do **not** replay another Brother model's update
-sequence or enter maintenance mode merely to inspect the firmware.
+Installed firmware **might** affect USB enumeration, vendor commands,
+print/scan behavior or PC-FAX, but no firmware-dependent variation
+has yet been demonstrated on the MFC-290C. Do not introduce guessed
+version-specific commands, defaults or failure diagnoses. The current
+parser and macOS probe contain **no installed-firmware detection**.
 
-For the official source links, evidence categories, safe LCD observation
-and offline firmware-analysis plan, see the
-[dedicated MFC-290C firmware evidence page](brother-mfc290c-firmware.md).
-That page is authoritative for this firmware investigation; this ledger
-retains the shared USB, printing, scanning and PC-FAX integration boundaries.
+The USB device-release field `bcdDevice` must be distinguished
+from Brother's LCD firmware letter; a change in one is not proof
+of a change in the other. Flash firmware, configuration/calibration
+EEPROM and firmware switches are also distinct. No maintenance
+mode, EEPROM writes or updater execution is needed for diagnosis.
+
+See the [firmware evidence and compatibility page](brother-mfc290c-firmware.md)
+for official sources, a read-only LCD check and verification criteria.
 
 ## macOS USB Location ID observation (2026-11-21)
 
@@ -954,21 +960,22 @@ USBDriverKit binding, signing and entitlements apply only if an actual
 driver extension is needed. Avoid installing unsigned kernel extensions or
 copying proprietary Brother binaries into our source tree.
 
-**Unverified:** native macOS SDK build/CI result, presence and content of
-actual MFC-290C registry services, CUPS destination setup, historical Brother
-filter behavior, ICA scanner availability on modern macOS, device endpoints,
-print stream, scanner commands, fax protocol, and real printing or scanning.
-A clean macOS CI runner has no target printer, so successful compilation and
-empty observations cannot certify hardware support.
+**Verified in CI:** C11 host tests, macOS IOKit/CUPS observer compilation,
+Universal 2 Mach-O slices and read-only smoke tests have passed on
+macOS 15; portable tests also passed on Ubuntu. **Not verified on
+the physical MFC-290C:** current IOKit/CUPS observations, raw endpoint
+descriptors, Brother print/scan/fax command streams, modern ICA support
+or actual printing/scanning/media access. CI has no attached printer.
 
 ## USB command recovery: standards, interfaces, and unknowns (2026-11-21)
 
 This is an **evidence inventory**, not a command sender. Neither Brother's
 manuals, the existing macOS IORegistry output, nor our synthetic tests provide
-an authenticated MFC-290C USB configuration descriptor or device-side
-command transcript yet. The model-level `04f9:01fd` identity and previously
-observed macOS `locationID=0x00120000` do not establish USB interface
-classes, endpoint addresses, or fax command bytes.
+an authenticated **raw** MFC-290C USB configuration/endpoint descriptor
+or device-side command transcript yet. The reported interface class triplets
+for interfaces 0 and 1 are observations, not raw descriptor captures. The
+model identity `04f9:01fd` and host location ID do not establish actual
+endpoint addresses, firmware revision or fax command bytes.
 
 ### Standard USB SETUP requests (protocol-defined, not model-tested)
 
@@ -1163,21 +1170,21 @@ Brother's **PC-FAX sending is black-and-white only**, and the original
 PC-FAX **receiving is unavailable** on the MFC-290C. Neither the name "color
 fax" nor the presence of a telephone modem establishes color PC-FAX.
 
-The host-neutral files \`drivers/usb/brother/mfc290c_fax.{h,c}\` provide
+The host-neutral files `drivers/usb/brother/mfc290c_fax.{h,c}` provide
 strict **documented-versus-unsupported** classifications and a small PC-FAX
 send-document preflight. The preflight accepts a nonempty monochrome page
 count and rejects empty, color or unknown image modes. It does **not**
 validate telephone numbers, raster encodings, call setup, live device state,
 memory availability, fax negotiation, actual document contents, or a job's
-ability to transmit. Its \`DOCUMENT_ACCEPTABLE\` result describes *only*
+ability to transmit. Its `DOCUMENT_ACCEPTABLE` result describes *only*
 these static constraints. A documented fax mode returns
-\`WHP_MFC290C_FAX_DOCUMENTED_ONLY\`, never "driver ready."
+`WHP_MFC290C_FAX_DOCUMENTED_ONLY`, never "driver ready."
 
-The model-specific fax test (\`tests/brother-mfc290c-fax.c\`) checks all six
+The model-specific fax test (`tests/brother-mfc290c-fax.c`) checks all six
 separate modes, unsupported PC receive and color PC send, invalid inputs,
-the existing \`mfc290c.h\` capability mask, and the distinction between
+the existing `mfc290c.h` capability mask, and the distinction between
 a memory *rating* and a hard job-size limit. The existing
-\`./build test-brother-mfc290c\` target runs these tests on supported host
+`./build test-brother-mfc290c` target runs these tests on supported host
 C compilers without a printer. The existing macOS/Linux CI matrix
 covers the source; it cannot certify an attached fax line.
 

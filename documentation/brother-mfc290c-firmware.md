@@ -39,13 +39,18 @@ descriptor or flash packet has been recorded.
 Service-manual contents and version-key evidence:
 https://manualmachine.com/brother/dcp145c/18240960-service-manual/
 
-## Three independent version observations
+## Distinguishing firmware from USB metadata
 
-| Field | Source | Current evidence |
+| Evidence | Where to find it | Status |
 | --- | --- | --- |
-| `installed_firmware_letter` | **Physical MFC-290C LCD** | **Unknown** until observed directly |
-| `brother_published_release` | Brother MFC-290C firmware download listing | **G**, date **2011-09-08** |
-| `usb_device_revision_bcd` | USB descriptor / macOS IOKit `bcdDevice` property | Reported by the device probe when available; **not equivalent to the firmware letter** |
+| **Installed firmware** | Physical MFC-290C LCD | **Not observed yet** |
+| **Published firmware release** | Brother's MFC-290C support download catalogue | **G**, 2011-09-08; not an installed version |
+| **USB device release** | USB descriptor / macOS IOKit `bcdDevice` | Host-visible device revision; **not proved to encode the LCD firmware letter** |
+
+These are **observations from different sources**, not firmware
+variables maintained by our driver. Our current code cannot read
+the firmware letter, translate `bcdDevice` into an installed
+firmware version, or select a command set from either value.
 
 Brother's read-only instruction for this model is to press **`*` and
 `#` simultaneously**; the LCD shows a firmware-version letter in the
@@ -63,14 +68,31 @@ be substituted for a firmware version.
 
 ## How firmware may explain printing, scanning, and faxing
 
-The main-board firmware may contain dispatch routines for host transfers,
-fax-job intake, scanner control, print streams, status/error reports, and
-maintenance operations. The service manual shows these functions can
-interact with stored configuration and calibration. **The structure,
-entry points, implementation language, exact USB vendor opcodes, bootloader
-layout, image format, cryptographic validation, flash memory map and
-firmware-to-command compatibility remain unverified.** The existence of
-a downloadable updater is not evidence for a particular command.
+The main-board firmware controls the machine, but it is **unknown
+whether different installed MFC-290C firmware revisions change USB
+commands, endpoint behavior, scanning, print streams, panel events
+or PC-FAX.** Firmware relevance must be tested, not assumed.
+
+| Driver question | Sufficient evidence before adding a version-specific path |
+| --- | --- |
+| Different USB descriptors? | Comparable raw, read-only descriptors from identified units, with independently observed installed firmware letters |
+| Different print/scan commands? | Authentic model-specific documentation or lawful equivalent captures showing repeatable changes while controlling host-driver version and interface context |
+| Different panel, fax or media behavior? | Verified target-function mapping, then reproducible behavior across installed versions |
+| Host incompatibility after an update? | Device/firmware plus host OS and driver revision recorded together; never infer from the published G listing |
+| Service-mode or calibration differences? | Service-manual or updater documentation; **no experiments with EEPROM, flashing or resets** |
+
+**Implementation baseline:** the present C11 code parses supplied
+USB identity and captured SETUP bytes, and the macOS tool inspects
+IORegistry/CUPS metadata. It does not query installed firmware or
+send Brother commands. Avoid speculative firmware switches until
+model-specific evidence demonstrates a real behavioral difference.
+If no difference is established, one well-tested protocol path is
+preferable to unverified version branches.
+
+The firmware image layout, processor ISA, vendor opcodes, flash
+memory map, cryptographic checks, and firmware-to-command
+compatibility remain unverified. An available updater is not
+proof of a command or a portable firmware image.
 
 Preserve separate command families during analysis:
 
@@ -93,18 +115,21 @@ condition. Do not redistribute proprietary images or run an updater
 merely to learn the commands. There is no defensible evidence yet
 for cloning another Brother model's firmware onto the MFC-290C.
 
-### Safe observation template
+### Safe evidence record
 
-```text
-Model: MFC-290C
-USB VID:PID (observed): 04f9:01fd
-Host and OS version: [record locally]
-USB locationID (observed): [record locally; may move]
-USB bcdDevice (observed): [record separately; not a firmware letter]
-Firmware letter (on-machine LCD): [unknown until checked]
-Brother catalogue release: G (2011-09-08; not installed-version proof)
-Update/maintenance actions taken: none
-```
+| Item | What to preserve |
+| --- | --- |
+| Model and USB identity | Brother MFC-290C, reported `04f9:01fd` |
+| Host OS and topology | Record the actual OS; USB location can change |
+| USB interfaces and endpoints | Partial reported interface map; raw endpoint data unverified |
+| USB device release (`bcdDevice`) | Record separately, if available |
+| Firmware version from the machine's LCD | **Not yet observed** |
+| Brother's published catalogue entry | **G**, dated 2011-09-08; not proof of installed firmware |
+| Update or maintenance actions | **None necessary for read-only identification** |
+
+Do not publish individual serial numbers, fax numbers or media filenames.
+A shared device ID does not establish identical vendor commands
+across firmware versions.
 
 Before exploring USB commands, preserve the original print/scan/fax
 capture source and interface/endpoint context in
