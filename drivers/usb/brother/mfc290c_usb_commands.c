@@ -7,6 +7,11 @@ enum whp_mfc290c_usb_interface_hint whp_mfc290c_usb_hint_interface(
     if (interface_class == WHP_MFC290C_USB_VENDOR_CLASS) {
         return WHP_MFC290C_INTERFACE_VENDOR_CLASS;
     }
+    if (interface_class == WHP_MFC290C_USB_MASS_STORAGE_CLASS &&
+        interface_subclass == WHP_MFC290C_USB_SCSI_TRANSPARENT_SUBCLASS &&
+        interface_protocol == WHP_MFC290C_USB_BULK_ONLY_PROTOCOL) {
+        return WHP_MFC290C_INTERFACE_STORAGE_SCSI_BULK_ONLY;
+    }
     if (interface_class != WHP_MFC290C_USB_PRINTER_CLASS ||
         interface_subclass != WHP_MFC290C_USB_PRINTER_SUBCLASS) {
         return WHP_MFC290C_INTERFACE_UNCLASSIFIED;

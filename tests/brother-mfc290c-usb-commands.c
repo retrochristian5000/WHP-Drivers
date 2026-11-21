@@ -114,6 +114,17 @@ int main(void)
           WHP_MFC290C_INTERFACE_VENDOR_CLASS);
     CHECK(whp_mfc290c_usb_hint_interface(0xffu, 0x00u, 0x02u) ==
           WHP_MFC290C_INTERFACE_VENDOR_CLASS);
+    /* Potential IF 02 signature only; no physical storage triplet
+     * has been reported from the MFC-290C.
+     */
+    CHECK(whp_mfc290c_usb_hint_interface(0x08u, 0x06u, 0x50u) ==
+          WHP_MFC290C_INTERFACE_STORAGE_SCSI_BULK_ONLY);
+    CHECK(whp_mfc290c_usb_hint_interface(0x08u, 0x06u, 0x00u) ==
+          WHP_MFC290C_INTERFACE_UNCLASSIFIED);
+    CHECK(whp_mfc290c_usb_hint_interface(0x08u, 0x05u, 0x50u) ==
+          WHP_MFC290C_INTERFACE_UNCLASSIFIED);
+    CHECK(whp_mfc290c_usb_hint_interface(0x07u, 0x06u, 0x50u) ==
+          WHP_MFC290C_INTERFACE_UNCLASSIFIED);
     CHECK(whp_mfc290c_usb_hint_interface(0x07u, 0x00u, 0xffu) ==
           WHP_MFC290C_INTERFACE_UNCLASSIFIED);
     CHECK(whp_mfc290c_usb_hint_interface(0x08u, 0x01u, 0xffu) ==

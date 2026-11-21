@@ -714,14 +714,19 @@ only when the same record has `class=0x07 subclass=0x01 protocol=0x02`.
 | Reported interface record | Number | Class/subclass/protocol | Endpoints | Evidence status |
 | --- | --- | --- | --- | --- |
 | Vendor class | `0x01` | `ff/ff/ff` | `0x03` (3) | User-reported IORegistry fields |
-| Bidirectional USB printer class | Not yet reported | `07/01/02`, inferred from verified probe classifier | Not yet reported | User-reported classifier result |
+| Bidirectional USB printer class | `0x00` (new report) | `07/01/02`, explicitly observed | Not yet reported | User-reported IORegistry fields |
+| Third interface | `0x02` (new report) | **Unreported** | **Unreported** | Its existence as an interface number is reported; its function is unknown |
 
-These are at least **two interface records**; until the second
-record's `bInterfaceNumber`, both records' `bAlternateSetting`
-values and configuration identity are known, do **not** silently
-assume two independent interface numbers or a particular composite
-device topology. Different alternate settings can reuse an interface
-number.
+**Updated topology:** The user has now identified three **distinct
+interface numbers** on the same MFC-290C computer USB device:
+`0x00` is the printer-class interface, `0x01` the vendor-class
+interface, and `0x02` remains unclassified. The original lines'
+`bAlternateSetting`, `bConfigurationValue` and raw configuration
+descriptor are not yet available. A different alternate setting can
+reuse an existing interface *number*, but cannot turn `0x00`,
+`0x01` and `0x02` into the same interface number.
+A raw configuration header is needed to independently confirm
+`bNumInterfaces` and every alternate-setting/endpoint association.
 
 `bNumEndpoints=0x03` counts **three non-control endpoints** for
 the specified interface/alternate setting, **excluding EP0**.
@@ -732,11 +737,30 @@ actual endpoint descriptors (`bEndpointAddress`, `bmAttributes`,
 `wMaxPacketSize`, and `bInterval`) and careful association
 with the correct interface.
 
-Brother's Linux MFC-290C downloads document separate scanning
-software, making a scanner function **plausible**, but no source yet
-maps its function to vendor interface 1 or any of the three endpoints.
-Do not copy scanning or PC-FAX opcodes from another model, infer
-bulk/interrupt assignments, or take exclusive USB interface control.
+Brother's Linux MFC-290C downloads document separate scanning software.
+Published `brscan3` scanner model lists include `0x01fd` for
+MFC-290C, and publicly reproduced Brother scanner `udev` rules
+match `ff/ff/ff` Brother USB interfaces. Taken together, these
+make **interface `0x01` a credible scanner candidate**, *not a
+verified scanner mapping*: those rules are family-wide, and the
+scanner's exact interface number and transfer protocol remain
+unknown. Do not copy scanning or PC-FAX opcodes from another
+model, infer bulk/interrupt assignments, or take exclusive USB
+interface control.
+
+**Interface `0x02`: candidate mass-storage signature.**
+The model also documents Macintosh file access to inserted media.
+A **standard USB Mass Storage SCSI-transparent Bulk-Only**
+interface would advertise `class=0x08 subclass=0x06 protocol=0x50`
+and typically require bulk IN/OUT endpoints. Apple's historical
+mass-storage driver documentation records this exact subclass
+and protocol combination. The offline classifier and macOS
+probe now recognize this combination as
+`protocolMeaning=storage-scsi-bulk-only`, but **we have no
+observation that interface 2 actually reports it**. Do not
+equate the machine's front USB-host port with this hypothetical
+computer-facing device interface. If `0x02` instead reports
+`ff/ff/ff` or another triplet, keep the role unassigned.
 
 For the reported device `04f9:01fd`, `idVendor=0x04f9` identifies
 **Brother**. All-FF in the *interface* fields means the class and
@@ -786,13 +810,16 @@ advertises vendor-specific `07/01/ff`, do not use that candidate
 as evidence that standard printer class requests are accepted.
 Never apply these interpretations across separate interface numbers.
 
-**Non-mutating follow-up:** capture the **complete printer-bidirectional
-interface line**, especially `number`, `alternate` and
-`declaredEndpoints`. Compare its number and alternate setting with
-vendor interface `0x01`; then inspect already-available endpoint
-descriptor metadata if the OS exposes it. Keep the machine's serial
-number private. Do not issue vendor requests, switch an alternate
-setting, detach a driver or attempt resets.
+**Non-mutating follow-up:** the newly known printer interface is
+`number=0x00`. Capture the **full interface `0x02` line** with
+`class`, `subclass`, `protocol`, `alternate`,
+`declaredEndpoints` and `protocolMeaning`, and the remaining
+`alternate` values for interfaces `0x00`/`0x01`.
+Read-only registry metadata cannot by itself reveal endpoint
+addresses; use an authenticated raw configuration descriptor for
+that later. Keep the machine's serial number private. Do not
+issue vendor requests, switch alternate settings, detach drivers
+or reset the printer.
 
 Sources:
 - USB-IF, *Universal Serial Bus Common Class Specification* revision 1.0,
@@ -815,6 +842,15 @@ Sources:
 - Brother MFC-290C Linux support downloads (scanner context, not
   interface mapping evidence):
   https://support.brother.com/g/b/downloadlist.aspx?c=us_ot&lang=en&os=128&prod=mfc290c_all
+- Published `brscan3` model config and Brother `udev` scanner
+  rules (secondary/community reproductions, **not** an
+  authenticated MFC-290C USB descriptor):
+  https://forums.opensuse.org/t/brother-scanner/115077
+  https://askubuntu.com/questions/1530593/brother-scanner-missing-start-up-error-messages
+- Apple's historical USB mass storage class binding rules:
+  https://leopard-adc.pepas.com/documentation/DeviceDrivers/Conceptual/MassStorage/04_Matching/MS_Matching.html
+- USB-IF Mass Storage class information:
+  https://www.usb.org/defined-class-codes
 
 ## Apple macOS open-source integration audit (2026-11-21)
 

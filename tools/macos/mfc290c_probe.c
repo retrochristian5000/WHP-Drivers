@@ -129,6 +129,9 @@ static void print_interface_protocol_hint(int have_triplet, uint8_t cls,
     case WHP_MFC290C_INTERFACE_VENDOR_CLASS:
         meaning = "vendor-class";
         break;
+    case WHP_MFC290C_INTERFACE_STORAGE_SCSI_BULK_ONLY:
+        meaning = "storage-scsi-bulk-only";
+        break;
     case WHP_MFC290C_INTERFACE_UNCLASSIFIED:
         break;
     }

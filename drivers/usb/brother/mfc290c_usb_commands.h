@@ -11,6 +11,9 @@
 #define WHP_MFC290C_USB_PRINTER_CLASS 0x07u
 #define WHP_MFC290C_USB_PRINTER_SUBCLASS 0x01u
 #define WHP_MFC290C_USB_VENDOR_CLASS 0xffu
+#define WHP_MFC290C_USB_MASS_STORAGE_CLASS 0x08u
+#define WHP_MFC290C_USB_SCSI_TRANSPARENT_SUBCLASS 0x06u
+#define WHP_MFC290C_USB_BULK_ONLY_PROTOCOL 0x50u
 
 /* A passive interpretation of USB *interface* descriptor bytes.
  * The result is not a driver binding or an authorization to issue a USB
@@ -22,7 +25,9 @@ enum whp_mfc290c_usb_interface_hint {
     WHP_MFC290C_INTERFACE_PRINTER_BIDIRECTIONAL,
     WHP_MFC290C_INTERFACE_PRINTER_IEEE1284_4,
     WHP_MFC290C_INTERFACE_PRINTER_VENDOR_PROTOCOL,
-    WHP_MFC290C_INTERFACE_VENDOR_CLASS
+    WHP_MFC290C_INTERFACE_VENDOR_CLASS,
+    /* Standard MSC SCSI/Bulk-Only descriptor, not proven media access. */
+    WHP_MFC290C_INTERFACE_STORAGE_SCSI_BULK_ONLY
 };
 
 enum whp_mfc290c_usb_interface_hint whp_mfc290c_usb_hint_interface(
