@@ -73,6 +73,77 @@ Sources:
 - Legacy Canadian model record:
   https://fccid.io/1112C-8CAG13
 
+## Rear rating-label frequency and power PCB variants (2026-11-21)
+
+**New user observation:** The physical MFC-290C rear rating label shows
+`50/60Hz`. That is the **accepted AC mains line frequency**, not the
+clock frequency of the main RISC ASIC, USB PHY, scanner interface, fax
+modem DSP or piezo printhead driver. No inference about the internal
+CPU ISA, USB command protocol, board oscillator or installed supply
+variant follows from that value alone.
+
+**Independent model evidence:** Brother's June 2008 parts reference list,
+PL-FAX154/8CAG13, illustrates an MFC-290CZ rating label with
+`100-120V~ 50/60Hz 0.5A`. This is a **published exemplar of the Z
+variant**, not a transcription of the user's unit. The model-family
+service manual SM-FAX098, §2.1.6, specifies US `100-120 VAC 50/60 Hz`
+and Europe/Asia/Oceania `220-240 VAC 50/60 Hz`; model-specific
+country/board codes still determine the actual variant. The frequency
+alone **does not imply dual-voltage 100-240V** operation.
+
+**New component-selection evidence:** Brother parts reference list,
+List 8 (PCB), item 2, assigns supply assemblies by region:
+
+| Supply assembly | Listed destination(s) | Confidence / distinction |
+| --- | --- | --- |
+| `LT0416001` | US/CAN; includes MFC-290C/MFC-290CZ | Published part-list match; **leading candidate** for the user's North American hardware, not a visually verified installed PCB |
+| `LT0485001` | European countries and several other markets | Region-specific supply, not proof of the same electrical design as US/CAN |
+| `LT0660001` | ZAF/ASA/RUS | Separate assembly code |
+| `LT0586001` | CHN | Separate assembly code |
+| `LT0861001` | BRA | Separate assembly code |
+
+The main board family `B53K961`, MJ PCB family `B53K967`, and
+**power-supply assembly codes** are different hardware identities.
+Do not use `LT0416001` as an ASIC or USB chip identifier.
+Service manual SM-FAX098 Appendix 6 documents **power supply PCB
+circuit diagrams**; the corresponding diagram must be matched to
+the correct country/voltage version before extracting real component
+references. No controller IC marking, rectifier type, switch-mode
+controller part number, isolation component or output-rail voltage
+has yet been verified for the actual unit.
+
+**Hardware search order (non-destructive):**
+
+1. Read the *complete* rear rating label's AC voltage, frequency and
+   current **without recording its device serial number**. The user has
+   reported only frequency, not voltage/current or an assembly code.
+2. Compare the region/model to the parts-list supply assembly and
+   matching Appendix 6 power-supply schematic; record component
+   designators and actual datasheet matches with provenance.
+3. If safe documentation or existing unpowered board imagery is
+   available, check the assembly marking. Do **not** open or probe
+   mains-connected equipment to obtain it; unplugging does not
+   guarantee that internal capacitors have discharged.
+4. Treat primary-side rectification, EMI filtering, switching,
+   regulation and isolation as **circuit-analysis candidates**
+   until verified; then distinguish them from the main ASIC's
+   clock tree, USB device controller and firmware command parser.
+5. Never transplant a PSU across regions, assume a universal-input
+   supply, or derive USB commands from the mains rating. The
+   `50/60Hz` observation changes the **power-hardware research
+   path**, not the current USB parser or driver's compatibility flags.
+
+Primary documentation:
+- Brother parts reference list PL-FAX154, June 2008, front matter
+  (example MFC-290CZ rating label) and List 8/PCB item 2:
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+- Brother SM-FAX098, §2.1.6 (regional AC input) and Appendix 6
+  (power-supply and MJ-PCB circuit diagrams):
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- Brother US MFC-290C/250C user guide, general specifications
+  (North American input range):
+  https://www.brother-usa.com/-/media/brother/product-catalog-media/documents/2020/08/17/10/11/um_mfc_250c_290c_es_1772.pdf
+
 ## Code contract
 
 `drivers/usb/brother/mfc290c.{h,c}` parses a caller-owned USB device descriptor, validates its fixed 18-byte framing and checks the exact VID/PID. A match exposes raw descriptor identity fields; it **does not** imply a usable interface, endpoint, negotiated speed, driver binding, or fax connection. The feature mask describes the physical model and documented host features, not implemented operations. It deliberately excludes PC-FAX reception.
