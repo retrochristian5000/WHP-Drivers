@@ -156,6 +156,66 @@ print stream, scanner commands, fax protocol, and real printing or scanning.
 A clean macOS CI runner has no target printer, so successful compilation and
 empty observations cannot certify hardware support.
 
+## Fax capability boundary (2026-11-21)
+
+The MFC-290C is an independent telephone-line fax terminal with a **14,400
+bit/s maximum modem rate**. Brother's model-specific specification lists
+**MH/MR/MMR** monochrome encoding, **JPEG** color fax encoding, up to
+**170 pages** of ITU-T test-chart memory and up to **90 black-and-white
+broadcast locations**. These last two figures are conditional capacity
+ratings, **not input-document page-count or USB packet-size limits**.
+Its standalone fax supports monochrome/color sending and standalone receiving.
+Brother's **PC-FAX sending is black-and-white only**, and the original
+PC-FAX **receiving is unavailable** on the MFC-290C. Neither the name "color
+fax" nor the presence of a telephone modem establishes color PC-FAX.
+
+The host-neutral files \`drivers/usb/brother/mfc290c_fax.{h,c}\` provide
+strict **documented-versus-unsupported** classifications and a small PC-FAX
+send-document preflight. The preflight accepts a nonempty monochrome page
+count and rejects empty, color or unknown image modes. It does **not**
+validate telephone numbers, raster encodings, call setup, live device state,
+memory availability, fax negotiation, actual document contents, or a job's
+ability to transmit. Its \`DOCUMENT_ACCEPTABLE\` result describes *only*
+these static constraints. A documented fax mode returns
+\`WHP_MFC290C_FAX_DOCUMENTED_ONLY\`, never "driver ready."
+
+The model-specific fax test (\`tests/brother-mfc290c-fax.c\`) checks all six
+separate modes, unsupported PC receive and color PC send, invalid inputs,
+the existing \`mfc290c.h\` capability mask, and the distinction between
+a memory *rating* and a hard job-size limit. The existing
+\`./build test-brother-mfc290c\` target runs these tests on supported host
+C compilers without a printer. The existing macOS/Linux CI matrix
+covers the source; it cannot certify an attached fax line.
+
+**macOS integration direction:** Brother historically exposed PC-FAX sending
+as a **Send Fax / Facsimile** choice through the **Brother CUPS printer
+driver**. A file in an application was submitted via this workflow with a
+destination fax number. A working **analog telephone line connected to the
+MFC-290C**, not a PC serial modem, remained required. Brother's modern
+help page notes that its classic Fax option depends on a compatible
+Brother CUPS driver, and indicates Apple application restrictions on macOS
+10.14. This is evidence for how the original driver was integrated, not
+proof that the same print dialog or binary works on current Apple Silicon.
+
+The remaining implementation gates are: inspect authorized authentic
+Brother host-driver data and/or record safe USB descriptor evidence; map
+the exact printer-versus-PC-FAX submission protocol; determine original
+monochrome fax document encoding and per-job metadata; design a macOS
+submission adapter without causing unintended dialing; test under physical
+fax-line safeguards. Do **not** guess vendor USB requests, invent T.30
+signaling as a USB driver protocol, submit real calls from CI, or enable
+PC-FAX receive merely because standalone reception works.
+
+Sources:
+- Brother MFC-290C product specifications:
+  https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all
+- Brother PC-FAX instructions, including MFC-290C and macOS:
+  https://help.brother-usa.com/app/answers/detail/a_id/58762/~/send-a-pc-fax---windows-or-macintosh
+- Brother PC-FAX Receive exclusion:
+  https://support.brother.com/g/s/id/htmldoc/mfc/mfc-5895cw/gb/html/sug/chapter6_3.html
+- MFC-290C model manuals:
+  https://support.brother.com/g/b/manualtop.aspx?c=us&lang=en&prod=mfc290c_all
+
 ## Portability gates
 
 | Target | Required proof before claiming driver support |
@@ -169,7 +229,7 @@ empty observations cannot certify hardware support.
 
 ## Verification
 
-Run `./build.sh test-brother-mfc290c` (or `./build test-brother-mfc290c`). It uses a native C11 host compiler to run synthetic **USB descriptor and CUPS model-label** tests; it does not need LLVM, OpenWatcom, USB permissions, or a printer. The targeted GitHub Actions job runs both tests on Linux and macOS and additionally compiles the IOKit/CUPS observer on macOS. A CI Mac without an attached MFC-290C cannot verify physical-device behavior.
+Run `./build.sh test-brother-mfc290c` (or `./build test-brother-mfc290c`). It uses a native C11 host compiler to run synthetic **USB descriptor, CUPS model-label, fax policy and location-hint** tests; it does not need LLVM, OpenWatcom, USB permissions, or a printer. The targeted GitHub Actions job runs both tests on Linux and macOS and additionally compiles the IOKit/CUPS observer on macOS. A CI Mac without an attached MFC-290C cannot verify physical-device behavior.
 
 ## Primary and corroborating references
 
