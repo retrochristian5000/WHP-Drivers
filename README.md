@@ -2035,7 +2035,15 @@ and attached-service bundle hints. It separately counts candidate
 opens the USB device, submits print jobs, or changes printer queues.
 **CUPS queue labels do not prove a physical USB match or working driver.**
 Brother's historical Mac path used CUPS printing and ICA scanning, which
-remain separate implementation targets. The observed macOS USB location
+remain separate implementation targets. A new host-neutral fax capability
+module (`drivers/usb/brother/mfc290c_fax.{h,c}`) now checks documented
+standalone fax versus PC-FAX modes and validates a prospective monochrome
+PC-FAX document **without transmitting**. The machine has a 14,400 bit/s
+fax modem and accepts standalone color faxing, but Brother's PC-FAX send
+workflow is **black-and-white only** and PC-FAX receive is unavailable.
+The regression suite prevents mixing those features and treats the
+170-page test-chart memory specification as a rating, not a hard job
+limit. The fax USB submission protocol remains unverified. The observed macOS USB location
 `0x00120000` is retained as a **topology hint only**. The optional
 `--location-hint` argument compares it to current registry values without
 filtering model detection; an MFC-290C connected through a different
