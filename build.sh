@@ -14,7 +14,7 @@ plan_only=0
 fail() { printf '%s\n' "WHP-Drivers: $*" >&2; exit 1; }
 
 validate() {
-    case "$profile" in abi|vxd|radeon6410d|rtl8111e|hda|dos-probe|dos-pci|all) ;; *) fail "invalid profile: $profile" ;; esac
+    case "$profile" in abi|vxd|radeon6410d|rtl8111e|hda|brother-mfc290c|dos-probe|dos-pci|all) ;; *) fail "invalid profile: $profile" ;; esac
     case "$vxd_backend" in llvm|openwatcom) ;; *) fail "invalid VxD backend: $vxd_backend" ;; esac
     case "$bootstrap" in
         on) bootstrap=llvm ;; # backwards-compatible .whpconfig migration
@@ -84,7 +84,7 @@ menuconfig() {
     while :; do
         printf '\n%s\n' '=== WHP-Drivers menuconfig ==='
         show_config
-        printf '%s\n' '  1) Cycle workflow (abi -> vxd -> radeon6410d -> rtl8111e -> hda -> dos-probe -> all)'
+        printf '%s\n' '  1) Cycle workflow (abi -> vxd -> radeon6410d -> rtl8111e -> hda -> brother-mfc290c -> dos-probe -> all)'
         printf '%s\n' '  2) Toggle VxD backend (llvm / openwatcom)'
         printf '%s\n' '  3) Cycle toolchain bootstrap (off / llvm / openwatcom / both)'
         printf '%s\n' '  4) Set LLVM build jobs (1-16)'
@@ -94,7 +94,9 @@ menuconfig() {
         case "$choice" in
             1) case "$profile" in abi) profile=vxd ;; vxd) profile=radeon6410d ;;
                   radeon6410d) profile=rtl8111e ;; rtl8111e) profile=hda ;;
-                  hda) profile=dos-probe ;; dos-probe|dos-pci) profile=all ;; all) profile=abi ;; esac ;;
+                  hda) profile=brother-mfc290c ;;
+                  brother-mfc290c) profile=dos-probe ;;
+                  dos-probe|dos-pci) profile=all ;; all) profile=abi ;; esac ;;
             2) if [ "$vxd_backend" = llvm ]; then vxd_backend=openwatcom; else vxd_backend=llvm; fi ;;
             3) case "$bootstrap" in off) bootstrap=llvm ;; llvm) bootstrap=openwatcom ;;
                   openwatcom) bootstrap=both ;; both) bootstrap=off ;; esac ;;
@@ -144,6 +146,10 @@ run_profile() {
         radeon6410d) step smoke-radeon6410d ;;
         rtl8111e) step smoke-rtl8111e ;;
         hda) step smoke-hda ;;
+        brother-mfc290c) step test-brother-mfc290c
+                        if [ "$(uname -s)" = Darwin ]; then
+                            step build-brother-mfc290c-macos
+                        fi ;;
         dos-probe) step dos-probe-build ;;
         dos-pci) step dos-pci-build ;; # legacy saved workflow
         all) step smoke
@@ -156,6 +162,10 @@ run_profile() {
     esac
 }
 run_fast_tests() {
+    if [ "$profile" = brother-mfc290c ]; then
+        step test-brother-mfc290c
+        return
+    fi
     if [ "$profile" = hda ]; then
         step test-hda-probe
         return
@@ -196,6 +206,10 @@ run_fast_tests() {
     esac
 }
 run_tests() {
+    if [ "$profile" = brother-mfc290c ]; then
+        run_profile
+        return
+    fi
     if [ "$profile" = hda ]; then
         run_profile
         return
@@ -266,9 +280,12 @@ Usage: ./build.sh [menuconfig|config|plan|build|incremental|test|test-fast|clean
   bootstrap-all   Build both pinned LLVM and OpenWatcom toolchains
   test-menuconfig Run isolated build.sh configuration regression checks
   <legacy target> Pass through to ./build (smoke, smoke-vxd, verify-vxd, ...)
-Profiles: abi (default), vxd, radeon6410d, rtl8111e, hda, dos-probe, all
+  build-brother-mfc290c-macos Compile native macOS USB registry probe (no device I/O)
+  probe-brother-mfc290c-macos Compile and run read-only macOS USB registry probe
+Profiles: abi (default), vxd, radeon6410d, rtl8111e, hda, brother-mfc290c, dos-probe, all
 Legacy profile: dos-pci (accepted for existing configurations)
 HDA profile: read-only PCI/GCAP probes, never a sound driver
+Brother profile: cross-platform C identity tests; native macOS IOKit probe build
 DOS probe profile: opt-in OpenWatcom 16-bit MZ build; no real-mode execution
 VxD backends: llvm (default), openwatcom (explicit and LE-verified only)
 Bootstrap choices: off, llvm, openwatcom, both (legacy on = llvm)
