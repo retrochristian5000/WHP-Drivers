@@ -341,6 +341,138 @@ Primary documentation:
   (North American input range):
   https://www.brother-usa.com/-/media/brother/product-catalog-media/documents/2020/08/17/10/11/um_mfc_250c_290c_es_1772.pdf
 
+### ASIC voltage compatibility: mains versus downstream DC (2026-11-21)
+
+**User question:** Can the MFC-290C's observed
+`100–120V`, `50/60Hz`, `0.5A` nameplate
+eliminate incorrect 128 MHz main-ASIC
+candidates? **Not directly.** Those are
+**AC mains input ratings** for a
+North American machine; **not**
+CPU-core voltage, I/O voltage, logic
+power, the USB transceiver supply,
+a fixed consumed wattage or a
+main-PCB component's maximum rating.
+`0.5 A` is a mains-input
+current rating, not a specified
+per-chip current budget. Do not
+derive a chip power-dissipation
+limit, oscillator frequency, or
+a `120 V`-rated processor
+from those figures.
+
+**Supported, model-specific power path:**
+
+```text
+100–120 VAC, 50/60 Hz (observed MFC-290C label)
+  -> 100 V-series AC/DC power-supply PCB
+     (LT0416001 is the US/CAN parts-list candidate,
+      not a physically read installed assembly)
+  -> power supply harness (5 conductors, SM-FAX098 §6.1.11)
+  -> main PCB B53K961 / local regulation/distribution
+  -> logic, memory, CIS, interface and actuator supplies
+     (individual real voltages and crossings unknown)
+```
+
+SM-FAX098 **Appendix 6** publishes
+separate **100 V-series** and
+**200 V-series** power-supply
+**circuit diagrams** (manual viewer
+pp. 524–525), but it does **not**
+publish the complete main-PCB
+netlist or authenticated exact
+ASIC `VCORE`/`VDDIO` rail
+in the material checked. The
+MFC-290C/250C model-group
+wiring diagram (Appendix 5,
+manual viewer **p. 519**)
+contains an `SLP5V` **signal/net
+label**; this is a **5 V-labelled
+downstream network clue**, **not
+proof that the main CPU core,
+all I/O pins, the speaker amplifier
+or the EEPROM operate at 5 V**.
+The CIS cable uses labels
+`VCC/VDD`, `VLED`, `VREF/RS`,
+`GND` and others, but those
+**names alone do not disclose
+their measured values** or
+establish which rail feeds the
+main ASIC. Similarly, the
+separate head drive voltage
+and motor rails may differ
+from logic supply rails.
+
+| Gate | Exclude a concrete 2008 ASIC only if… | Otherwise |
+| --- | --- | --- |
+| **Core supply** | Authenticated `B53K961` regulator/schematic evidence proves a rail outside that **specific** silicon's rated `VCORE` range, with no legitimate intervening conversion | Mark `VCORE-unverified` |
+| **I/O bank supply** | Proven pin/rail and I/O level conflicts cannot be reconciled by available level shifters or a dual-supply device | Mark `VDDIO-unverified` |
+| **EEPROM / SDRAM interface** | Confirmed bus supply/logic thresholds are incompatible with the proposed chip and physical interface | Keep bus voltage and type distinct from ASIC-core voltage |
+| **USB function** | A verified USB electrical/PHY requirement conflicts with candidate part and actual wiring | Full-Speed signaling does **not** prove `VCORE = 5 V` or a dedicated USB controller chip |
+| **Power/current** | A documented actual *rail current budget* and chip consumption cannot fit, including operating conditions and power conversion | A 0.5 A **AC input** nameplate is not the rail budget |
+
+**Examples are not MFC-290C measurements:**
+`1.2 V`/`1.8 V` core,
+`3.3 V` I/O, and `5 V`
+peripheral supplies were
+technically plausible in
+2008-era designs, but none
+is yet established for this
+specific ASIC. **Do not**
+exclude all 1.8 V chips
+because a 5 V-labelled net
+appears on the board,
+nor assume all 5 V-tolerant
+input pins have a 5 V supply.
+Check exact manufacturer
+part-number and voltage grade,
+operating frequency **128 MHz**,
+2008 availability, actual
+power domains, reset sequencing,
+PLL source, footprint and
+bus-level compatibility together.
+
+**Best safe verification:** Read
+the model-specific **100 V
+series** Appendix 6 schematic
+and the **5-wire PSU harness
+pin legend**, then trace any
+documented secondary regulators
+on an authenticated
+`LT0288051` or early-US
+`LT0288052` main PCB photo.
+Obtain dated manufacturer
+datasheets only for **physically
+or schematically identified
+parts**. Without a measured/
+documented rail and chip
+marking, *no specific
+processor can currently be
+excluded by its voltage*
+alone. Do not operate the
+printer with covers removed,
+probe the mains/PSU, bypass
+power interlocks, or write
+EEPROM/firmware to discover
+voltages. No macOS
+driver code/USB commands
+change from this finding.
+
+Sources:
+- Brother original SM-FAX098
+  (June 2008), §6.1.11
+  power supply harness; Appendix 5
+  model-group wiring labels;
+  Appendix 6 100 V/200 V
+  PSU diagrams:
+  https://www.manualslib.com/manual/736209/Brother-Mfc990cw.html
+- Same manual full searchable text:
+  https://device.report/m/c3cad35b9030f141dce394f89ecb8b13f556c5b14102394ef510afea58e731ac
+- Brother PL-FAX154 June 2008
+  List 8 (PCB) US/CAN supply
+  `LT0416001`:
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+
 ## Code contract
 
 `drivers/usb/brother/mfc290c.{h,c}` parses a caller-owned USB device descriptor, validates its fixed 18-byte framing and checks the exact VID/PID. A match exposes raw descriptor identity fields; it **does not** imply a usable interface, endpoint, negotiated speed, driver binding, or fax connection. The feature mask describes the physical model and documented host features, not implemented operations. It deliberately excludes PC-FAX reception.
