@@ -1798,6 +1798,109 @@ References:
   (not proof of MFC-290C binding):
   https://www.runonpc.com/driverdownload/brother-mfc-j430w-driver-download/
 
+### Scanner INI: observed `Model=23` (2026-11-21)
+
+**New physical-software evidence supplied by the user:** A Windows
+driver-package INI file that the user associates with the MFC-290C
+contains the literal text `Model=23`. This exact value is an
+**observed, unclassified vendor configuration setting**, not a
+documented USB request, Windows INF directive, USB interface
+number, chip part number, physical scanner count, firmware
+revision or scanner resolution. The actual INI filename, parent
+section (`[...]`), surrounding entries, file encoding, package
+revision, byte contents and the component that **reads** the
+setting have **not yet been supplied or independently inspected**.
+The user describes the file as tied to the MFC-290C; that is a
+reported association, **not yet a verified code-level binding**.
+
+Unlike Windows standard `Capabilities=0x39` or
+`AddService=BrScnUsb`, the meaning of this `Model`
+key is not established by a public Microsoft or Brother
+format contract. Treat the characters `23` initially as
+a decimal-looking **literal value**; do not assume a
+decimal index versus hexadecimal code, enum, bitmap,
+USB product identifier or product-generation date without
+evidence from its parser. A speculative numeric conversion
+(`23` decimal = `0x17`) adds **no evidence**.
+
+**Candidate interpretations to test, not facts:**
+
+| Hypothesis | Evidence required before acceptance |
+| --- | --- |
+| Internal Brother scanner model/profile ID | Exact INI section, MFC-290C-specific folder/installer mapping, and authenticated code consuming `Model` |
+| Model-family feature profile (CIS, flatbed, ADF, color, media) | Neighboring model INI files with comparable settings plus real behavior/published features, and a confirmed parser |
+| Index into data/resources | Code reference or table mapping `23` to a named resource; do not guess an offset |
+| Windows device-install identifier | Actual INF `[Models]` hardware-ID reference and established mapping; **distinct from `04f9:01fd`** |
+| Hardware controller/chip identifier | Exact component marking and manufacturer datasheet or authenticated firmware/software mapping; a bare INI key is insufficient |
+
+**Highest-value read-only correlation work:**
+
+1. Preserve original INI **filename, path, package revision and
+   SHA-256**. Determine encoding using `file` and a short
+   `hexdump`; standard text `grep` may miss UTF-16 INI data.
+2. Record the **section header immediately above** `Model=23`
+   and nearby keys, particularly names indicating the
+   scanner source, WIA/TWAIN driver, model name, feature flags,
+   product ID, driver DLL, or USB transport. Do not infer
+   that the surrounding values all apply to one USB interface.
+3. Search the extracted **INF** for this INI filename and
+   associated `CopyFiles`, `SourceDisksFiles`,
+   `DestinationDirs` and `AddReg` references. A copied
+   file is **not** proof that it is loaded at runtime.
+4. Identify the actual executable/DLL that **opens/parses**
+   the INI through trustworthy static code/data references.
+   This may be a WIA/TWAIN/ControlCenter component distinct
+   from the `BrScnUsb` function-driver service; the
+   service name alone does not identify the consumer.
+5. If available, compare **MFC-250C, MFC-290C and other
+   service-manual-family** INI files from **same driver
+   release**. Differences can discriminate model-specific
+   options from family-common keys; never transfer values
+   merely because neighboring products share a controller
+   or installer.
+6. Cross-check any claimed feature or mechanism with the
+   existing documented **single CIS + separate flatbed/ADF
+   mechanics**, the **`04f9:01fd`** USB identity, and
+   independently verified endpoint descriptors. Only
+   then consider an offline format decoder or a portable
+   macOS capability table.
+
+**Non-executing macOS inspection (choose real paths):**
+
+```sh
+find . -type f -iname '*.ini' -print
+file path/to/confirmed.ini
+shasum -a 256 path/to/confirmed.ini
+hexdump -C -n 128 path/to/confirmed.ini
+# For confirmed single-byte/ASCII-compatible text only:
+grep -nEi '^\[|^[[:space:]]*Model[[:space:]]*=|MFC[-_ ]?290C|04F9|01FD|TWAIN|WIA|ADF|USB' path/to/confirmed.ini
+```
+
+If the INI is UTF-16, convert a **read-only copy** to UTF-8
+before searching; keep the original file and hash intact.
+Do not run/install its legacy Windows binaries, publish
+proprietary package files, issue USB requests, move the
+scanner, dial faxes or write firmware to investigate it.
+
+**Status:** A candidate link between an MFC-290C software
+configuration and the existing WIA/TWAIN + `BrScnUsb`
+investigation. **No verified `Model=23` semantic
+mapping, device-model lookup table, new scanner chip,
+new USB opcode or macOS driver behavior yet.** The key
+research target is the **INI consumer plus its section
+context**, not the integer by itself.
+
+Supporting context (not documentation of `Model=23`):
+- Brother MFC-290C official product specifications
+  (WIA/TWAIN and hardware features):
+  https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all
+- Brother official MFC-290C Windows scanner-driver download:
+  https://support.brother.com/g/b/downloadlist.aspx?c=us&lang=en&os=6&prod=mfc290c_all
+- Microsoft WIA INF `DeviceData` and vendor-settings guidance:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/image/inf-files-for-wia-devices
+- Microsoft still-image INF model-sharing documentation:
+  https://learn.microsoft.com/en-us/windows-hardware/drivers/image/inf-files-for-still-image-devices
+
 **Two Windows install topologies are possible:** an imaging
 function with its own Plug and Play device object/INF, or
 the documented multifunction-device approach that exposes
