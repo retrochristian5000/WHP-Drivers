@@ -1011,6 +1011,97 @@ Additional primary sources:
 - Brother June 2008 parts-list PCB assembly table:
   https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
 
+### Documented memory, fax-job history and persistence (2026-11-21)
+
+**Independent confirmation of the user's recollection:** Brother's
+original MFC-290C USA/CAN *User's Guide*, Chapter 9
+(printed pp. 53–54), documents a **Fax Journal
+(activity report)** containing information about
+earlier incoming (`RX`) and outgoing (`TX`)
+fax transactions, distinct from the **remaining
+jobs** that have not yet been sent. The model
+also keeps **Caller ID history** and permanently
+stores some settings. Therefore it does
+remember selected **past activity**, but this
+is **not** a documented history of arbitrary
+USB print jobs, prior scans, copies or
+email attachments.
+
+| Storage domain | Original Brother evidence | Physical-chip inference boundary |
+| --- | --- | --- |
+| **32 MB general machine memory** | Brother's model-specific specification lists `Memory Capacity: 32 MB`. SM-FAX098 §3.3.1 diagrams `SDRAM`, `ROM`, `EEPROM`, main ASIC and CPU | **32 MB is the product-level memory rating**, not yet authenticated as the density, number or package marking of each SDRAM chip; no full memory map |
+| **Fax document buffer** | Up to **170 pages**, *conditional* ITU-T test chart #1 capacity; black-and-white dual-access, memory transmission and queued sending | A document-dependent page-capacity rating, **not 170 physical pages of flash**, nor proof that journal entries use the same buffer |
+| **Fax Journal** | Report of recent incoming/outgoing fax transactions. For **time-based reporting**, automatically prints and clears entries at interval or at **200 jobs**, whichever comes first; **every 50 faxes** is another mode; manually printing an extra journal before it is due **does not erase** the entries | Metadata records with bounded/cleared history; the **memory device and power-loss retention of the journal are not established**. **200 transactions ≠ 200 stored full fax-page images** |
+| **Last transmission report** | Menu Reports includes `1.Transmission` verification report for last fax; time/date, success/failure and conditional partial first-page image on the report | Reporting feature, **not proof that the full last job image is retained** |
+| **Waiting fax queue** | `Menu → 2 → 4` lists still-pending transmissions, optionally cancelable; `No Jobs Waiting` otherwise | Active queue state distinct from completed-job history. Merely inspecting the menu need not cancel anything |
+| **Caller ID list** | Chapter 7, p. 43: last **30 calls**, with oldest displaced by 31st; `Menu → 2 → 0 → 4` permits local display/print if subscriber service is enabled | A separate telephone-call record cache; **not a list of print/scanner jobs** and **not identified with a specific IC** |
+| **Menu settings** | Appendix C, p. 120: stored **permanently** despite power failure; temporary settings such as Contrast/Overseas mode may be lost and date/time may need resetting | Supports **nonvolatile settings storage** as a functional requirement. Service manual independently identifies main-board EEPROM and flash/ROM, but the exact field-to-chip mapping and encoding are **unverified** |
+| **Out-of-paper receive** | Ch. 6, p. 38: additional **black-and-white** incoming fax pages can be buffered until paper is replenished, only while enough memory remains | Temporary image buffering and paper/ink error handling. Do **not** assume those fax pages survive an AC outage |
+| **Color fax** | Ch. 5, p. 27: **color faxes cannot be stored in memory**, so the MFC-290C transmits them **in real time** | Do not assume color-fax queued-image storage or derive memory chip width/color-processing ISA from the general color-fax advertisement |
+
+**Device-manual menu operations (read-only choice vs active action):**
+
+- `Menu → 2 → 4`: **display** outstanding fax jobs.
+  Selecting **cancel** is an explicit state-changing action;
+  do not automate it or expose private destination numbers
+  in driver diagnostics.
+- `Menu → 5`: choose a documented printed report;
+  the Fax Journal is menu report **4**. **Printing**
+  consumes ink/paper and exposes private caller/fax
+  metadata, so it is **not** a passive hardware probe
+  and is not necessary for chip identification.
+- `Menu → 2 → 0 → 4`: view Caller ID list
+  when subscribed, containing names/numbers and
+  dates/times. Never record personal telephone
+  information in a public issue, CI fixture or
+  repo file.
+
+**Chip-triangulation consequences:** Distinguish
+**working RAM** (scan/fax/page buffer, active tasks),
+**nonvolatile configuration** (documented settings
+survive power interruption), **firmware program
+storage**, and **bounded transaction/call histories**
+whose location and retention are unknown. The 32 MB
+specification and 170-page/200-record/30-call
+limits concern **different layers**; adding
+them together or dividing one by another cannot
+reveal a specific RAM/EEPROM/flash part number.
+The existence of reports does **not** imply a
+hard disk, removable-media archive or a
+general-purpose job database. Brother's service
+manual EEPROM data includes machine/head
+calibration, so inspection must remain
+**read-only**: no memory dumps through unknown
+USB commands, resets, factory mode, firmware
+flashing or EEPROM writes.
+
+**Next verification in the existing hardware
+workflow:** First identify `B53K961` main-board
+revision and **actual SDRAM/flash/EEPROM chip
+markings** from authenticated existing board
+images; compare manufacturers' 2008-era datasheets,
+pinouts, voltage and package footprints. In
+parallel, model the above **host-visible job/status
+semantics** without claiming to retrieve the
+internal journal or fax contents. No code
+changes are justified solely by these manual
+memory capacities.
+
+Primary sources (the facts apply to **MFC-290C**):
+- Brother US model specification, `32 MB`
+  and `170 pages` (ITU-T test-chart condition):
+  https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all
+- Brother original MFC-290C USA/CAN
+  *User's Guide*, printed pp. 27, 30–31,
+  38, 43, 53–54 and 120:
+  https://www.bhphotovideo.com/lit_files/142624.pdf
+- Brother MFC-290C model-specific fax
+  verification/journal FAQ (200 records):
+  https://support.brother.com/g/b/faqend.aspx?c=th&faqid=faq00000200_010&ftype3=2014&lang=en&prod=mfc290c_all
+- Brother SM-FAX098 §3.3.1 / Appendix 2–3
+  memory and programming/calibration blocks:
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+
 **Current USB receive-chain hypothesis (not a verified circuit trace):**
 
     macOS host USB transaction
