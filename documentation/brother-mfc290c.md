@@ -737,7 +737,14 @@ in the control-panel assembly procedure
 (§6.1.5), so the display is a real
 **separable panel subsystem**, not proof
 that the LCD is directly connected to
-host USB. The **main firmware** plausibly
+host USB. SM-FAX098 §6.1.11 gives the **MFC-290C-group
+panel-main harness as five wires**; the
+LCD-to-panel interface is separate.
+This limits what can be asserted about
+the inter-board connection, but it does
+**not** determine the LCD controller bus,
+embedded character generator or number
+of panel ICs. The **main firmware** plausibly
 selects the message text and localization,
 while the actual **character-pattern
 generation and LCD row/column drive**
@@ -1261,12 +1268,99 @@ a particular manufacturer's IC is fitted.**
 | Priority | Component target and strongest constraint | Current chip-identification status |
 | --- | --- | --- |
 | **1** | `B53K961` main PCB: a **128 MHz RISC CPU / main ASIC**, ROM, SDRAM and EEPROM are named by the 2008 service manual; the product advertises 32 MB system memory | **High-confidence functional blocks; no IC maker, marking, ISA, SDRAM density per package or USB PHY integration identified** |
-| **2** | Shared color **CIS** and acquisition front end, one glass/ADF imaging assembly, RGB LEDs, CIS stepper and separate ADF motor | **No sensor/ADC/driver IC marking**. The WIA `BrScnUsb` service and INI `Model=23` are *software wiring*, not chip numbers |
+| **2** | Shared color **CIS** and acquisition front end, one glass/ADF imaging assembly, RGB LEDs, CIS stepper and separate ADF motor | **12-wire CIS flat cable; CIS type stored in EEPROM** (SM-FAX098 §§6.1.11, 9.1.4.19). No sensor/ADC/driver IC marking. WIA `BrScnUsb` and INI `Model=23` remain software clues, not chip numbers |
 | **3** | `B53K967` MJ/telephone path (US/CAN assembly `LT0405001`) plus MODEM/SDAA on controller diagram | **Regional MJ schematic now names a relay `A5X-G-24E-908` and diode `1SS120`; actual fitted parts and main-board modem/SDAA silicon not confirmed** |
 | **4** | **Piezoelectric head-driver IC on printhead flex**, plus carriage/paper-feed/ASF DC and scanner/ADF stepping-motor driver functions | **Location and motor functions documented; individual controller/driver ICs unnamed** |
 | **5** | Rear **USB Full-Speed** device connection and separate front USB **host**/PhotoCapture/card functions | USB transceiver, host/controller and card reader may be **ASIC-integrated or discrete**; 3 reported USB interfaces cannot establish IC count |
 | **6** | `LT0520001` upper-cover speaker, `LS5334001` spring, and **2-wire harness directly to main PCB** | **Speaker is model-backed**; gain/driver IC or discrete stage and modem audio source remain unknown. Do not invent a separate USB audio interface |
 | **7** | `B53K976` panel and `LT0416001` US/CAN PSU candidates | Valid **assembly** targets, but no proof of separate panel MCU or specific power-controller chip |
+
+**New family-manual cross-check — targeted chip filters (2026-11-21):**
+SM-FAX098's **MFC290C/250C and DCP385C/185C/165C/145C**
+main-PCB layout (printed p. **6-51**) shows a **5-wire
+panel-main harness**, **12-wire CIS flat cable**, **4-wire
+CIS-motor harness**, optional **4-wire ADF-motor
+harness**, **2-wire speaker**, and the MFC's separate
+**2-wire LINE** and **2-wire non-Japanese EXT**
+telephone harnesses. These counts constrain
+*external conductors*, **not** internal ASIC pins
+or the number/type of semiconductor ICs. In
+particular, a presumed 8-bit parallel text-LCD
+interface cannot simply be assigned to
+the entire 5-wire *panel-main harness*;
+the panel or LCD module may serialize, latch
+or implement the character interface
+locally. The 12-wire CIS cable alone
+does not reveal analog versus digital
+pixel encoding.
+
+SM-FAX098 §**2.1.4** additionally states
+**32 MB physical memory** and **no
+24-hour backup-battery facility** for
+MFC-290C, unlike MFC-790CW/990CW;
+§**2.1** confirms its **128 MHz RISC
+tier**. The family capability table
+excludes **touchscreen, color LCD,
+WLAN, wired LAN, Bluetooth, microphone/
+telephone answering device, cordless
+handset and associated backup-battery
+circuits as *original MFC-290C model
+requirements***. Exclude these
+*functions* from the model's default
+chip search, not every multifunctional
+silicon device capable of them.
+A 192 MHz-capable processor or
+High-Speed-capable USB controller
+could theoretically run at lower
+settings, so **do not reject individual
+ICs solely on their maximum
+advertised clock/USB speed**.
+
+**New CIS calibration discriminator:** §**9.1.4.19**
+describes **CIS barcode families** `A/C`,
+`B/D`, `N/P` and `S`/no-label,
+whose **type selection is stored
+in main-board EEPROM**. The manual
+covers multiple machines; **which
+of these CIS alternatives was
+actually fitted to a particular
+MFC-290C remains unverified**.
+The genuine **CIS assembly/label**
+and **12-wire cable** are stronger
+targets than speculative ADC
+manufacturer lists. **Do not run**
+service function 59: it can
+move the scanner and alter EEPROM.
+
+**Firmware-versus-silicon caution:** §**4.2.6 [10]**
+distinguishes an incorrect **USB
+`ID code`** (host identification
+failure) from EEPROM destination
+customization and other calibration
+errors. A failure to enumerate
+or match a Brother device is
+**not sufficient** to diagnose
+a failed USB controller chip.
+The model-specific service table
+also supplies different
+**EEPROM customization codes**
+for **US/Mexico (`0101`)**
+and **Canada (`0102`)**;
+these are **firmware configuration
+values, NOT IC part numbers,
+USB IDs or safe read commands**.
+Their installation in the
+user's unit has not been checked;
+do not enter maintenance mode
+or change country settings to
+validate a hypothesis.
+
+**Primary reference:** Brother's June
+2008 SM-FAX098, §§2.1, 2.1.4,
+4.2.6[10], 6.1.11 (p. 6-51),
+9.1.4.19 (pp. 9-37–9-38),
+9.1.4.25 (p. 9-51).
+https://device.report/m/c3cad35b9030f141dce394f89ecb8b13f556c5b14102394ef510afea58e731ac
 
 **New concrete evidence below the chip level:** SM-FAX098,
 Appendix 6, **MJ PCB (U.S.A., Canadian, Asian and Oceanian
@@ -1341,6 +1435,7 @@ email attachments.
 | Storage domain | Original Brother evidence | Physical-chip inference boundary |
 | --- | --- | --- |
 | **32 MB general machine memory** | Brother's model-specific specification lists `Memory Capacity: 32 MB`. SM-FAX098 §3.3.1 diagrams `SDRAM`, `ROM`, `EEPROM`, main ASIC and CPU | **32 MB is the product-level memory rating**, not yet authenticated as the density, number or package marking of each SDRAM chip; no full memory map |
+| **Battery-backed fax-memory hardware** | SM-FAX098 §2.1.4 lists MFC-290C memory backup **N/A**, unlike MFC-790CW/990CW | **Exclude a dedicated 24-hour backup battery as a required MFC-290C component**. The manual warns received fax data can be lost when AC power is removed; permanent settings and fax/page buffers are different storage domains |
 | **Fax document buffer** | Up to **170 pages**, *conditional* ITU-T test chart #1 capacity; black-and-white dual-access, memory transmission and queued sending | A document-dependent page-capacity rating, **not 170 physical pages of flash**, nor proof that journal entries use the same buffer |
 | **Fax Journal** | Report of recent incoming/outgoing fax transactions. For **time-based reporting**, automatically prints and clears entries at interval or at **200 jobs**, whichever comes first; **every 50 faxes** is another mode; manually printing an extra journal before it is due **does not erase** the entries | Metadata records with bounded/cleared history; the **memory device and power-loss retention of the journal are not established**. **200 transactions ≠ 200 stored full fax-page images** |
 | **Last transmission report** | Menu Reports includes `1.Transmission` verification report for last fax; time/date, success/failure and conditional partial first-page image on the report | Reporting feature, **not proof that the full last job image is retained** |
