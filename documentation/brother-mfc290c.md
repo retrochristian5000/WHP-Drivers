@@ -748,6 +748,162 @@ References:
   and computer access to inserted media:
   https://www.manualslib.com/manual/558310/brother-version-0-mfc-290c.html
 
+## Audible fax monitoring, speaker harness and amplifier candidates (2026-11-21)
+
+**New physical observations:** The user reports **two
+left/right volume-control keys** and can **hear fax tones
+while the unit sends and receives faxes**. This independently
+supports an installed **audible telephone-line monitor
+output**, not an identification of its modem, codec,
+power-amplifier IC, microphone or USB command set.
+Do not mistake this observed sound for a recorded
+voice-message facility, a full-duplex speakerphone,
+or a separate audio USB interface.
+
+**Documented control semantics (MFC-290C User's Guide,
+ch. 1 and ch. 3, printed p. 21):**
+
+| Control/mode | Original model-specific behavior | Interpretation |
+| --- | --- | --- |
+| Two **left/right volume keys** when idle | Adjust **ring** volume | These are also menu navigation keys, **not** necessarily two analog potentiometers or independent gain ICs |
+| `Menu → 1 → 4 → 3` | **Speaker volume:** `Low`, `Med`, `High`, `Off` | Four firmware-visible choices; not a calibrated dB gain table |
+| Press `Hook`, then left/right keys | **Speaker volume** while monitoring the phone line; setting persists until changed | User-invoked analog line monitoring; not evidence of a PC audio interface |
+| Beeper setting | Separate `Beeper Volume` menu | Key click, error/notification tones must not be assumed to be the same signal source, even if a transducer is shared |
+| Original service-manual §2.2.1 | **Speaker** and **ringer** volume: `3 steps + OFF` for MFC-290C | Consistent with user observations and the independent user manual |
+
+**New positive physical part IDs, Brother June 2008 parts
+list PL-FAX154, List 6 `COVER`:**
+
+| Part code | Identity | Supported models / constraints |
+| --- | --- | --- |
+| **`LT0520001`** (item 7) | **Speaker unit**, quantity 1 | MFC-250C/290C/297C and MFC-490CW family; **documented MFC-290C assembly candidate**, not an audio silicon chip |
+| **`LS5334001`** (item 6) | **Speaker spring**, quantity 1 | Mechanical upper-cover retention part; does not identify amplifier topology |
+| `LT0572001` (alternate item 7) | Other **speaker unit** | Assigned to MFC-790CW/990CW, **not** the listed MFC-290C speaker replacement |
+
+**Critical new wiring constraint:** SM-FAX098 §6.1.8
+(pp. 6-42–6-43) explicitly places the speaker and
+spring in a **pocket in the upper cover**, and
+routes its speaker harness **directly to a
+connector on the main PCB**. The model-grouped
+`MFC290C/250C and DCP385C/185C/165C/145C`
+main-PCB wiring illustration (p. 6-51)
+labels the speaker harness **`2-wire`**
+(for models with a speaker). The service
+manual's fax/telephone troubleshooting (§4.2.4)
+lists **speaker → main PCB → MJ PCB** as
+the relevant components for a **silent ringer**,
+whereas **no transmitted telephone tone**
+points to **main PCB/MJ PCB**. These
+complement, rather than replace, our documented
+`B53K961` main controller and `B53K967`
+telephone-jack board.
+
+**Function-level signal path (NOT a measured circuit
+trace or authenticated electrical netlist):**
+
+```text
+LINE analog PSTN <---> MJ PCB / SDAA / MODEM function
+                              |
+                     Main PCB B53K961
+                     modem monitor/audio logic
+                     amplifier or driver stage (unknown)
+                              |
+                        2-wire harness
+                              |
+                   LT0520001 speaker unit
+                       (upper cover)
+
+Panel left/right buttons --> firmware controls ring/monitor volume
+```
+
+The speaker *wiring destination* is verified, but
+the audio signal's source, gain mechanism and
+final stage are **not**. Candidate implementations
+include an **ASIC/modem-integrated analog
+output**, a **small transistor audio driver**,
+or a **dedicated low-power amplifier IC**
+on the main board. A DAC/PWM output, class
+of amplifier, impedance, nominal speaker watts,
+supply rail, drive waveforms, connector
+designator and exact semiconductor part
+**remain unknown**. The speaker's two
+wires do **not** establish whether its
+driver is bridge-tied or single-ended.
+The parts list does **not** enumerate a
+separate dedicated speaker PCB for
+MFC-290C, but that does **not** prove
+the amplifier is built into the main
+ASIC. Treat a microphone/speakerphone
+chip as **unsupported** for this model
+unless authenticated by model-specific
+schematics or parts.
+
+**Useful chip-filter results:**
+
+- **Keep / prioritize:** 2008-available
+  low-power audio drivers or discrete
+  output stages electrically compatible
+  with the *measured* speaker and
+  connected `B53K961` board.
+- **Deprioritize:** standalone audio
+  codec, USB sound-card IC, network/
+  VoIP chip or large hi-fi power
+  amplifier **without wiring,
+  requirements or markings**. Audible
+  fax tones alone do not establish them.
+- **Check:** authentic `LT0520001`
+  impedance and power handling,
+  main-board speaker-harness connector
+  and nearby component markings from
+  safe unpowered documentation/images.
+  Then compare dated pre-2008
+  amplifier/transistor datasheets
+  by pinout, power and footprint.
+  A matching two-wire connector and
+  2008 availability is **necessary
+  but insufficient** to identify an IC.
+- **Separate software boundary:**
+  volume-key behavior is **on-device
+  firmware state**; it is not evidence
+  that the Mac can set speaker gain
+  through USB or hear fax tones
+  as a USB audio stream. Do not
+  add CoreAudio, a microphone device,
+  guessed register writes or
+  speaker-volume USB requests to
+  the macOS driver.
+
+**Safety:** Observe only ordinary
+menu settings if needed. `Hook`
+interacts with the live telephone
+line, so do not automate it, dial,
+trigger calls/fax transactions,
+probe ringing voltages, take
+apart powered hardware or record
+private telephone audio to identify
+components. The user has already
+observed the tones; further live
+fax traffic is **not necessary**
+for this chip shortlist.
+
+Sources:
+- Brother MFC-290C official control-panel
+  guide (left/right **ring** keys):
+  https://support.brother.com/g/s/id/htmldoc/mfc/cv_mfc250c/encee/html/ug/chapter1_4.html
+- MFC-290C original User's Guide,
+  ch. 3, printed p. 21
+  (speaker levels and Hook adjustment):
+  https://www.bhphotovideo.com/lit_files/142624.pdf
+- Brother SM-FAX098 §§2.2.1, 4.2.4,
+  6.1.8, p. 6-51 speaker harness and
+  main PCB diagrams:
+  https://device.report/m/c3cad35b9030f141dce394f89ecb8b13f556c5b14102394ef510afea58e731ac
+- Brother PL-FAX154 (June 2008),
+  List 6/COVER, items 6 and 7
+  (`LS5334001`, `LT0520001` vs
+  `LT0572001`):
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+
 ## Flatbed and ADF scanner paths: shared CIS, separate mechanics (2026-11-21)
 
 **New physical observation:** The user's MFC-290C offers scanning
@@ -955,7 +1111,8 @@ a particular manufacturer's IC is fitted.**
 | **3** | `B53K967` MJ/telephone path (US/CAN assembly `LT0405001`) plus MODEM/SDAA on controller diagram | **Regional MJ schematic now names a relay `A5X-G-24E-908` and diode `1SS120`; actual fitted parts and main-board modem/SDAA silicon not confirmed** |
 | **4** | **Piezoelectric head-driver IC on printhead flex**, plus carriage/paper-feed/ASF DC and scanner/ADF stepping-motor driver functions | **Location and motor functions documented; individual controller/driver ICs unnamed** |
 | **5** | Rear **USB Full-Speed** device connection and separate front USB **host**/PhotoCapture/card functions | USB transceiver, host/controller and card reader may be **ASIC-integrated or discrete**; 3 reported USB interfaces cannot establish IC count |
-| **6** | `B53K976` panel and `LT0416001` US/CAN PSU candidates | Valid **assembly** targets, but no proof of separate panel MCU or specific power-controller chip |
+| **6** | `LT0520001` upper-cover speaker, `LS5334001` spring, and **2-wire harness directly to main PCB** | **Speaker is model-backed**; gain/driver IC or discrete stage and modem audio source remain unknown. Do not invent a separate USB audio interface |
+| **7** | `B53K976` panel and `LT0416001` US/CAN PSU candidates | Valid **assembly** targets, but no proof of separate panel MCU or specific power-controller chip |
 
 **New concrete evidence below the chip level:** SM-FAX098,
 Appendix 6, **MJ PCB (U.S.A., Canadian, Asian and Oceanian
