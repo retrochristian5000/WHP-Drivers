@@ -678,7 +678,8 @@ The parts-reference manual (List 7, PANEL) establishes a separate
 | Main PCB, initial control/USB candidate | `B53K961` | Main RISC ASIC and memory; USB controller/PHY relationship unverified |
 | **Control-panel PCB, non-China models** | **`B53K976`, `LT0434001`** | Shared service-board family with MFC-250C/290C/297C; LED/button/LCD electronics path, *not automatically an independent microcontroller* |
 | Control-panel PCB, China models | `LT0434002` | Region-specific assembly; compare physical marking before equating circuitry |
-| Monochrome LCD, non-China | `LT0498001` | Display is a separately listed part, not evidence of an LCD bus exposed over USB |
+| Monochrome **16 × 1** LCD, non-China | `LT0498001` | Character-position LCD; separately listed from `B53K976` panel PCB. Exact controller/bus still unknown |
+| Monochrome LCD, China-market | `A63016001` | Different listed regional LCD assembly; `MADE IN CHINA` is not a China-market identifier |
 | Rubber keypad sets | `LS5346001` (L), `LS5348001` (M), `LS5350001` (R) | Mechanical key contact assemblies; cannot infer a particular GPIO/key-matrix scan algorithm |
 
 The service manual's chapter 7 replacement procedures and chapter 9
@@ -687,6 +688,159 @@ is its own serviceable subsystem. **Do not enter maintenance/service
 mode** solely to observe keys: its other functions can initialize
 EEPROM, update firmware, reset counters or alter calibration.
 Service functions are not part of a host driver interface.
+
+### Monochrome single-line 16-character LCD and text generation (2026-11-21)
+
+**New physical observation:** The user sees a **basic
+single-row LCD** used mostly for short text messages.
+This aligns with Brother's original June 2008
+SM-FAX098 §2.1.3 `LCD/LED/Panel` and MFC-290C
+product sheets: **monochrome, one line of 16
+character positions (`16 × 1`)**; the model
+has **no color LCD and no touch panel**.
+The machine's text messages/menu/status are
+local **control-panel UI**, not text sent
+by the Mac as print-page raster or an
+OS-exposed video surface. The exact pixel
+matrix per character, backlight, glyph
+encoding, and special symbols remain
+unverified. A `16 × 1` description
+also does **not** prove a 16-byte
+physical DDRAM size or a fixed
+`5 × 8` glyph cell.
+
+**Authentic June 2008 Brother parts list,
+List 7 (PANEL), item `1-8`:**
+
+| Intended market | LCD assembly | Related control-panel PCB | Evidence |
+| --- | --- | --- | --- |
+| **Non-China** MFC-290C/290CZ, including US/CAN | **`LT0498001`** monochrome LCD | **`B53K976` / `LT0434001`** for non-China MFC-250C/290C/297C | Direct parts-list match; actual fitted markings not yet verified |
+| **China-market** MFC-290C | **`A63016001`** monochrome LCD | `LT0434002` | Separate regional assembly; **`MADE IN CHINA` on a US-compliant unit is a manufacturing-country statement, NOT proof this part is installed** |
+| US/CAN printed LCD sheet | `LS5356001` for MFC-290C/290CZ | Panel overlay, not electronic driver | Printed cosmetic/text sheet must **not** be misidentified as the active LCD character-generator IC |
+| LCD film | `LS4892001` for MFC-250C/290C/297C families | Panel optical/material component | Not a separate display processor |
+
+**Where the strings can originate — functional
+chain, not an authenticated pin-level trace:**
+
+```text
+Machine status, menu selection and regional language
+    -> firmware UI/message logic (main ASIC/ROM candidate)
+    -> main PCB B53K961 -> panel-main harness (documented)
+    -> control-panel PCB B53K976 / LT0434001 (non-China model)
+    -> LCD interface / character driving (unknown implementation)
+    -> LT0498001 monochrome character display (part-list match)
+```
+
+Brother's service manual describes the
+**LCD flat cable and panel-main harness**
+in the control-panel assembly procedure
+(§6.1.5), so the display is a real
+**separable panel subsystem**, not proof
+that the LCD is directly connected to
+host USB. The **main firmware** plausibly
+selects the message text and localization,
+while the actual **character-pattern
+generation and LCD row/column drive**
+may be built into the LCD module, mounted
+on the panel PCB, or otherwise integrated.
+**No LCD controller manufacturer, part
+marking, external driver IC, processor,
+firmware string-table location or bus
+protocol has yet been verified.**
+A common **HD44780-style
+character LCD** is only a *generic
+comparative family*, **not** a valid
+identification, pinout or command set
+for the MFC-290C.
+
+**Chip-screening rules:**
+
+- **Eliminate as display requirements:**
+  the MFC-490CW/790CW/990CW
+  **color TFT LCD, touchscreen
+  controller, dedicated video GPU
+  and large graphical frame-buffer
+  circuits**. A graphics-oriented
+  display subsystem is unnecessary
+  for the documented `16 × 1`
+  LCD; this **does not exclude**
+  shared RAM or image processors
+  used for **printing/scanning**
+  on the main board.
+- **Retain:** a low-complexity
+  character LCD timing/glyph/driver
+  function; panel scan/LED logic;
+  firmware message tables,
+  localization and status formatting.
+  How functions are partitioned
+  among **ASIC/panel/LCD-module**
+  chips remains unknown.
+- **Do not assume** parallel
+  4-/8-bit, SPI, I²C,
+  Hitachi-compatible instructions,
+  specific voltage/bias circuits,
+  independent panel MCU,
+  display backlight or
+  a particular chip based on
+  one text row.
+- The same `LT0498001`
+  LCD assembly serves several
+  **DCP and MFC models**, so
+  displaying text does **not**
+  identify the MFC-290C's
+  unique firmware CPU/USB
+  command processor. The
+  different `B53K977` /
+  `B53K981` panels for
+  color-screen families
+  are **comparators**, not
+  interchangeable hardware.
+
+**Next narrow evidence step:** Examine
+the actual **`LT0498001`**
+assembly datasheet or readable,
+authentic *already available*
+non-energized component photography,
+plus the `B53K976`
+panel PCB/LCD flat connector
+and harness pin designators.
+Only after a verified controller
+marking and electrical pinout
+should we compare **2008-era
+character-LCD controller datasheets**
+and decide whether a dedicated
+LCD chip exists. Do not enter
+maintenance mode merely for the
+service manual's display test
+(code 12): normal displayed
+status and Brother's documentation
+already establish the screen type.
+No guessed LCD commands, EEPROM
+writes, button injection or
+macOS USB display API belong
+in the driver.
+
+Sources:
+- Brother SM-FAX098, §2.1.3
+  (MFC-290C 16 × 1 LCD and
+  model contrast with color LCDs),
+  §§3.3.1/6.1.5 (main/panel
+  electronic functions and
+  LCD flat/panel-main harness):
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- Brother MFC-290C original
+  product data sheet (1 line
+  × 16 characters):
+  https://www.laserexpressinc.com/manuals/Brother/brother-mfc-290c-datasheet.pdf
+- Brother PL-FAX154, June 2008,
+  List 7/PANEL, `1-7` through
+  `1-10` (regional LCD,
+  panel PCB, printed LCD
+  sheet and film):
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+- Brother MFC-290C control-panel
+  overview and LCD messages:
+  https://support.brother.com/g/s/id/htmldoc/mfc/cv_mfc250c/encee/html/ug/chapter1_4.html
 
 ### Functional triangulation (not a verified netlist)
 
