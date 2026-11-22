@@ -838,71 +838,94 @@ version, USB endpoint or vendor command**, and it does not identify which
 chip implements USB string-descriptor responses. Confirm the value is
 shown under the MFC-290C device's USB entry alongside `04f9:01fd`.
 
-### Fifteen-character label code: possible unit serial (2026-11-21)
+### Fifteen-character `Machine SN`: confirmed unit serial (2026-11-21)
 
-**Correction from the user:** A label code originally reported as a
-nine-character alphanumeric "Model Number" is actually followed
-by **six digits separated by a space**. The visible layout is
-**nine characters + space + six characters**, giving a
-**15-character identifier** when the separator is omitted.
-The exact code and its fragments are intentionally **not
-reproduced in this public repo**, because the evidence now
-strongly suggests a device-specific serial number. The
-initial nine-character fragment alone was **incomplete**,
-so the previous negative lookup cannot be interpreted as
-evidence that the full label code is an unknown model or
-a chip identifier.
+**User's direct physical-label correction:** The heading is
+**`Machine SN`**, not `Model Number`. It identifies the
+user's **machine serial number**, formatted as a
+**nine-character alphanumeric fragment, a space and a
+six-digit fragment**, total **15 characters without
+the space**. Earlier nine-character-only lookup and
+"unknown second model number" speculation are therefore
+**superseded**, not active hypotheses. The exact serial
+and all fragments remain **omitted from this public
+repository** for per-unit privacy.
 
-**Manufacturer cross-check:** Brother's official serial-number
-FAQ **lists the MFC-290C** and states that the **15-character
-serial on the rear of the machine** appears as **nine
-characters on the LCD, with the first six characters
-omitted**. The newly reported *total length* therefore
-matches the published serial convention, although the
-original physical field caption ("Model Number"),
-actual label placement and precise separator semantics
-have not been independently examined. The hypothesis
-is **likely serial; pending confirmation**, not verified
-as a public model number or OEM motherboard part code.
+**New user hypothesis:** The leading **`U`**
+might mark a United States variant. **Classification:
+not supported by the current evidence.** Brother's
+**own U.S. product-registration help** says serial
+numbers start with `U` and presents a 15-character
+example; **Brother Canada** likewise describes
+`U`-prefixed labels. The letter is part of a
+manufacturer serial-number convention, **not
+independent evidence of a US-market electrical,
+telephone, firmware or PCB configuration**. Other
+Brother service-manual families use a leading
+model/product identification code, followed by
+date, factory and sequence fields, but **the exact
+MFC-290C serial-field map has not been authenticated**.
+Do not infer a year, factory, country, model
+revision, scanner chip, hardware revision or
+regulatory certification from `U` or any other
+private serial characters.
 
-**Local, privacy-preserving confirmation procedure:**
-Use the established machine-panel `Menu → 6 → 1`
-read-only serial display, then compare its characters
-against **positions 7–15** of the complete **15-character
-label code** after removing the space. The LCD nine
-characters are **not necessarily identical to the
-first nine-character printed fragment**: the relevant
-nine-character window spans the **last three
-characters of the first fragment plus all six of
-the second**. A match plus physical label placement
-supports a per-unit serial classification; a mismatch
-requires checking the transcription, label heading and
-which unit was queried. **Do not send the serial back
-to the project or log/commit its characters.** The
-existing macOS `serialRegistry=present` handling
-should remain deliberately value-free.
+**Manufacturer length/display confirmation:** Brother's
+MFC-290C-compatible FAQ states that the rear
+15-character serial is displayed on the machine
+LCD as the **last nine characters** (the first
+six are omitted). The earlier model's user-guide
+method `Menu → 6 → 1` is a read-only local
+cross-check: compare the displayed value
+**privately against characters 7–15 of the full
+label serial**, counting after removing the
+separator. The LCD value spans the last three
+characters of the first visible group plus all
+six of the second group. No serial capture,
+automatic logging, hash or screenshot upload
+is required.
 
-**Driver-identity consequences:** This observation
-**does not change** MFC-290C product identification,
-USB identity `04f9:01fd`, firmware, or our main
-PCB `B53K961` / MJ PCB `B53K967` family.
-Do not hard-code the private code or any substring
-as a hardware whitelist, reject other MFC-290Cs
-for having different serials, derive a manufacture
-date/chip from the string, or claim the two fragments
-name different boards. Retain the existing verified
-power ratings, hardware dimensions and Windows
-INF/INI research separately.
+**Regional variant determination must remain separate:**
+The physical `100–120V`, `50/60Hz`,
+`0.5A` rating, North American Brother service
+manual/parts list, `LT0416001` US/CAN
+power-supply-board candidate and applicable
+country-specific analog telephone safety
+labels collectively provide stronger **regional
+hardware evidence** than the initial serial letter.
+Even these observations do **not prove the exact
+installed board** without inspecting its
+markings. Prefer authenticated regional
+parts/EEPROM customization evidence over decoding
+the serial with a guessed country algorithm.
+
+**Driver invariants:** Match the MFC-290C using
+documented model support, verified USB VID/PID
+`04f9:01fd` and validated interface behavior.
+The USB serial (when available) is an optional
+**per-device instance identity**, not an
+accept/reject hardware-model criterion. Do not
+publish the actual code or bake its prefix/suffix
+into tests, source code, model tables, regional
+eligibility checks, board/chip candidate
+exclusion rules or network capabilities.
 
 Sources:
-- Brother MFC-290C product specifications:
-  https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all
-- Brother official 15-character serial / nine-character
-  LCD-display FAQ (explicitly includes MFC-290C):
+- Brother U.S. product registration (official
+  `U`-initial serial example):
+  https://www.brother-usa.com/support/product-registration
+- Brother Canada (official `U`-initial serial
+  label documentation):
+  https://support.brother.ca/app/answers/detail/a_id/182916/kw/PC%20not%20found
+- Brother FAQ explicitly covering MFC-290C,
+  15-character rear versus last-nine LCD serial:
   https://support.brother.com/g/b/faqend.aspx?c=id&faqid=faq00000300_006&lang=en&pfs=1&prod=mfc1905_us_as
-- Brother MFC-290C User's Guide serial display controls:
-  https://www.manualslib.com/manual/558310/Brother-Version-0-Mfc-290c.html?page=126
-- Brother June 2008 PCB assembly part codes:
+- Brother MFC-290C 2008 service manual,
+  Appendix 1 *Reading Labels* and Appendix 3
+  EEPROM regional customization (context; no
+  verified `U` country mapping):
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- Brother June 2008 regional PCB parts list:
   https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
 
 Standard USB device-descriptor byte **16**, `iSerialNumber`, is a
