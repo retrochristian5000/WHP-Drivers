@@ -767,20 +767,93 @@ a period-specific capacity limit of 8 GB. These requirements
 describe the **front port's attached peripheral**; they do
 **not** imply that the Brother computer-facing interface has
 `bInterfaceClass=0x08` or that the front device appears directly
-in the Mac's USB topology. Likewise the model's front SD/MS/xD
-card slots are locally attached media, not additional Mac USB ports.
+in the Mac's USB topology. Likewise the model's shared front
+SD/Memory Stick/xD **card opening** contains local card insertion
+positions, not additional Mac USB ports.
 
-### Physical SD/xD card-slot evidence (2026-11-21)
+### Combined Memory Stick / SD / xD card-slot opening (2026-11-21)
 
-**New physical observation:** The user reports visible **SD** and
-**xD** logos on their MFC-290C. Brother's original *User's Guide*,
-chapter 11, pp. 64-66 and *Specifications*, p. 136, independently
-confirms that these are actual **local PhotoCapture Center card slots**,
-not decorations or USB device-interface descriptors. Brother labels
-four insertion positions: front USB flash/PictBridge; SD/SDHC;
-Memory Stick/PRO; and xD-Picture Card. The **front USB connector** is
-separate from the **card contacts**, although both support local
-PhotoCapture features.
+**Physical observation, now confirmed against the original
+Brother diagram:** The user sees **Memory Stick**, **SD**
+and **xD** markings clustered around **one long,
+combined exterior card-slot opening**, rather
+than three separately framed front-panel
+receptacles. Brother's original MFC-290C
+U.S./Canada *User's Guide*, Chapter 11,
+**printed page 66 / PDF page index 79**,
+illustrates the **front USB flash/PictBridge
+socket** as callout **1** and three
+*insertion positions* at the single
+elongated card-opening as **2** (SD/SDHC),
+**3** (Memory Stick/PRO) and **4**
+(xD-Picture Card). These numbers describe
+**where each physical card form factor goes
+inside the shared opening**, *not*
+three independent computer USB ports,
+three external card slots, three reader
+ASICs or three USB mass-storage
+interfaces. The front USB socket
+is visibly **separate** from
+the shared card opening.
+
+**One-at-a-time firmware limit:** The same
+page expressly says the MFC-290C **can read
+only one media device at a time** and warns
+not to insert more than one device.
+Brother's model-specific troubleshooting
+FAQ likewise says all other media slots
+must be empty when troubleshooting a card.
+This proves **one supported active
+media device**, *not* an individual
+chip select for each card, one shared
+electrical contact group, exactly one
+card-detect switch, or a single internal
+controller. A multi-format mechanical
+socket can have **multiple contact
+sets, tracks and card-detection
+signals** within one external opening.
+Actual mechanical insertion geometry
+and pin groups need authenticated
+parts drawings; do **not** assume
+that different card types share
+identical electrical contacts or
+signaling.
+
+**USB consequence:** The already reported
+computer-facing **interface `0x02`
+(`08/06/?`, two declared endpoints)**
+is the model's best **SCSI-transparent
+Mass Storage Class** candidate for
+removable PhotoCapture media access.
+The combined exterior slot supports
+*avoiding duplicate host-facing
+media-driver implementations*;
+however **one combined opening
+and one active media device do not
+prove one Logical Unit Number
+(LUN), a single reader IC, or
+Bulk-Only Transport (`0x50`)**.
+Do not assign a new USB interface
+per SD, Memory Stick and xD format.
+The exact interface protocol byte,
+endpoint descriptors, internal
+media reader(s), multiplexing
+and LUN mapping remain unknown.
+
+Sources:
+- Brother MFC-290C original
+  *User's Guide*, Ch. 11, printed
+  **p. 66**, physical insertion
+  illustration and one-media
+  limitation:
+  https://www.bhphotovideo.com/lit_files/142624.pdf
+- Brother MFC-290C FAQ,
+  **media slot troubleshooting**,
+  requiring other media slots empty:
+  https://support.brother.com/g/b/faqend.aspx?c=ae&faqid=faq00000031_000&ftype3=1976&lang=en&prod=mfc290c_all
+
+**Supported card-format and capacity
+constraints (manufacturer documentation):**
 
 | Medium | Official MFC-290C compatibility | Evidence boundary |
 | --- | --- | --- |
@@ -814,8 +887,9 @@ actual media-to-LUN mapping or mounted volume. Do not create a
 second storage driver, trigger disk reads/writes, or send
 speculative USB commands merely from these class fields.
 
-**Next safe research sequence:** First identify the reader/slot assembly
-by model-specific Brother parts diagrams and external slot labels;
+**Next safe research sequence:** Identify the *shared, multi-format*
+card-slot assembly and any internal contact groups from authentic
+Brother parts diagrams or existing unpowered pictures;
 then compare authentic *unpowered*, pre-existing PCB photographs (if
 available) to a reader IC datasheet. For physical testing, collect
 only passive existing OS enumeration and protect user media: avoid
