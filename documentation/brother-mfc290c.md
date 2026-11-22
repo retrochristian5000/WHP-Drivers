@@ -1102,6 +1102,147 @@ Primary sources (the facts apply to **MFC-290C**):
   memory and programming/calibration blocks:
   https://manualmachine.com/brother/dcp145c/18240960-service-manual/
 
+### EEPROM first-availability cutoff: original 2008 hardware (2026-11-21)
+
+**Question:** Which memory-IC families are too new for the
+MFC-290C's original 2008 electronics, and what remains
+plausible? **Source-of-truth hardware:** Brother's
+June 2008 SM-FAX098 expressly describes an **EEPROM
+mounted on the main PCB** for destination/model
+customization and head-property, motor and CIS
+calibration; program firmware is separately in
+**flash ROM**, and the product advertises **32 MB**
+general memory. Do **not** equate 32 MB of system
+memory with EEPROM capacity. The **`B53K961`**
+main-board family is documented, but the **EEPROM
+part marking, manufacturer, interface, capacity,
+supply rail, footprint and number of physical ICs
+have not been observed**. The main-PCB diagram is a
+block diagram, **not** a pin-level schematic.
+
+**Eligibility decision applies to the *initial
+2008 design*, not to a modern replacement board
+or a later revised part from an old family:**
+
+| Candidate serial EEPROM family | Bus and nominal density | Earliest source-backed period | 2008 design decision |
+| --- | --- | --- | --- |
+| Microchip `24LC256` (also `24AA256`, `24FC256`) | Two-wire I²C, **256 Kbit** (32 KiB) | Microchip documents series since **1998** (later datasheet revisions must not be mistaken for introduction) | **DATE-ELIGIBLE ONLY**; not verified that Brother uses I²C or this density |
+| ST `M24C32` / `M24C64` (appropriate vintage voltage/order codes) | I²C, **32/64 Kbit** (4/8 KiB) | ST source catalogues **2005-era** M24C32 and M24C64 datasheets | **DATE-ELIGIBLE ONLY**; order-code variants with later-added features need independent dating |
+| Microchip `25LC256` | SPI, **256 Kbit** (32 KiB) | Original product datasheets documented **2003–2007**, although current Microchip datasheet revisions are 2017+ | **DATE-ELIGIBLE ONLY**; I²C and SPI are *mutually distinct wiring* |
+| Microchip `93LC66B` | Microwire (three-wire), **4 Kbit** (512 bytes) | **2005** Microchip series documentation | **DATE-ELIGIBLE ONLY**; capacity might be too small for required records, but records' actual byte size is unknown, so **do not exclude by guess** |
+| Microchip `25CSM04` | SPI, **4 Mbit** (512 KiB) | Microchip **2020-08-25** first 4-Mbit serial-EEPROM announcement | **EXCLUDE FROM ORIGINAL 2008 BOARD**; 2020 component |
+| Microchip `24CS512` | high-speed I²C, **512 Kbit** (64 KiB) | Microchip **2021-08-12** new 24CS512 commercial introduction | **EXCLUDE FROM ORIGINAL 2008 BOARD**; 2021 component |
+
+**Units matter:** `Kbit` is not `KiB`:
+32 Kbit = 4 KiB; 64 Kbit = 8 KiB;
+256 Kbit = 32 KiB; 512 Kbit = 64 KiB;
+4 Mbit = 512 KiB when these binary
+density labels are used. None of these is the
+printer's **32 MB system memory**. The EEPROM may
+hold *model customization, head property,
+calibration and selected settings*, while
+working fax/scan/page data uses RAM and firmware
+uses program ROM/flash. The location and
+power-failure behavior of fax-journal/caller-ID
+records in particular have not been mapped to
+one chip. The standard `24C`, `25C`, and
+`93C` **prefixes are families**, not proof
+of an individual manufacturer or a single
+pin-compatible protocol.
+
+**Cross-model hardware comparator, carefully scoped:**
+A documented April 2023 teardown/repair of a
+**different device, the Brother FAX-2840
+laser fax/printer**, identifies an **ST 24C32-W
+32-Kbit I²C EEPROM** and a distinct Macronix
+flash ROM on its main board. This is direct
+evidence that Brother **has used** that category
+of EEPROM elsewhere, but the FAX-2840 belongs
+to a **different year, model, board, print
+engine and service manual**. Its chip marking,
+content layout and wiring **must not be promoted
+to the 2008 MFC-290C**. It mildly supports
+prioritizing historical I²C EEPROM variants for
+comparative research, **not** rejecting
+SPI/Microwire or ranking one manufacturer
+as verified.
+
+**Next high-information, non-invasive gates:**
+
+1. Obtain an **authenticated, already available,
+   unpowered `B53K961` PCB photograph**
+   with exact revision/assembly number and
+   **legible EEPROM top marking** (or model-
+   specific vendor board inventory).
+   Marketplace pictures tagged only `290C`
+   do not authenticate the correct revision,
+   and this task does not require opening
+   the user's energized printer.
+2. Compare **package pins/trace topology**
+   against manufacturer datasheets:
+   I²C uses `SDA/SCL`, SPI uses
+   `CS/SCK/SI/SO`, and Microwire
+   uses `CS/SK/DI/DO`. An 8-pin package
+   alone **cannot distinguish** these buses.
+3. Validate **actual measured VCC**, supply
+   compatibility, footprint/package code,
+   manufacturer/date marking, available address
+   space, write-protect topology and 2008
+   procurement history *if sourced from
+   non-invasive hardware documents*. Do not
+   treat a **datasheet's last revision date**
+   as its initial release date or an
+   unverified die variant as original.
+4. Mark each proposed **full manufacturer part
+   number and revision** as
+   `excluded-chronology`,
+   `date-eligible-unverified`, or
+   `verified-installed` **only when
+   authenticated**. If first availability
+   is unknown, label `date-unverified`,
+   not `excluded`.
+5. **Never probe/program** main-board EEPROM
+   with a CH341A or guessed maintenance
+   command just to identify it: changing
+   destination customization, nozzle
+   calibration, scanner setup or identity
+   could make the physical machine
+   inoperable. No macOS driver change
+   follows from a speculative EEPROM
+   list.
+
+**Primary and comparative sources:**
+- Brother SM-FAX098, June 2008, preface
+  and Appendix 3: EEPROM mounted on main
+  PCB for model/destination customization;
+  §3.2.2 head property and §§7.2–7.3
+  calibration procedures:
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- Microchip `24LC256` original family
+  history (1998–2011 revisions) and
+  official product specifications:
+  https://www.microchip.com/en-us/product/24LC256
+- ST `M24C32` and `M24C64` catalogue:
+  https://www.st.com/en/memories/m24c32-w.html
+  https://www.st.com/en/memories/m24c64-w.html
+- Microchip `25LC256` SPI EEPROM and
+  early 2003/2007 published datasheet lineage:
+  https://www.microchip.com/en-us/product/25LC256
+  https://www.alldatasheet.com/html-pdf/195270/MICROCHIP/25LC256/486/1/25LC256.html
+- Microchip `93LC66B` Microwire
+  EEPROM and original 2005 family
+  datasheet reference:
+  https://www.microchip.com/en-us/product/93LC66B
+- Microchip 2020 introduction of
+  `25CSM04`:
+  https://www.microchip.com/en-us/about/news-releases/products/microchip-introduces-its-highest-density-eeprom-with-4-mbit-serial-eeprom-debut
+- Microchip 2021 introduction of
+  `24CS512`:
+  https://www.microchip.com/en-us/about/media-center/blog/2021/new-i2c-serial-eeprom-introduces-3-4mhz-high-speed-mode-operation
+- Independent FAX-2840 **different model**
+  24C32-W comparative board repair:
+  https://www.downtowndougbrown.com/2023/04/diagnosing-and-repairing-a-brother-fax-printer-usb-failure/
+
 **Current USB receive-chain hypothesis (not a verified circuit trace):**
 
     macOS host USB transaction
