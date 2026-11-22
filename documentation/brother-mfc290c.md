@@ -1801,6 +1801,8 @@ fax-modem symbol rate.**
 | --- | --- | --- |
 | ST `STM32F103RB`, Arm Cortex-M3 | **72 MHz** CPU clock | **EXCLUDE that exact part as the original 128 MHz main CPU** (but not as a possible separate subcontroller; exclude neither Cortex-M3 nor ARM generally) |
 | Microchip `PIC32MX320F128H`, MIPS32 M4K | **80 MHz** maximum | **EXCLUDE that exact part as the original main CPU**, not all PIC32 or MIPS devices; the `128` in this part's name denotes **128 KiB program flash**, not **128 MHz** |
+| Microchip `PIC18F4550`, PIC18 8-bit USB MCU | **48 MHz** maximum oscillator/system operation (12 MIPS); 2004 datasheet | **EXCLUDE as 128 MHz main CPU**, despite native Full-Speed USB. It could theoretically serve a secondary USB/control role; no fitted chip evidence |
+| Microchip/Atmel `ATmega32U4`, AVR 8-bit USB MCU | **16 MHz** processor (16 MIPS); USB Full-Speed-capable | **EXCLUDE as 128 MHz main CPU**. The USB feature alone does not overcome the core-speed mismatch or prove a fitted auxiliary controller |
 | Atmel `AT91SAM9260`, ARM926EJ-S (pre-2008) | **180 MHz** maximum; programmable clock generation | **SPEED-ELIGIBLE ONLY**: exceeding 128 MHz max is **not enough**; prove a valid exact 128 MHz PLL/divider/oscillator configuration and board/function match before promoting |
 | Older Brother `MFC-8220` Fujitsu SPARClite ASIC | **133.33 MHz** in a **different model** | **UNKNOWN for MFC-290C**: another product's nominal running rate says nothing about whether the exact silicon supports 128 MHz |
 | Brother MFC-290C `B53K961` main ASIC | **128 MHz RISC** per model service manual | **REQUIRED REFERENCE**, but **manufacturer/core family/PLL/ISA unidentified** |
@@ -2055,6 +2057,58 @@ A 2009-or-later first-release IC is not a credible
 revision/replacement exception. The MFC-490CW's
 `B53K960` board and networking peripherals are
 comparators, **not default MFC-290C silicon**.
+
+**Additional exclusion audit from combined 2008 hardware and
+2026-11-21 USB observations (no new silicon identified):**
+
+| Exclusion candidate | Status | Scope and caveat |
+| --- | --- | --- |
+| **USB Type-C CC/USB-C-only Power Delivery controller** | **Original-design exclusion** | Type-C standardized **2014**, after Brother's June **2008** service manual. The actual connections are **USB-B (computer-facing device)** and **USB-A (front local media host)**. This does **not** exclude ordinary legacy USB host/device PHY silicon or unrelated supply management |
+| **SD Express / PCIe/NVMe card reader**, **UHS-II-specific media interface**, or **SDXC-only interface requirement** | **Original-design exclusion as required card standards** | SDA dates **SDXC/UHS-I to 2009–2010**, **UHS-II to 2011**, **SD Express to 2018**. Brother supports era-appropriate **SD/SDHC, Memory Stick/PRO and xD**. Do **not** exclude an older SD-compatible controller merely because a newer revision supports later formats, or confuse a future card's fallback mode with original reader hardware |
+| **USB CDC/ACM serial modem**, **HID**, **USB Audio**, **USB Video**, or **USB Still Image** *standard interface driver* on the observed three interfaces | **No such class descriptor among reported interfaces** | Current Mac observations: **`0x00=07/01/02` printer**, **`0x01=ff/ff/ff` vendor**, **`0x02=08/06/50` SCSI-transparent BOT storage**. Do not assign generic CDC, HID, audio, video or camera-class drivers to these interfaces; **vendor-specific scanning/PC-FAX and local sound/image electronics remain possible**. A missing class descriptor does **not** rule out every embedded IC capable of that function |
+| **Dedicated physical SCSI hard-disk / SCSI host bus**, required solely because of `08/06/50` | **Not required / false inference** | `0x06` describes the **USB storage command set**, not an internal SCSI cable or hard disk. Brother's removable-media bridge may be ASIC-integrated or use a separate card controller; keep topology unverified |
+| **Separate SD, Memory Stick and xD USB interfaces**, or a dedicated **CompactFlash reader** as a required subsystem | **Unsupported by physical model** | Shared front **multi-format card opening**, **one supported active media device**, **no CompactFlash support**, and one observed computer-facing storage interface `0x02`. Still not proof of a single contact set, a single reader IC or one LUN |
+| **MFC-490CW `B53K960` photographed board treated as `B53K961`** | **Exclude as direct board identification** | Brother's 2008 parts list differentiates the original MFC-290C **`B53K961`** family from the MFC-490CW **`B53K960`**. The MFC-490CW includes networking capabilities absent from MFC-290C requirements. A comparison photo cannot authenticate the MFC-290C ASIC top marking |
+
+**Evidence taxonomy for subsequent chip shortlists:** `EXCLUDE-MAIN-CPU`
+means a named processor **cannot satisfy the verified 128 MHz
+CPU requirement** but might be a secondary component;
+`EXCLUDE-ORIGINAL-DATE` means a feature/IC was first
+available **after the actual 2008 board design**;
+`NO-DEVICE-CLASS` means a **USB driver-matching rule**
+does not fit the three observed interface descriptors;
+`NOT-REQUIRED` means a function is **unneeded**, not
+proof that every possible multifunctional chip implementing
+it is absent; `UNVERIFIED` retains candidates when
+pin/rail/marking evidence is insufficient. These distinctions
+prevent exclusion of the otherwise eligible
+**ARM/MIPS/SPARC** family, shared ROM/SDRAM resources,
+modem audio and USB-integrated main-ASIC functions.
+
+**Independent primary cross-checks:**
+- Microchip PIC18F4550 early 2004 datasheet, max
+  48 MHz system/USB clock:
+  https://ww1.microchip.com/downloads/en/DeviceDoc/PIC18F4550%20advanced%20datasheet%20-%2039632a.pdf
+- Microchip `ATmega32U4` product specifications,
+  16 MHz AVR RISC with USB FS:
+  https://www.microchip.com/en-us/product/ATmega32U4
+- USB-IF defined interface classes (Audio `01`,
+  CDC `02`, HID `03`, Still Imaging `06`,
+  Printer `07`, Mass Storage `08`, Video `0E`):
+  https://www.usb.org/defined-class-codes
+- USB Type-C Promoter Group announcement,
+  **2014-08-12** (reproduced press release):
+  https://manuals.plus/m/44f6a3ed6876bc14255d5ed6e6d458d3ff16588f9fa485f77aa156fe05f8a021
+- SD Association standards-history documentation,
+  original SDXC/UHS-II/SD Express dates:
+  https://www.sdcard.org/cms/wp-content/uploads/2023/12/SD-Express-Speed-Class-Webinar_Master-Presentation-for-Posting.pdf
+- Brother MFC-290C model specifications (SDHC
+  4–8 GB, xD and Memory Stick, no documented SDXC):
+  https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all
+- Brother June 2008 parts list, List 8
+  `B53K961` vs `B53K960`:
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+
 
 **Most economical verification gates:** (1) authentic
 `LT0288051` vs early-US `LT0288052` main
