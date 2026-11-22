@@ -838,6 +838,75 @@ version, USB endpoint or vendor command**, and it does not identify which
 chip implements USB string-descriptor responses. Confirm the value is
 shown under the MFC-290C device's USB entry alongside `04f9:01fd`.
 
+### Unclassified nine-character identifier described as a model number (2026-11-21)
+
+**User observation:** An additional **nine-character alphanumeric
+identifier** was described as a "Model Number" for the user's
+MFC-290C. Its **exact value is deliberately omitted** from this
+public repository because a nine-character code could also be a
+**device-specific serial**. The source location (rating label,
+subassembly label, macOS device properties, Windows driver file
+or other screen) has not yet been established. Do not
+silently relabel the observer's "Model Number" caption as
+"Serial Number"; instead keep the classification **unresolved**.
+
+**Independent product-model baseline:** Brother's own
+MFC-290C specifications and the June 2008 parts list identify
+the product model as `MFC-290C` (with documented
+`MFC-290CZ` variant), distinguish main-PCB family
+`B53K961`, and list regional assembly codes.
+An exact-match public search for the new nine-character
+string found **no authenticated model/board/chip match**.
+This is a *negative search observation*, not proof that
+no private manufacturer record exists or that the
+code cannot appear on an individual subassembly.
+
+**Privacy/identity filter:** Brother's official serial-number
+FAQ specifically names the MFC-290C family and states that
+the machine LCD displays **nine characters** of a
+**15-character external serial number**, with the first
+six omitted. **Length alone cannot authenticate a
+serial number**, nor can it establish a production
+month/year or internal ASIC code. Do not record the
+full private code, a revealing suffix or a deterministic
+hash in GitHub, test fixtures or diagnostic logs.
+The existing `serialRegistry=present` behavior is
+the correct public-output level.
+
+**What would change hardware classification:** Record
+*privately* which exact field/label supplies this code
+and its relationship to the printed `MFC-290C`
+model mark. If the physical label explicitly calls
+it a board assembly number, compare the code and
+board revision with authenticated Brother parts and
+service documents; if it is an LCD/USB serial
+string, use it only for private cross-checking
+between observations of the same unit; if it is an
+INF/INI value, locate the exact source section and
+its consuming program. Until then:
+
+- Keep `MFC-290C` plus independently observed USB
+  VID/PID `04f9:01fd` as the model/USB identity.
+- Keep `B53K961`, `B53K967`,
+  `LT0416001` and related documented part codes
+  **distinct** from serial, firmware and service IDs.
+- **Do not** turn the new code into a model alias,
+  chip candidate, USB product ID, board revision
+  match, driver-binding requirement, exclusion
+  rule or machine date.
+- No driver source, parser, test expectation,
+  permission or installed hardware state changes
+  follow from the unclassified string.
+
+References:
+- Brother MFC-290C specifications:
+  https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all
+- Brother official serial-length and LCD-display FAQ
+  (includes MFC-290C):
+  https://support.brother.com/g/b/faqend.aspx?c=id&faqid=faq00000300_006&lang=en&pfs=1&prod=mfc1905_us_as
+- Brother June 2008 MFC-290C/MFC-290CZ parts reference:
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+
 Standard USB device-descriptor byte **16**, `iSerialNumber`, is a
 **string-descriptor index**: zero means no USB serial string is
 advertised; nonzero means the host may request that string using USB
