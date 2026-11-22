@@ -1166,6 +1166,140 @@ schematics or parts.
   speaker-volume USB requests to
   the macOS driver.
 
+### Speaker impedance and audio-output load screen (2026-11-21)
+
+**New question:** Use the MFC-290C's documented
+**`LT0520001` speaker** to screen
+unidentified output-stage semiconductors
+by impedance (ohms, `Ω`) and power/current
+limits. **Current evidence status: nominal
+impedance UNKNOWN; rated watts UNKNOWN.**
+Brother's June 2008 PL-FAX154, List 6/COVER,
+confirms `LT0520001` for MFC-250C/290C/297C/
+490CW but lists **no impedance, power
+handling or driver IC**. Public searches
+for `LT0520001` with ohm/impedance
+terminology did not find an authenticated
+electrical specification. This is a
+**preserved negative lookup**, not proof
+that Brother never published it.
+The different `LT0572001` used by
+MFC-790CW/990CW is not evidence
+that the speakers have different
+impedance. Identical speaker service
+parts across models likewise **do
+not imply an identical output IC**.
+
+**Electrical screening gates, CONDITIONAL
+only (not measured MFC-290C values):**
+
+| Hypothetical verified speaker load | Driver-candidate test |
+| --- | --- |
+| `4 Ω` | Candidate must safely drive the lower-impedance, higher-current audio load at the *actual* output voltage and temperature |
+| `8 Ω` | Candidate must permit an 8-Ω load; reject an output IC whose authenticated minimum supported speaker impedance is strictly greater |
+| `16 Ω` | Candidate must operate correctly at 16 Ω and meet required audible power; an 8-Ω **minimum** load rating alone does **not** exclude it |
+| `32 Ω` | May imply low power at a given output voltage, but does **not** by itself prove a headphone driver or identify the IC |
+
+**Illustration only, not measurements:** At
+**1 V RMS across a purely resistive load**
+the idealized current and dissipated power
+are `I = V/R` and `P = V²/R`:
+`4 Ω → 250 mA, 250 mW`;
+`8 Ω → 125 mA, 125 mW`;
+`16 Ω → 62.5 mA, 62.5 mW`.
+A real loudspeaker has a **frequency-dependent
+complex AC impedance**, and the rated
+`4/8/16/32 Ω` values are *nominal*.
+An isolated voice-coil **DC resistance**
+reading is normally **lower** than
+nominal impedance (for example, a
+nominal `8 Ω` unit can read around
+`5–7 Ω` DC); **do not label
+the observed resistance an impedance
+rating** or apply the idealized
+calculation to an inductive speaker
+as a validated power measurement.
+No MFC-290C speaker resistance has
+yet been reported.
+
+**What this tests, and what it cannot:**
+A physically verified nominal speaker
+impedance and rated power could
+reject a particular **dedicated amplifier
+IC, transistor stage or ASIC-integrated
+audio-driver output** whose documented
+rated minimum load, current, power,
+supply rail or thermal requirements
+conflict. It **cannot directly
+eliminate a 128 MHz RISC processor
+or ISA** if an intervening amplifier
+drives the speaker. The **2-wire
+speaker harness to the main PCB**
+establishes two external conductors,
+**not** whether the stage is
+bridge-tied (`BTL`) versus
+single-ended, differential vs
+ground-return, or which chip
+generates the fax-monitor tone.
+No direct ASIC output pin is
+currently identified. Speaker
+volume steps are firmware/UI
+settings, not calibrated output
+voltage or speaker impedance.
+
+**Preferred safe evidence order:**
+(1) locate an original `LT0520001`
+supplier/manufacturer marking or
+datasheet, ideally showing nominal
+`Ω` and power; (2) obtain an
+authenticated already-existing
+unpowered **MFC-290C `B53K961`
+main-board photo** locating the
+speaker connector and nearby driver
+components; (3) compare the
+**documented** 2008-or-earlier
+candidate device's min/max loads,
+rail and output topology against
+the *verified* speaker rating;
+(4) preserve `impedance-unverified`
+instead of rejecting devices when
+the rating is unknown.
+
+**Safety of possible meter evidence:**
+An ohmmeter reading is meaningful
+only for a **fully isolated,
+unpowered speaker**, not across
+an installed harness with amplifier
+semiconductors still connected;
+the latter can give a false parallel
+resistance or injure circuitry.
+**Do not disassemble this mains-
+and telephone-line device, probe
+its speaker harness while connected,
+or energize a speaker from an
+external test source** for this
+investigation. Prefer official
+part documents or preexisting safe
+photographs. No change to
+macOS driver code, USB speaker
+features or firmware is justified.
+
+Sources:
+- Brother PL-FAX154 (June 2008),
+  List 6/COVER, `LT0520001`
+  and `LT0572001`:
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+- Brother SM-FAX098 §§2.2.1, 6.1.8,
+  §6.1.11, model speaker-harness
+  wiring:
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- Sweetwater speaker diagnostic guidance
+  (DC resistance vs nominal impedance):
+  https://www.sweetwater.com/sweetcare/articles/how-to-test-a-speaker/
+- Jensen Loudspeakers, explanation of
+  impedance/power and load safety:
+  https://www.jensentone.com/speaker-impedance-power-handling-and-wiring
+
 **Safety:** Observe only ordinary
 menu settings if needed. `Hook`
 interacts with the live telephone
