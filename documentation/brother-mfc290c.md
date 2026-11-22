@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | `0x00` | `07/01/02` | Bidirectional USB printer class, not verified print stream |
 | `0x01` | `FF/FF/FF`; three declared endpoints | Brother vendor class, not proven to be the scanner |
-| `0x02` | `08/06/?`; two declared endpoints | **Mass Storage Class / SCSI transparent**; transport protocol and endpoint details still unverified. Strong candidate for host-side PhotoCapture access |
+| `0x02` | **`08/06/50`; two declared endpoints** | **USB Mass Storage / SCSI transparent / Bulk-Only Transport (BOT)**, observed on the computer-facing USB device; endpoint addresses, media LUNs and actual OS binding unverified |
 
 These reported observations do not supply the installed firmware version, raw endpoint descriptors, or command bytes.
 
@@ -478,7 +478,7 @@ Sources:
 `drivers/usb/brother/mfc290c.{h,c}` parses a caller-owned USB device descriptor, validates its fixed 18-byte framing and checks the exact VID/PID. A match exposes raw descriptor identity fields; it **does not** imply a usable interface, endpoint, negotiated speed, driver binding, or fax connection. The feature mask describes the physical model and documented host features, not implemented operations. It deliberately excludes PC-FAX reception.
 
 - USB controller PCI inventory (`drivers/usb/pci_hci.*`) does **not** enumerate attached USB devices; `WHPPROBE.EXE` must not report MFC-290C from an EHCI/OHCI/UHCI/xHCI controller alone.
-- The user has observed the printer-class `0x00` (`07/01/02`), vendor-defined `0x01` (`ff/ff/ff`), and **Mass Storage / SCSI-transparent** `0x02` (`08/06/?`, two declared endpoints) interfaces. No complete raw configuration/endpoint descriptor or `0x02` protocol byte has been preserved. Do not infer scanner, fax, media-LUN count or Bulk-Only Transport from interface numbers alone, and do not send vendor requests or reset the device.
+- The user has observed printer `0x00` (`07/01/02`), vendor `0x01` (`ff/ff/ff`) and storage `0x02` (**`08/06/50`**, two declared endpoints). The third interface therefore advertises **SCSI-transparent USB Mass Storage, Bulk-Only Transport**; no full raw configuration or endpoint descriptors are yet preserved. Do not infer actual media LUN count, scanner/fax roles, endpoint addresses or OS binding from the class fields, and do not send requests or reset the device.
 - Do not confuse standalone ITU-T fax modem signaling with Hayes AT commands on a PC COM port. Any future PC-FAX submission protocol requires independently captured, authorized device evidence.
 - USB transport, print stream encoding, scanner commands, PC-FAX sending, OS install packages, and real-hardware behavior remain **unimplemented**. No firmware updates, ink movement, phone calls, or USB requests occur in the identity tests or macOS observer.
 
@@ -693,7 +693,7 @@ host-reported interfaces:**
 | --- | --- | --- |
 | `0x00` / `07/01/02` | USB Printer Class, **bidirectional**. USB-IF's printing-device standard specifies **Bulk OUT** for print data and **Bulk IN** for return/status. These are **expected endpoint types**, not captured endpoint addresses on this MFC-290C | Raw `bEndpointAddress`, `bmAttributes`, `wMaxPacketSize`, alternate setting and whether a system driver already owns the interface |
 | `0x01` / `ff/ff/ff` | Brother vendor-specific; user observed **three declared endpoints**, but their directions, types and functions remain unverified | Complete endpoint descriptors and model-specific host-driver behavior |
-| `0x02` / `08/06/?` | **Observed Mass Storage Class / SCSI-transparent subclass**, with `declaredEndpoints=0x02` (two non-control endpoints); matches documented Macintosh removable-media feature | Need `bInterfaceProtocol` (`0x50` would establish Bulk-Only Transport), two actual endpoint types/addresses/packet sizes, and media/LUN mapping; **not a scanner or PC-FAX assignment** |
+| `0x02` / **`08/06/50`** | **Observed SCSI-transparent USB Mass Storage, Bulk-Only Transport**; `declaredEndpoints=0x02` (two non-control endpoints), consistent with the USB-IF-required Bulk IN/OUT pair | Still need actual `bEndpointAddress`, `bmAttributes`, `wMaxPacketSize`, alternate setting, OS driver binding and media/LUN mapping; **not a scanner or PC-FAX assignment** |
 
 The USB-IF Printer Class specification allows
 **standard class-specific** `GET_DEVICE_ID`
@@ -757,17 +757,20 @@ Sources:
   4.2 and 5.4:
   https://www.usb.org/sites/default/files/usbprint11a021811.pdf
 
-The **front USB Direct / PictBridge port** is a different USB role:
+The **front USB Type-A Direct / PictBridge receptacle** is a different USB role:
 the machine is the **host** for an inserted USB flash drive or a
 compatible digital camera. The original MFC-290C user guide
 limits the direct port to USB flash storage or supported cameras,
 including those using USB Mass Storage Class / PictBridge.
 The manual specifies FAT12/FAT16/FAT32 for USB storage and
 a period-specific capacity limit of 8 GB. These requirements
-describe the **front port's attached peripheral**; they do
-**not** imply that the Brother computer-facing interface has
-`bInterfaceClass=0x08` or that the front device appears directly
-in the Mac's USB topology. Likewise the model's shared front
+describe the **front port's attached peripheral**. The separate
+**computer-facing USB Type-B device connection** now explicitly
+reports **interface `0x02` as `08/06/50`**, so a host-visible
+USB Mass Storage/BOT function exists *on the Type-B link*;
+that does **not** mean an attached front flash drive is directly
+on the Mac's USB host bus, or that both sockets are the same
+USB controller/PHY. Likewise the model's shared front
 SD/Memory Stick/xD **card opening** contains local card insertion
 positions, not additional Mac USB ports.
 
@@ -821,24 +824,27 @@ signaling.
 
 **USB consequence:** The already reported
 computer-facing **interface `0x02`
-(`08/06/?`, two declared endpoints)**
-is the model's best **SCSI-transparent
-Mass Storage Class** candidate for
-removable PhotoCapture media access.
+(`08/06/50`, two declared endpoints)**
+**does advertise SCSI-transparent USB
+Mass Storage with Bulk-Only Transport**;
+this is the model's strongest
+standards-based PhotoCapture media bridge.
 The combined exterior slot supports
 *avoiding duplicate host-facing
 media-driver implementations*;
 however **one combined opening
 and one active media device do not
 prove one Logical Unit Number
-(LUN), a single reader IC, or
-Bulk-Only Transport (`0x50`)**.
+(LUN) or a single reader IC**.
+Bulk-Only Transport is now confirmed
+**by the separate `0x50` protocol
+observation**, not by the slot geometry.
 Do not assign a new USB interface
 per SD, Memory Stick and xD format.
-The exact interface protocol byte,
-endpoint descriptors, internal
-media reader(s), multiplexing
-and LUN mapping remain unknown.
+The actual endpoint descriptors,
+internal media reader(s), multiplexing,
+media routing, OS binding and LUN mapping
+remain unknown.
 
 Sources:
 - Brother MFC-290C original
@@ -879,11 +885,12 @@ Brother documents **local print from card, scan to card and legacy
 computer-side read/write access to inserted cards** through its
 PhotoCapture software. Those are separate operation paths. The user's
 new `0x02` report **establishes a computer-facing USB Mass Storage
-Class / SCSI-transparent interface (`08/06/?`, two endpoints)**,
-which strongly fits the documented removable-disk feature. The
-**protocol byte and actual endpoint descriptors are not yet reported**;
-therefore do not claim a verified Bulk-Only (`0x50`) transport,
-actual media-to-LUN mapping or mounted volume. Do not create a
+Class / SCSI-transparent **Bulk-Only interface**
+(`08/06/50`, two declared endpoints)**, which strongly fits
+Brother's documented removable-disk feature. **The protocol
+is confirmed from the reported triplet**, but the actual endpoint
+descriptors, media-to-LUN mapping and mounted-volume status
+are still unverified. Do not create a
 second storage driver, trigger disk reads/writes, or send
 speculative USB commands merely from these class fields.
 
@@ -921,12 +928,12 @@ including reading and editing files. Brother's model specifications
 also say `Removable Disk: Yes (Read/Write)`. Therefore **do not
 discard host-side media access** merely because the removable drive
 is physically plugged into the *front* port. The additional user-observed **interface `0x02` has
-`class=0x08 subclass=0x06 declaredEndpoints=0x02`**, a strong,
-standards-based match for this host-visible media path. This resolves
-our earlier *interface type* uncertainty, but **not** its protocol
-byte, actual endpoint descriptors, Logical Unit Number (LUN)
-count, card-reader/flash routing, presence of media, or OS-driver
-binding. The separate printer `0x00` and vendor-defined `0x01`
+`class=0x08 subclass=0x06 protocol=0x50 declaredEndpoints=0x02`**,
+so the computer-facing interface explicitly supports
+**SCSI-transparent Bulk-Only USB Mass Storage**. This resolves
+the earlier *transport-class* uncertainty, but not the
+actual endpoint descriptors, Logical Unit Number (LUN) count,
+card-reader/flash routing, presence of media or OS-driver binding. The separate printer `0x00` and vendor-defined `0x01`
 interfaces must not be mistaken for this storage path.
 
 The source distinguishes **local PhotoCapture** from **legacy host
@@ -1174,7 +1181,7 @@ Sources:
 | **Fax** | Select standalone fax mode | Panel PCB -> main firmware -> analog fax modem / SDAA/MJ PCB; does not create a macOS COM port or imply PC-FAX reception |
 | **Scan** | Select scan mode / computer Scan-to workflow | Panel PCB -> main firmware -> CIS; Brother documents **ControlCenter's Device Button** association with the machine's Scan-to key. Actual macOS event delivery, protocol and device-service owner remain **unverified** |
 | **Copy** | Select standalone copy mode | Panel PCB -> main firmware -> CIS scan + local raster/inkjet print engine; a copy need not be a USB print job |
-| **Photo Capture** | Select local PhotoCapture Center mode | Panel PCB -> main firmware -> media/card interface and inkjet engine. **Host-reported interface `0x02` is `08/06/?` mass-storage/SCSI-transparent**, fitting Brother's documented computer removable-disk feature; exact media-LUN mapping, protocol and driver binding remain unverified |
+| **Photo Capture** | Select local PhotoCapture Center mode | Panel PCB -> main firmware -> media/card interface and inkjet engine. **Computer-facing interface `0x02` is now `08/06/50` (SCSI-transparent USB Mass Storage/BOT)**, fitting the documented removable-disk feature; actual media-LUN mapping and OS driver binding remain unverified |
 
 **Do not merge the machine's two USB roles:** the internal
 computer-facing **USB-B connector** enumerates as the Brother
@@ -2734,15 +2741,15 @@ only when the same record has `class=0x07 subclass=0x01 protocol=0x02`.
 | --- | --- | --- | --- | --- |
 | Vendor class | `0x01` | `ff/ff/ff` | `0x03` (3) | User-reported IORegistry fields |
 | Bidirectional USB printer class | `0x00` (new report) | `07/01/02`, explicitly observed | Not yet reported | User-reported IORegistry fields |
-| Mass-storage interface | `0x02` | `08/06/?` (protocol **unreported**) | `0x02` (2) | User-observed **USB Mass Storage / SCSI transparent** classification; BOT, endpoints and LUNs unverified |
+| Mass-storage interface | `0x02` | **`08/06/50`** | `0x02` (2) | User-reported **USB Mass Storage / SCSI transparent / Bulk-Only Transport**; actual endpoint addresses, LUNs and OS driver binding unverified |
 
 **Updated topology:** The user has identified three **distinct
 interface numbers** on the same MFC-290C computer USB device:
 `0x00` is **printer class**, `0x01` **vendor-specific**, and
-`0x02` **Mass Storage Class / SCSI transparent**.
-The new `0x02` report includes **two declared endpoints** but not
-`bInterfaceProtocol`. The original lines' `bAlternateSetting`,
-`bConfigurationValue` and raw configuration descriptor remain unavailable. A different alternate setting can
+`0x02` **Mass Storage Class / SCSI transparent / BOT (`08/06/50`)**.
+The latest report adds **`bInterfaceProtocol=0x50`** to the two
+declared endpoints. `bAlternateSetting`, `bConfigurationValue` and
+the raw configuration/endpoint descriptors remain unavailable. A different alternate setting can
 reuse an existing interface *number*, but cannot turn `0x00`,
 `0x01` and `0x02` into the same interface number.
 A raw configuration header is needed to independently confirm
@@ -2768,52 +2775,98 @@ unknown. Do not copy scanning or PC-FAX opcodes from another
 model, infer bulk/interrupt assignments, or take exclusive USB
 interface control.
 
-**Interface `0x02`: observed storage-class signature, incomplete
-transport.** The user now reports `class=0x08`, `subclass=0x06`,
-and `declaredEndpoints=0x02` for this **same numbered interface**.
-USB-IF identifies these as **Mass Storage Class**, **SCSI transparent
-command set**, and a count of **two non-control endpoints**.
-This is highly consistent with Brother's documented Macintosh
-read/write access to front-inserted flash drives and media cards.
-**SCSI transparent does not mean the printer contains a physical
-SCSI bus or a disk drive.** The endpoint count alone is **not**
-endpoint address `0x02`, a particular packet size, an IN/OUT
-direction assignment or the number of available memory-card slots.
+**Interface `0x02`: full reported USB mass-storage descriptor
+triplet.** The user has now reported **`class=0x08`,
+`subclass=0x06`, `protocol=0x50` and
+`declaredEndpoints=0x02`** on this **same numbered
+interface**. This identifies **USB Mass Storage Class**,
+**SCSI transparent commands**, and **Bulk-Only Transport
+(BOT)** under USB-IF's *USB Mass Storage Class Bulk-Only
+Transport*, §§4.3–4.4. The two declared **non-control
+endpoints** are consistent with its required **Bulk IN
+and Bulk OUT** pair, and the device-wide
+**control endpoint EP0** exists separately. These are
+*user-reported macOS interface metadata*, not an
+independently archived full raw configuration descriptor
+or a demonstrated successful storage transaction.
 
-**Transport remains unresolved:** In the USB Mass Storage
-**Bulk-Only Transport (BOT)** specification, the full interface
-triplet would be **`08/06/50`**, with **Bulk IN and Bulk OUT**
-endpoints (plus the device-wide EP0 control endpoint).
-The user has **not yet supplied `bInterfaceProtocol`**,
-`bAlternateSetting`, `bEndpointAddress`,
+**Two distinct physical USB roles (new user observation):**
+The original MFC-290C has a **front USB Type-A
+receptacle** used for USB flash media and PictBridge
+digital cameras; it acts as **USB host** there.
+It also has a **USB Type-B computer-facing device
+socket** *inside* the scanner cover, with the
+cable routed out the rear, which the Mac hosts.
+The **`0x00`, `0x01` and `0x02` USB
+interfaces belong to the Type-B **device-side
+enumeration**. An inserted USB-A flash drive is
+*not the same USB peripheral* as `04f9:01fd`
+seen by macOS; Brother may bridge its contents
+to interface `0x02` internally. Two receptacles
+and opposite USB roles do **not** establish
+two separate controller chips, a specific
+dual-role ASIC or particular wiring between them.
+
+**Functional interpretation:** Brother independently documents
+Macintosh **read/write `Removable Disk` access** to
+cards/flash media inserted into the machine. The now
+fully identified `08/06/50` computer-side interface
+is a **very strong standards-backed mapping**
+for that feature. The machine's **combined
+Memory Stick / SD / xD opening** and **one-active-media
+limitation** do not establish a single physical reader
+controller, one Logical Unit Number (LUN), one USB-A
+endpoint, or particular card/flash media priority.
+SCSI-transparent USB transport does **not** imply
+a physical SCSI bus or hard disk inside the printer.
+
+**What remains unobserved:** `bAlternateSetting`,
+`bConfigurationValue`, raw `bEndpointAddress`,
 `bmAttributes`, `wMaxPacketSize`, `bInterval`,
-nor a real media/LUN listing. The two declared endpoints
-are *consistent* with BOT, but do **not** prove it.
-Different physical card/USB insertion points may be
-served by one interface and even one or more
-**Logical Unit Numbers (LUNs)**; neither their count
-nor their identity can be derived from `bNumEndpoints`.
-No card needs inserting to verify the reported descriptors.
+the actual number and identity of LUNs,
+card/flash routing, mounted media,
+and OS driver binding. The pair of
+endpoint types/directions is **required
+by BOT**, not independently read
+from this device's endpoint descriptors.
+The number `0x02` in `declaredEndpoints`
+is a **count**, not an endpoint
+address; `bInterfaceNumber=0x02` is
+a **USB device interface number**,
+not the number of physical ports.
 
-**Implementation boundary:** The repo's **existing**
-`whp_mfc290c_usb_hint_interface()` correctly recognizes a
-**complete `08/06/50`** descriptor and the macOS
-read-only probe labels that as
-`protocolMeaning=storage-scsi-bulk-only`.
-With the protocol unknown, it must **not** print that
-BOT classification merely from the class/subclass.
-Once verified, a standard operating-system
-mass-storage driver can normally manage the
-storage **interface** separately from Brother's
-printing/scanning drivers. Do **not** claim
-the whole MFC-290C is a mass-storage device,
-claim current macOS version compatibility
-without observing a driver binding,
-force a driver reassignment, mount/format
-media, issue `GET_MAX_LUN`, SCSI commands,
-BOT reset, or change installed-device state.
-This also does **not** assign scanner/PC-FAX
-traffic to `0x02`.
+**Driver consequence and existing code:**
+The repo's `whp_mfc290c_usb_hint_interface()`
+already classifies **`08/06/50`** as
+`WHP_MFC290C_INTERFACE_STORAGE_SCSI_BULK_ONLY`,
+and the read-only macOS probe displays
+`protocolMeaning=storage-scsi-bulk-only`
+when all three interface fields are known.
+**No new USB mass-storage transport code**
+is justified. A compliant OS driver can
+normally bind to **interface `0x02`**
+independently of printer/scanner functions.
+We have **not confirmed actual macOS binding
+on this machine**, so avoid promises about
+mounted volumes. Driver work can instead
+focus on printer class `0x00` and
+vendor-defined `0x01`, without treating
+the former as SCSI or assigning scanner/
+PC-FAX traffic to the latter without
+a verified protocol.
+
+**Safe next inspection:** Use *read-only
+existing OS metadata* to identify
+`bAlternateSetting` and endpoint descriptor
+addresses/transfer types/maximum packet
+sizes and the bound storage class driver,
+if available. **Do not** open/block device
+nodes, mount/format/scan private media,
+request `GET_MAX_LUN`, issue SCSI
+reads/writes, invoke BOT resets,
+detach OS drivers, hot-remove media
+during activity, or change installed
+hardware state for this investigation.
 
 Sources:
 - USB-IF, *Defined Class Codes* (`08h` Mass Storage):
@@ -2882,12 +2935,12 @@ as evidence that standard printer class requests are accepted.
 Never apply these interpretations across separate interface numbers.
 
 **Non-mutating follow-up:** printer interface `number=0x00` and
-storage interface `number=0x02` are now partly classified.
-Obtain **`bInterfaceProtocol` and `bAlternateSetting` for
-interface `0x02`** first, using existing read-only macOS
-IORegistry output; keep `class=08 subclass=06 endpoints=02`
-attached to **this** interface, not another. Then inspect the
-remaining alternate settings for interfaces `0x00`/`0x01`.
+storage interface `number=0x02` are now **classified by complete
+class/subclass/protocol triplets**. The next read-only evidence
+is `bAlternateSetting` for `0x02` plus the actual endpoint
+descriptors and **bound OS service**; keep `08/06/50` with
+`declaredEndpoints=02` on **that interface**, not another.
+Then inspect remaining alternate settings for `0x00`/`0x01`.
 Read-only registry metadata cannot by itself reveal endpoint
 addresses; use an authenticated raw configuration descriptor for
 that later. Keep the machine's serial number private. Do not
