@@ -933,8 +933,9 @@ so the computer-facing interface explicitly supports
 **SCSI-transparent Bulk-Only USB Mass Storage**. This resolves
 the earlier *transport-class* uncertainty, but not the
 actual endpoint descriptors, Logical Unit Number (LUN) count,
-card-reader/flash routing, presence of media or OS-driver binding. The separate printer `0x00` and vendor-defined `0x01`
-interfaces must not be mistaken for this storage path.
+card-reader/flash routing, presence of media or OS-driver
+binding. The separate printer `0x00` and vendor-defined
+`0x01` interfaces must not be mistaken for this storage path.
 
 The source distinguishes **local PhotoCapture** from **legacy host
 access to inserted media**. These are model capability flags, not a
@@ -2797,9 +2798,8 @@ digital cameras; it acts as **USB host** there.
 It also has a **USB Type-B computer-facing device
 socket** *inside* the scanner cover, with the
 cable routed out the rear, which the Mac hosts.
-The **`0x00`, `0x01` and `0x02` USB
-interfaces belong to the Type-B **device-side
-enumeration**. An inserted USB-A flash drive is
+The **`0x00`, `0x01` and `0x02` USB interfaces**
+belong to the **Type-B device-side enumeration**. An inserted USB-A flash drive is
 *not the same USB peripheral* as `04f9:01fd`
 seen by macOS; Brother may bridge its contents
 to interface `0x02` internally. Two receptacles
@@ -2815,8 +2815,9 @@ is a **very strong standards-backed mapping**
 for that feature. The machine's **combined
 Memory Stick / SD / xD opening** and **one-active-media
 limitation** do not establish a single physical reader
-controller, one Logical Unit Number (LUN), one USB-A
-endpoint, or particular card/flash media priority.
+controller, one Logical Unit Number (LUN), a separate
+host USB interface per card slot, or a particular
+card/flash media priority.
 SCSI-transparent USB transport does **not** imply
 a physical SCSI bus or hard disk inside the printer.
 
