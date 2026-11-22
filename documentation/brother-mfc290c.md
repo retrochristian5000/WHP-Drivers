@@ -1319,6 +1319,85 @@ board or print engine:**
   simply because the manufacturer
   describes the MFC-290C as `RISC`.
 
+#### Clock-rate eligibility: 128 MHz main-core requirement (2026-11-21)
+
+**Second independent filter:** SM-FAX098 §2.1 lists
+**RISC 128 MHz** specifically in the
+**MFC-250C/MFC-290C tier**. A candidate
+identified as the machine's **main CPU**
+must be rated to operate safely at
+the documented **128 MHz CPU-core
+clock**, or have an authenticated
+model-specific explanation of the
+timing discrepancy. **Do not equate
+the CPU clock with USB Full-Speed
+(12 Mbit/s), a 48 MHz USB-function
+clock, SDRAM bus clock, oscillator
+crystal, printer motor PWM or
+fax-modem symbol rate.**
+
+| Concrete historically available processor example | Primary manufacturer specification | MFC-290C **128 MHz main CPU** clock verdict |
+| --- | --- | --- |
+| ST `STM32F103RB`, Arm Cortex-M3 | **72 MHz** CPU clock | **EXCLUDE that exact part as the original 128 MHz main CPU** (but not as a possible separate subcontroller; exclude neither Cortex-M3 nor ARM generally) |
+| Microchip `PIC32MX320F128H`, MIPS32 M4K | **80 MHz** maximum | **EXCLUDE that exact part as the original main CPU**, not all PIC32 or MIPS devices; the `128` in this part's name denotes **128 KiB program flash**, not **128 MHz** |
+| Atmel `AT91SAM9260`, ARM926EJ-S (pre-2008) | **180 MHz** maximum; programmable clock generation | **SPEED-ELIGIBLE ONLY**: exceeding 128 MHz max is **not enough**; prove a valid exact 128 MHz PLL/divider/oscillator configuration and board/function match before promoting |
+| Older Brother `MFC-8220` Fujitsu SPARClite ASIC | **133.33 MHz** in a **different model** | **UNKNOWN for MFC-290C**: another product's nominal running rate says nothing about whether the exact silicon supports 128 MHz |
+| Brother MFC-290C `B53K961` main ASIC | **128 MHz RISC** per model service manual | **REQUIRED REFERENCE**, but **manufacturer/core family/PLL/ISA unidentified** |
+
+**Comparison discipline:** A verified
+`f_core,max < 128 MHz` rejects
+a **specific rated CPU implementation**
+as the original **main** CPU; it
+does **not** exclude the part from
+all possible secondary microcontroller
+roles. An `f_core,max >= 128 MHz`
+only **passes the upper-bound test**:
+allowed PLL multipliers, dividers,
+source oscillator, voltage/temperature
+grade, clock-domain constraints,
+and board design must also pass.
+An unmeasured **core clock** must
+not be fabricated from the size of
+a crystal or the machine's 50/60 Hz
+mains input. **Clock feasibility
+cannot identify the ISA**: a 128 MHz
+ARM, MIPS, SPARC or proprietary core
+may all satisfy the same frequency
+constraint. Product numbers with
+`128` can encode **memory capacity**,
+not speed. A later datasheet revision
+does not make an older chip
+chronologically ineligible.
+
+**Further evidentiary work:** For any
+legible `B53K961` ASIC marking,
+look up its **pre-2008 specific
+order code**, valid core-frequency
+range, oscillator/PLL configuration,
+operating voltage, package and
+available peripheral blocks. Reject
+only failed, documented constraints;
+retain `clock-unverified` when
+the input, PLL or clock divisor
+is not known. No physical probing,
+overclocking, firmware flashing or
+USB commands are justified by this
+comparative filter.
+
+Manufacturer/model sources:
+- Brother SM-FAX098 §2.1 `RISC 128 MHz`
+  for MFC-250C/290C:
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- ST `STM32F103RB` official
+  72 MHz Cortex-M3 description:
+  https://www.st.com/en/microcontrollers-microprocessors/stm32f103rb.html
+- Microchip `PIC32MX320F128H`
+  official `MaxSpeed (MHz): 80`:
+  https://www.microchip.com/en-us/product/PIC32MX320F128H
+- Microchip `AT91SAM9260` official
+  `CPU Speed Max MHz: 180`:
+  https://www.microchip.com/en-us/product/AT91SAM9260
+
 **Selection logic:** Date-based elimination
 must test the **specific ISA version /
 required instruction extension and actual
