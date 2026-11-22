@@ -942,6 +942,75 @@ PCB/assembly codes, **not ASIC chip part numbers** or interchangeable
 firmware versions. Related higher-tier MFC-490CW has main PCB **B53K960**;
 its silicon/protocol must not be presumed identical.
 
+### Consolidated component shortlist and exclusion criteria (2026-11-21)
+
+**Audit of existing model evidence against Brother SM-FAX098 and
+PL-FAX154; ranking is for research value, not proof that
+a particular manufacturer's IC is fitted.**
+
+| Priority | Component target and strongest constraint | Current chip-identification status |
+| --- | --- | --- |
+| **1** | `B53K961` main PCB: a **128 MHz RISC CPU / main ASIC**, ROM, SDRAM and EEPROM are named by the 2008 service manual; the product advertises 32 MB system memory | **High-confidence functional blocks; no IC maker, marking, ISA, SDRAM density per package or USB PHY integration identified** |
+| **2** | Shared color **CIS** and acquisition front end, one glass/ADF imaging assembly, RGB LEDs, CIS stepper and separate ADF motor | **No sensor/ADC/driver IC marking**. The WIA `BrScnUsb` service and INI `Model=23` are *software wiring*, not chip numbers |
+| **3** | `B53K967` MJ/telephone path (US/CAN assembly `LT0405001`) plus MODEM/SDAA on controller diagram | **Regional MJ schematic now names a relay `A5X-G-24E-908` and diode `1SS120`; actual fitted parts and main-board modem/SDAA silicon not confirmed** |
+| **4** | **Piezoelectric head-driver IC on printhead flex**, plus carriage/paper-feed/ASF DC and scanner/ADF stepping-motor driver functions | **Location and motor functions documented; individual controller/driver ICs unnamed** |
+| **5** | Rear **USB Full-Speed** device connection and separate front USB **host**/PhotoCapture/card functions | USB transceiver, host/controller and card reader may be **ASIC-integrated or discrete**; 3 reported USB interfaces cannot establish IC count |
+| **6** | `B53K976` panel and `LT0416001` US/CAN PSU candidates | Valid **assembly** targets, but no proof of separate panel MCU or specific power-controller chip |
+
+**New concrete evidence below the chip level:** SM-FAX098,
+Appendix 6, **MJ PCB (U.S.A., Canadian, Asian and Oceanian
+models)** visibly lists `A5X-G-24E-908` beside
+`RELAY`, `1SS120`, `RCH-855 332K`,
+`MJ-66J-RD315(LF)` and `MJ-62J-RD315(LF)`.
+These are schematic **part references**, not five
+ICs. A primary Renesas **March 2005** `1SS120`
+datasheet confirms a small glass-package **high-speed
+switching diode** (example `MHD` package), with
+mechanical dimensions available for *a documented
+candidate package*, **not** measured fit or
+authentication of a Renesas-supplied diode in the user's
+machine. The analog modem/DAA may be on the main
+controller path rather than on the MJ connector board;
+do not search only the MJ PCB for the modem IC.
+
+**Hard negatives:** Do not hunt for laser/fuser or
+thermal-bubble printhead controllers as the documented
+piezo print-engine driver; do not promote `B53K961`,
+`Model=23`, `FeatureScore=0xFE`,
+`Capabilities=0x39`, `BrScnUsb`,
+`I.T.E. 1T22`, the `REN(US)` type or
+`Machine SN` into silicon identification numbers.
+A 2009-or-later first-release IC is not a credible
+**original 2008 board** candidate without a verified
+revision/replacement exception. The MFC-490CW's
+`B53K960` board and networking peripherals are
+comparators, **not default MFC-290C silicon**.
+
+**Most economical verification gates:** (1) authentic
+`LT0288051` vs early-US `LT0288052` main
+PCB revision and legible chip-top markings from
+**already available** non-energized imagery; (2)
+model-specific CIS assembly, any board-mounted
+ADC/driver marks, and `BrScnUsb` `ServiceBinary`;
+(3) real USB configuration/endpoint descriptor from
+non-invasive OS observation; (4) datasheet package,
+period availability, pinout and electrical requirements
+for *each actual named chip*. **No chip is
+excluded by dimensions** absent a measured internal
+board footprint. Do not open energized mains/telephone
+hardware, transmit unverified USB commands or run the
+legacy Windows binaries merely to test candidate IDs.
+
+Additional primary sources:
+- Brother SM-FAX098 Appendix 6 MJ circuit overview and
+  US/Canadian circuit part labels (manual viewer pp. 520–521):
+  https://www.manualslib.com/manual/736209/Brother-Mfc990cw.html
+- Renesas `1SS120` datasheet, revision 4,
+  2005-03-24 (switching diode/MHD package):
+  https://www.renesas.com/en/document/dst/1ss120-datasheet
+- Brother June 2008 parts-list PCB assembly table:
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+
 **Current USB receive-chain hypothesis (not a verified circuit trace):**
 
     macOS host USB transaction
@@ -2495,20 +2564,25 @@ service-manual **MODEM/SDAA** blocks. Candidate functions
 to check in the **correct MFC-290C MJ schematic** include
 telephone-line surge/protection, ringing/call detection,
 on-hook/off-hook behavior, line access and isolation/steering
-for the external jack. A **relay, hook-switch chip,
-DAA manufacturer, switching topology, exact passive
-network and connection pinout remain unknown**: do not
-promote generic fax designs or parts from related models
-into verified MFC-290C components. The existence of the
-jacks establishes use cases, not those specific implementations.
+for the external jack. **The correct regional MJ
+schematic identifies a relay labeled `A5X-G-24E-908`
+and a `1SS120` switching diode**, as well as line
+connectors and protection/passive references; the original
+blanket statement that a relay was unidentified is
+superseded. **Actual installed part marks, DAA/modem
+manufacturer and IC number, relay-control timing,
+precise circuit topology and USB command linkage
+remain unverified.** Do not treat a schematic symbol
+as a photographed part from this unit or infer a USB
+command from an analog relay.
 
-**Next non-invasive verification:** Compare the US/CAN
-MFC-290C `LINE`/`EXT.` harnesses and actual
-`B53K967` assembly with SM-FAX098 Appendix 5/6
-(MJ PCB wiring/circuit scope) and the regional parts
-list. Capture official part designators and datasheet
-mechanical footprints **before** excluding candidates by
-physical width. No live telephone-line test, wiring
+**Next non-invasive verification:** Compare the
+**documented** US/CAN `LT0405001` / `B53K967`
+assembly's `LINE`/`EXT.` harness layout with
+SM-FAX098 Appendix 5/6, then authenticate markings
+on an existing unpowered *MFC-290C* board image.
+Check official component datasheets and physical
+footprints **before** excluding candidates by width. No live telephone-line test, wiring
 modification, plug-in modem probe, dialing, ringing-voltage
 measurement or speculative vendor USB command is necessary.
 
