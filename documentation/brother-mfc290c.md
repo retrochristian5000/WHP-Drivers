@@ -1259,6 +1259,131 @@ PCB/assembly codes, **not ASIC chip part numbers** or interchangeable
 firmware versions. Related higher-tier MFC-490CW has main PCB **B53K960**;
 its silicon/protocol must not be presumed identical.
 
+### Main ASIC instruction-set chronology: original 2008 cutoff (2026-11-21)
+
+**Question:** Can we narrow Brother's unnamed
+**128 MHz RISC main-ASIC core** by ruling out
+architectures released too late? **Yes, for the
+original 2008 design only.** SM-FAX098 §2.1
+confirms the speed and RISC classification,
+**not** the ISA, bitness, manufacturer,
+endianness, core model, decode format
+or whether a particular extension exists.
+Do not infer the device ASIC's ISA from
+the Apple Silicon/macOS host ISA, a
+Windows executable's x86 format, USB
+protocol or SDRAM capacity.
+
+| ISA or ISA extension | Primary-source earliest introduction | Verdict for the 2008 main ASIC |
+| --- | --- | --- |
+| **RISC-V**, including later RV32/RV64 | RISC-V International: project started **May 2010**, first public ISA report **May 2011** | **Exclude** for original 2008 ASIC |
+| **Armv8-A / AArch64 (A64)** | Arm: architecture first announced **October 2011** | **Exclude AArch64**; **do not exclude older 32-bit Arm** |
+| **Armv9-A** | Arm: introduced **March 2021** | **Exclude** |
+| **LoongArch** | Loongson: architecture created/introduced **2020** | **Exclude**; this says nothing about older Loongson MIPS-family products |
+| **microMIPS / M14K** | MIPS Technologies fiscal filings: microMIPS marketed **November 2009**, M14K shipped **March 2010** | **Exclude** this extension/core for original 2008 design, **not older MIPS32 or MIPS16** |
+| **MIPS32/64 Release 6** | MIPS Architecture manual: r6 introduced **2014** | **Exclude r6-specific instructions**, **not pre-r6 MIPS** |
+| **Armv4T, Armv5, Armv6; early Armv7** | ARM7TDMI documentation dates to **1994**, ARM11 to **2002**, and ARM Cortex-M3 to **2004** / early Cortex-A8 **2005–2006** | **Chronologically eligible**, with each *actual core* checked independently |
+| **Older MIPS32/MIPS64, SPARC/SPARClite** | Independently present in **pre-2008 Brother service manuals** | **Chronologically eligible** and historically Brother-relevant; not fitted-chip identification |
+| **Other pre-2008 RISC cores (e.g. SuperH or NEC/Renesas V850)** | Such families existed before 2008, but no MFC-290C chip mark or core signature exists in present evidence | **Date-eligible, evidence-unranked**; no silent exclusions merely because not ARM/MIPS/SPARC |
+
+**Critical same-manufacturer comparison, not same
+board or print engine:**
+
+- Brother's **MFC-8220 (older monochrome
+  laser multifunction)** service manual §1.3.1
+  explicitly states that a **Fujitsu
+  32-bit SPARClite RISC core** is embedded
+  within the ASIC, running **133.33 MHz**.
+  Its diagram includes USB and scanner
+  controller functions. This makes
+  **SPARC-family embedded cores** a genuine
+  historical Brother comparator, but
+  **133.33 MHz is not the MFC-290C's
+  documented 128 MHz**, and an old laser
+  ASIC is not automatically reused in a
+  2008 piezo inkjet.
+- Brother's older **HL-2700CN (color laser)**
+  manual, §2.3.2, independently identifies
+  Toshiba **`TMPR4955BFG-300`**, a
+  **64-bit MIPS** processor running
+  **300 MHz**. This demonstrates that
+  Brother also deployed **MIPS64** well
+  before the MFC-290C, while the
+  **different model, clock, ASIC
+  topology and printing technology**
+  disallow copying that part number
+  as an MFC-290C candidate.
+- These two actual Brother architecture
+  examples mean **ARM must not be ranked
+  as a proven/default architecture**
+  simply because the manufacturer
+  describes the MFC-290C as `RISC`.
+
+**Selection logic:** Date-based elimination
+must test the **specific ISA version /
+required instruction extension and actual
+core's first availability** separately
+from chip package launch, later datasheet
+revision, optional accelerator, board
+revision and firmware release. A processor
+whose maximum supported clock exceeds
+128 MHz **can operate at 128 MHz**;
+do not exclude it on speed alone.
+Likewise, **64-bit MIPS was in use by
+Brother pre-2008**, so **64-bit is not
+in itself chronologically impossible**.
+The narrow, defensible result is a
+*set of date-eligible ISA families*;
+**no exact CPU ISA has been identified**.
+
+**Next checks without device intervention:**
+(1) cross-check legible **original
+`B53K961` main ASIC markings** against
+2008-or-earlier vendor datasheets;
+(2) compare only **authorized, already
+available firmware images** with
+architecture-specific **instruction
+encodings, entry points and exception
+vectors**, with multiple aligned,
+independent signatures (never a single
+word match); (3) determine if the image
+is compressed, encrypted or a
+host-side updater before interpreting
+any bytes as embedded CPU instructions.
+**No firmware uploads, service-mode
+operations or guessed USB requests.**
+A **native macOS driver** need not
+execute the printer's firmware ISA;
+this investigation supports hardware
+accuracy and protocol understanding,
+not an unjustified emulator requirement.
+
+Source pointers:
+- Brother original 2008 SM-FAX098, §2.1
+  (MFC-250C/290C 128 MHz RISC):
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- RISC-V International, history:
+  https://riscv.org/about/
+- Arm official history and 2011 AArch64 announcement:
+  https://support.arm.com/documentation/102404/0201/Development-of-the-Arm-architecture
+  https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/the-a64-isa-and-compilers
+- Arm official Armv9 announcement, 2021:
+  https://newsroom.arm.com/news/arms-solution-to-the-future-needs-of-ai-security-and-specialized-computing-is-v9
+- Loongson official LoongArch history:
+  https://www.loongson.cn/EN/news/show?id=632
+- MIPS Technologies U.S. SEC FY2012 filing
+  (2009 microMIPS introduction):
+  https://www.sec.gov/Archives/edgar/data/1059786/000110396912000033/f10kfy2012.htm
+- MIPS architecture reference manual
+  (2014 r6 introduction):
+  https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00083-2B-MIPS64INT-AFP-06.01.pdf
+- Brother MFC-8220 service manual,
+  ch. 3 §1.3.1 Fujitsu SPARClite:
+  https://www.manualzz.com/doc/6272216/brother-mfc-8220-multifunction-printer-service-manual
+- Brother HL-2700CN service manual, p. 98
+  Toshiba MIPS64 CPU:
+  https://www.manualslib.com/manual/745476/Brother-Hl-2700cn.html?page=98
+
 ### Consolidated component shortlist and exclusion criteria (2026-11-21)
 
 **Audit of existing model evidence against Brother SM-FAX098 and
