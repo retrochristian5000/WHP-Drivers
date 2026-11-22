@@ -136,3 +136,73 @@ capture source and interface/endpoint context in
 [the USB command evidence ledger](brother-mfc290c.md). No firmware update,
 maintenance-mode entry, reset, print job, scan movement or fax dialing
 is required for the above investigation.
+
+
+## Candidate instruction sets: cross-check against the QEMU fork (2026-11-22)
+
+**Hardware proof remains unchanged.** Brother SM-FAX098 §2.1 assigns the
+MFC-250C/MFC-290C tier a **128 MHz RISC CPU**; §3.3.1 depicts the main ASIC,
+SDRAM, ROM, EEPROM and peripherals. The main-board family designation
+`B53K961` is a Brother parts-list **board symbol**, not a semiconductor
+manufacturer/model or a CPU instruction-set identifier. Parts-list variants
+include MFC-290C (US early-production `LT0288052`; general `LT0288051`)
+and other lower-tier 2008 machines; their common family symbol is an
+opportunity for *board-marking comparison*, not proof of identical firmware.
+
+Two independently documented **older and different Brother machines** offer
+distinct hypotheses: the MFC-8220 service manual says its ASIC incorporates
+a **Fujitsu 32-bit SPARClite** core; the HL-2700CN service manual identifies
+a **Toshiba TMPR4955BFG-300 MIPS64** CPU. Neither part was identified on the
+MFC-290C, and the original 128 MHz rating cannot distinguish these ISAs.
+
+The existing WHP QEMU fork, checked on 2026-11-22, has these *generic*
+system-emulation targets and instruction-source candidates:
+
+| Hypothesis | Existing QEMU source/config | What it does **not** establish |
+| --- | --- | --- |
+| SPARC-family / SPARClite | `target/sparc/`, `configs/targets/sparc-softmmu.mak`; `disas/sparc.c` lists SPARClite-specific `divscc`, `scan` and extended FPop mnemonics | A compatible SPARClite CPU model, execution of those extensions, or any SPARC silicon in the MFC-290C |
+| Older MIPS32/MIPS64 | `target/mips/`, `configs/targets/mips-softmmu.mak` and `mipsel-softmmu.mak` (distinct byte order) | Toshiba's processor, 32/64-bit mode, or endian selection for the MFC-290C |
+| Pre-2008 32-bit Arm | `target/arm/`, `configs/targets/arm-softmmu.mak` | An Arm core, Thumb mode or board peripheral model for the MFC-290C |
+| SuperH-4 | `target/sh4/`, `configs/targets/sh4-softmmu.mak` | Any Brother-specific reason to prefer SH-4 |
+
+**Specific negative result:** `disas/sparc.c` includes SPARClite opcode
+descriptions, but the fork's `target/sparc/translate.c` and
+`target/sparc/insns.decode` do not name `sparclite`, `divscc`, `scan`
+or the `efadd*` extension family. A disassembler *table entry* is not
+proof that QEMU's TCG translator implements the corresponding instruction.
+This is an **inspection result**, not an executed translation regression;
+individual behavior would need separate tests if an authentic SPARClite
+firmware/core identification is established.
+
+For the original 2008 silicon, RISC-V and AArch64 remain chronologically
+ineligible even though modern QEMU supports them. This does not disqualify
+older 32-bit Arm or pre-2008 MIPS/SPARC families.
+
+**Gate before opcode analysis:** obtain an authenticated, lawfully available,
+read-only firmware *image* or clear processor package marking. Record model,
+board/region, source, SHA-256, image versus updater/container distinction,
+actual file layout, code segment offset, load address, byte order and CPU
+mode. Do not apply `qemu-system-*` or an opcode-density heuristic blindly
+to a compressed/encrypted updater, random data or an arbitrary memory
+address. A plausible disassembly alone is weak: confirm reset/control-flow
+structure, multiple real code paths and memory/peripheral references.
+Only after ISA identification should QEMU execution use the **selected
+core**, memory map, reset vector and real peripheral behavior; QEMU's
+off-the-shelf SPARC/MIPS/Arm/SH-4 boards are not an MFC-290C machine model.
+No firmware update, maintenance request, EEPROM write or host USB command
+is justified by this investigation.
+
+Sources and inspectable comparisons:
+- Brother SM-FAX098 2008 §2.1 and §3.3.1:
+  https://manualmachine.com/brother/dcp145c/18240960-service-manual/
+- Brother PL-FAX154, List 8 (main-PCB symbols and assembly variants):
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+- Brother MFC-8220 SPARClite service manual:
+  https://www.manualzz.com/doc/6272216/brother-mfc-8220-multifunction-printer-service-manual
+- Brother HL-2700CN Toshiba MIPS64 service manual:
+  https://www.manualslib.com/manual/745476/Brother-Hl-2700cn.html?page=98
+- QEMU fork, SPARClite disassembler tables:
+  https://github.com/retrochristian5000/QEMU/blob/master/disas/sparc.c
+- QEMU fork, SPARC execution/decoding sources:
+  https://github.com/retrochristian5000/QEMU/blob/master/target/sparc/translate.c
+  https://github.com/retrochristian5000/QEMU/blob/master/target/sparc/insns.decode
