@@ -647,6 +647,116 @@ this simply a "rear USB port" is physically misleading.
 The machine is a **USB peripheral/device** on that computer link
 and communicates as vendor `04f9` / product `01fd`.
 
+### USB-B printer transport: physical link versus endpoints (2026-11-21)
+
+**Manufacturer-confirmed computer connection:** Brother's original
+MFC-290C **USA/CAN Quick Setup Guide**, page 1 and
+Windows USB setup page 15, specifies a **USB 2.0 Type-A/B
+cable**, **maximum 2 m**, connected to the computer.
+The **Type-B receptacle is inside the machine under the
+scanner cover**, on the right; the cable is **routed to
+exit the back**. This explains why casual descriptions
+of a rear-facing USB-B jack are inaccurate. Brother
+calls the device **USB 2.0 Full-Speed (12 Mbit/s)**,
+compatible with USB 1.1/Hi-Speed hosts; do **not**
+design a 480 Mbit/s device driver or assume a
+High-Speed-specific PHY is fitted. The service manual
+wiring figure places a separate **`USB interface`**
+with the **main PCB**, but no authenticated
+USB connector part code, USB-controller chip,
+USB D+/D- trace routing or endpoint numbers
+has been extracted.
+
+**Electrical boundary:** A conventional USB 2.0
+Standard-B connection has four signal contacts
+(`VBUS`, `D−`, `D+`, `GND`) plus connector
+shield. **USB `VBUS` nominal 5 V belongs to
+the *host-side bus***, not automatically the
+printer's RISC ASIC `VCORE` or `VDDIO`.
+Although this AC-powered machine has its own
+100–120 V input, whether the internal USB
+device uses `VBUS` only as a presence
+detector or routes it elsewhere is
+**not known**. A Full-Speed device needs
+compatible differential signaling and
+USB enumeration; the PHY may be integrated
+with the main ASIC or separate, and ESD/
+pull-up arrangements have not been traced.
+A physical 4-contact connector cannot
+identify the chip's instruction set,
+core voltage or manufacturer.
+
+**Driver transport implications from existing
+host-reported interfaces:**
+
+| Reported interface | Standard or evidence | Necessary next proof |
+| --- | --- | --- |
+| `0x00` / `07/01/02` | USB Printer Class, **bidirectional**. USB-IF's printing-device standard specifies **Bulk OUT** for print data and **Bulk IN** for return/status. These are **expected endpoint types**, not captured endpoint addresses on this MFC-290C | Raw `bEndpointAddress`, `bmAttributes`, `wMaxPacketSize`, alternate setting and whether a system driver already owns the interface |
+| `0x01` / `ff/ff/ff` | Brother vendor-specific; user observed **three declared endpoints**, but their directions, types and functions remain unverified | Complete endpoint descriptors and model-specific host-driver behavior |
+| `0x02` / unknown | Additional reported interface without class/endpoint details | Actual interface/alternate descriptors before assigning scanner, media or PC-FAX roles |
+
+The USB-IF Printer Class specification allows
+**standard class-specific** `GET_DEVICE_ID`
+and `GET_PORT_STATUS` queries, as well as
+a **state-changing** `SOFT_RESET`; the
+request definitions are generic and
+**do not prove** a particular device ID,
+print language, memory map, scanner
+command or fax transport. Do not
+issue requests (especially resets)
+or open bulk pipes merely to inventory
+a device already under OS control.
+The device could use a **proprietary
+Brother raster/page description
+language**; do not assume PostScript,
+PCL or ordinary text printing.
+The **front USB Direct/PictBridge
+socket** is a separate **machine-host**
+connection and does not change the
+computer-facing interface into a
+USB host controller.
+
+**What the present repo already handles:** The
+native **read-only macOS observer** in
+`tools/macos/mfc290c_probe.c` reads
+interface number, alternate setting,
+declared endpoint **count**,
+class/subclass/protocol and service
+hints from IORegistry **without
+opening interfaces or sending packets**.
+It **does not currently report
+real endpoint addresses, transfer
+types or packet sizes**, and the
+portable `mfc290c.c` parser
+only validates a caller-provided
+device descriptor and
+`04f9:01fd` identity.
+Thus the next step is **sanitized,
+read-only host-available
+configuration/endpoint descriptors**,
+if supplied by the OS; otherwise
+preserve `unknown` until
+a safe, authorized capture is
+available. Avoid USB interface
+seizure, maintenance mode,
+firmware flashing and speculative
+print data.
+
+Sources:
+- Brother MFC-290C original USA/CAN
+  Quick Setup Guide, p. 1 and p. 15:
+  https://download.brother.com/welcome/doc002385/cv_mfc290_usaeng_qsg.pdf
+- Brother model-specific USB socket
+  location FAQ:
+  https://support.brother.com/g/b/faqend.aspx?c=us&faqid=faq00000557_002&lang=en&prod=mfc290c_all
+- Brother SM-FAX098, §6.1.11,
+  model-group main PCB wiring diagram:
+  https://device.report/m/c3cad35b9030f141dce394f89ecb8b13f556c5b14102394ef510afea58e731ac
+- USB-IF *USB Device Class Definition
+  for Printing Devices*, §§3.1–3.2,
+  4.2 and 5.4:
+  https://www.usb.org/sites/default/files/usbprint11a021811.pdf
+
 The **front USB Direct / PictBridge port** is a different USB role:
 the machine is the **host** for an inserted USB flash drive or a
 compatible digital camera. The original MFC-290C user guide
@@ -990,8 +1100,9 @@ Sources:
 | **Copy** | Select standalone copy mode | Panel PCB -> main firmware -> CIS scan + local raster/inkjet print engine; a copy need not be a USB print job |
 | **Photo Capture** | Select local PhotoCapture Center mode | Panel PCB -> main firmware -> media/card interface and inkjet engine. The manual also documents access to inserted media from a computer, but **USB mass-storage or vendor-protocol binding is unverified** |
 
-**Do not merge the machine's two USB roles:** the rear connector
-enumerates as the Brother `04f9:01fd` **USB device** on macOS;
+**Do not merge the machine's two USB roles:** the internal
+computer-facing **USB-B connector** enumerates as the Brother
+`04f9:01fd` **USB device** on macOS;
 the front photo/card/USB flash/PictBridge facilities concern
 **locally inserted media**, which the device may also expose as
 a **legacy read/write Removable Disk** through its separate
@@ -1741,7 +1852,7 @@ a particular manufacturer's IC is fitted.**
 | **2** | Shared color **CIS** and acquisition front end, one glass/ADF imaging assembly, RGB LEDs, CIS stepper and separate ADF motor | **12-wire CIS flat cable; CIS type stored in EEPROM** (SM-FAX098 §§6.1.11, 9.1.4.19). No sensor/ADC/driver IC marking. WIA `BrScnUsb` and INI `Model=23` remain software clues, not chip numbers |
 | **3** | `B53K967` MJ/telephone path (US/CAN assembly `LT0405001`) plus MODEM/SDAA on controller diagram | **Regional MJ schematic now names a relay `A5X-G-24E-908` and diode `1SS120`; actual fitted parts and main-board modem/SDAA silicon not confirmed** |
 | **4** | **Piezoelectric head-driver IC on printhead flex**, plus carriage/paper-feed/ASF DC and scanner/ADF stepping-motor driver functions | **Location and motor functions documented; individual controller/driver ICs unnamed** |
-| **5** | Rear **USB Full-Speed** device connection and separate front USB **host**/PhotoCapture/card functions | USB transceiver, host/controller and card reader may be **ASIC-integrated or discrete**; 3 reported USB interfaces cannot establish IC count |
+| **5** | Internal **USB-B Full-Speed** computer-facing device connection (cable exits rear) and separate front USB **host**/PhotoCapture/card functions | USB transceiver, host/controller and card reader may be **ASIC-integrated or discrete**; 3 reported USB interfaces cannot establish IC count |
 | **6** | `LT0520001` upper-cover speaker, `LS5334001` spring, and **2-wire harness directly to main PCB** | **Speaker is model-backed**; gain/driver IC or discrete stage and modem audio source remain unknown. Do not invent a separate USB audio interface |
 | **7** | `B53K976` panel and `LT0416001` US/CAN PSU candidates | Valid **assembly** targets, but no proof of separate panel MCU or specific power-controller chip |
 
@@ -2122,7 +2233,7 @@ as verified.
 **Current USB receive-chain hypothesis (not a verified circuit trace):**
 
     macOS host USB transaction
-        -> rear MFC-290C USB device connector (USB 2.0 Full-Speed)
+        -> internal MFC-290C USB-B device socket (cable exits rear; Full-Speed)
         -> USB device transceiver / protocol controller (unknown IC)
         -> main ASIC / firmware command handling (candidate)
         -> SDRAM/ROM and function-specific print, CIS scan or PC-FAX path
