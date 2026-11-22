@@ -33,14 +33,16 @@ a Part 68/ACTA telephone-equipment product label and the USB VID/PID.
 | --- | --- | --- |
 | Brother US User's Guide, Safety and Legal, pp. 89-91 | MFC-290C is declared compliant with FCC Part 15 as a Class B digital device | Emissions compliance does not establish an FCC radio-transmitter ID, WLAN hardware or USB interface behavior |
 | Same guide, p. 89 | Part 68/ACTA telephone-terminal requirements; standard USOC RJ11C line connection | Applies to the analog LINE / telephone-network path, not a PC serial modem or USB CDC/ACM interface |
-| Same guide, p. 89 | Rear equipment label carries an ACTA-formatted US product identifier, shown in the guide as `US:AAAEQ##TXXXX`; the `##` digits encode REN in tenths | This is a **format example**, not the machine's recovered exact identifier or REN. Do not synthesize either |
+| Same guide, p. 89 | Rear equipment label carries an ACTA-formatted US product identifier, shown in the guide as `US:AAAEQ##TXXXX`; the `##` digits encode REN in tenths | **User-observed REN is `REN(US): 0.0B`, but the complete ACTA `US:` product identifier remains unread/unverified.** Do not synthesize an identifier |
 | Historical Canadian record `1112C-8CAG13`, approved 2008-04-18 | Legacy Industry Canada listing names both MFC-250C and MFC-290C | Canadian approval ID is **not** an FCC ID; family listing does not prove identical boards or firmware |
 | FCC 2003 Public Notice DA 03-1061; ACTA filing database | Part 68-approved telephone equipment is listed with ACTA; the approval may use a TCB or supplier declaration | ACTA is the appropriate next US registration search; do not misinterpret the FCC's radio-device filing database as the sole authority for this fax machine |
 
 **Verification status:** Brother's user guide establishes the existence
 and expected *format* of the rear telephone-equipment label. An
-authenticated exact MFC-290C US product-identifier/REN value has **not**
-been recovered or verified against a physical label. No MFC-290C-specific
+authenticated full MFC-290C ACTA `US:` product identifier has **not**
+been recovered; the user has now directly read **`REN(US): 0.0B`**
+on the exterior label. The REN is an observed, manufacturer-marked
+analog ringing-load rating rather than an independently measured value. No MFC-290C-specific
 public FCC radio equipment authorization, internal photo exhibit, USB
 firmware image, main-ASIC pinout or vendor command list was established
 from these regulatory documents. This negative finding is a search
@@ -49,7 +51,8 @@ boundary, **not** proof that those materials can never exist.
 **Next safe evidence pass:**
 
 1. Inspect an authentic MFC-290C US rear rating label for the
-   `US:` Part 68/ACTA identifier and REN. Keep serial numbers,
+   still-unverified full `US:` Part 68/ACTA identifier; **the separate
+   `REN(US): 0.0B` has now been observed**. Keep serial numbers,
    owner information and other per-unit identifiers out of public logs.
 2. Search ACTA's [Filing Search](https://part68.org/filing-search/)
    with the verified label/product ID, model and responsible party.
@@ -85,6 +88,71 @@ label, an `ACTA US:...` telephone registration string, a
 or the installed PCB assembly revision. Do not silently change
 "not seen" to "absent from the whole unit".
 
+**New model-label observation (2026-11-21):** The same
+unit's exterior regulatory label reads **`REN(US): 0.0B`**
+and **`MADE IN CHINA`**. The first is a **US
+telephone-line ringing-load declaration**; the latter
+states the **country of manufacture**, *not* the
+country of sale, regulatory destination, installed
+firmware region, language or chipset. This is
+consistent with Brother's June 2008 `MFC-290CZ`
+parts-list **sample rating label**, which explicitly
+shows `MADE IN CHINA` alongside US-style
+FCC/UL and 100–120 V information. That exemplar
+is *not* evidence the user's machine is the
+`Z` Energy Star variant; the parts list says
+`Z` models carry an extra `Z` on their rating
+labels, which has not been reported for this unit.
+
+**Correct REN interpretation:** The **Ringer
+Equivalence Number** is a line-loading rating
+used to estimate whether multiple attached devices
+can still respond to telephone ringing. In the
+`0.0B` label, `0.0` is the published
+one-decimal load rating: it need **not** mean
+literally zero current, a nonexistent ringer,
+or inability to detect incoming calls.
+`B` is **ringer type B**, not a board revision,
+US variant code, PCB identity, fax modem generation
+or USB interface. ACTA's official guidelines
+identify the trailing type letter; historical ACTA
+submission forms describe type B as applying
+over about **15.3–68 Hz** and allow `0.0`
+when the calculated REN is below `0.05`.
+The **`(US)`** qualifier strengthens
+US *PSTN compatibility*, **not US-exclusive
+retail distribution**, and does not eliminate
+Canada from the product's approved market
+history. The remaining full `US:` ACTA
+product identifier is **not supplied**; never
+derive its code from just the REN.
+
+**Hardware boundary:** This rating applies
+to the **LINE / EXT. analog telephone
+interface** and the service-manual
+**MODEM/SDAA/MJ PCB (`B53K967`)**
+investigation. It provides a regulatory
+test requirement for line ringing load;
+it does **not** establish the physical
+ring detector, DAA chip, relay, analog
+impedance parts, firmware region, scanner
+commands, USB endpoints or print/scan
+capabilities. It cannot be used to infer
+a specific chip from the `0.0B` value.
+
+Sources for these new observations' interpretation:
+- ACTA *Submission Guidelines*, Revision 5
+  (2018), item 13a, type-letter format:
+  https://part68.org/wp-content/uploads/2018/09/acta-submission-guidelines-revision-5.pdf
+- Historic ACTA TTE submission form,
+  item 13a (type B 15.3–68 Hz and
+  `0.0` below `0.05`):
+  https://studylib.net/doc/7570212/tte-submission-form-version-1.08
+- Brother *Parts Reference List*, PL-FAX154
+  (June 2008), front-matter MFC-290CZ
+  label and regional variant notes:
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+
 **US regional assessment:** The FCC mark is affirmative **US
 regulatory evidence**, consistent with the MFC-290C's explicit
 **FCC Part 15** declaration in Brother's original
@@ -116,6 +184,8 @@ for this user's unit.
 | Physical observation | Evidence strength for US-versus-Canada | Do not infer |
 | --- | --- | --- |
 | FCC logo | Positive US compliance evidence; makes US-market configuration plausible | No Canadian support/certification |
+| `REN(US): 0.0B` | Direct US telephone-network ringing-load label; stronger PSTN-specific evidence | A US-exclusive model, modem chip identifier, or exact ACTA `US:` registration number |
+| `MADE IN CHINA` | Manufacturing country; independently matches Brother's 2008 example label | Chinese retail/firmware variant or Chinese-market PSU |
 | UL logo | Safety-certification indication, country modifier unresolved | US-only listing, installed controller/ASIC or PSU type |
 | Brother logo | Manufacturer identity | Destination market |
 | No visible Canada/IC text in inspected area | Weak negative observation, useful prompt to inspect the **complete** label | Canadian-market model excluded |
@@ -123,7 +193,7 @@ for this user's unit.
 | `Machine SN`, 15-character code | Confirmed private serial | `U` means United States; another machine model |
 
 **Current classification:** **North American hardware strongly
-supported; US-market leaning on observed FCC presentation;
+supported; US-market leaning on observed FCC and US-specific REN presentation;
 country-exclusive US variant not verified**. The 2008
 parts list intentionally groups **`US` and `CAN`**
 for the `LT0416001` MFC-290C PSU assembly, so it
@@ -137,8 +207,9 @@ or USB binding rules.
 **Most discriminating safe follow-up:** Without
 opening or powering the unit, read the **complete
 UL mark including tiny `C`/`US` modifiers**
-and the **telephone-equipment registration text**
-elsewhere on the exterior label, if present.
+and the **complete ACTA `US:` telephone-equipment
+registration identifier** elsewhere on the exterior label,
+if present; the separate REN has already been read.
 A `US:` ACTA Part 68 format would authenticate
 a US telecommunications compliance record, but
 would **not by itself guarantee US-only sale**.
