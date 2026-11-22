@@ -73,6 +73,94 @@ Sources:
 - Legacy Canadian model record:
   https://fccid.io/1112C-8CAG13
 
+### Observed FCC/UL/Brother label and US-versus-Canada screening (2026-11-21)
+
+**User's direct observation (physical machine):** A regulatory/manufacturer
+label **above the separate `Machine SN` label** displays
+**FCC, UL and Brother logos**. The user sees **no obvious Canadian
+symbol or text** in the inspected area. The observation does **not**
+include a complete transcription or photograph of the entire regulatory
+label, an `ACTA US:...` telephone registration string, a
+`cUL`/`cULus` modifier, `IC:`/`ICES-003` Canadian identifier
+or the installed PCB assembly revision. Do not silently change
+"not seen" to "absent from the whole unit".
+
+**US regional assessment:** The FCC mark is affirmative **US
+regulatory evidence**, consistent with the MFC-290C's explicit
+**FCC Part 15** declaration in Brother's original
+**USA/CAN User's Guide, printed pp. 90–91**. That same
+Brother manual includes a **separate Industry Canada
+compliance statement on p. 91**. Therefore a visible
+FCC mark and a manual containing US regulatory language
+do **not alone exclude Canadian-sale MFC-290C machines**.
+The Brother logo identifies the manufacturer, not market;
+the `Machine SN` heading confirms per-unit serial
+identity, not country. Previously observed `I.T.E. 1T22`
+belongs to a safety-listing context, not a model code
+or a USB command.
+
+**UL nuance:** Under UL's official legacy marking
+conventions, a standalone `UL` mark, a mark with
+`C` (Canadian approval) or `C` + `US`
+(dual US/Canadian approval) have **distinct
+certification scopes**. A small letter can appear
+**beside** the logo rather than being an obvious
+separate Canadian logo. The user's generic observation
+"UL logo" does not yet resolve whether there is a
+small `C`, `US`, `LISTED` or a UL file number.
+Any valid certification claim requires reading the
+**full original mark**, not extrapolating from the
+logo alone. No UL listing file has been authenticated
+for this user's unit.
+
+| Physical observation | Evidence strength for US-versus-Canada | Do not infer |
+| --- | --- | --- |
+| FCC logo | Positive US compliance evidence; makes US-market configuration plausible | No Canadian support/certification |
+| UL logo | Safety-certification indication, country modifier unresolved | US-only listing, installed controller/ASIC or PSU type |
+| Brother logo | Manufacturer identity | Destination market |
+| No visible Canada/IC text in inspected area | Weak negative observation, useful prompt to inspect the **complete** label | Canadian-market model excluded |
+| `100–120V`, `50/60Hz`, `0.5A` | Strong North American electrical-range match | US rather than Canadian PCB: Brother's `LT0416001` PSU candidate is **US/CAN** |
+| `Machine SN`, 15-character code | Confirmed private serial | `U` means United States; another machine model |
+
+**Current classification:** **North American hardware strongly
+supported; US-market leaning on observed FCC presentation;
+country-exclusive US variant not verified**. The 2008
+parts list intentionally groups **`US` and `CAN`**
+for the `LT0416001` MFC-290C PSU assembly, so it
+cannot settle one versus the other. Neither this
+marketing/regulatory inquiry nor the lack of a
+Canadian symbol warrants modifying the scanner
+INI `Model=23`, the `BrScnUsb` driver analysis,
+the VID/PID `04f9:01fd`, firmware assumptions
+or USB binding rules.
+
+**Most discriminating safe follow-up:** Without
+opening or powering the unit, read the **complete
+UL mark including tiny `C`/`US` modifiers**
+and the **telephone-equipment registration text**
+elsewhere on the exterior label, if present.
+A `US:` ACTA Part 68 format would authenticate
+a US telecommunications compliance record, but
+would **not by itself guarantee US-only sale**.
+Document the presence/absence of `IC:`,
+`CS-03`, `ICES-003` or comparable Canadian
+text only after checking the full exterior labeling.
+Do not share `Machine SN` or another per-unit
+identifier. No internal mains inspection, fax calls
+or Windows-driver installation is required.
+
+Sources:
+- Brother MFC-290C **USA/CAN** User's Guide,
+  *Safety and Legal*, printed pp. 89–91,
+  FCC Part 15/Part 68 and Industry Canada compliance:
+  https://www.bhphotovideo.com/lit_files/142624.pdf
+- UL Solutions, explanation of `UL`, `cUL`
+  and combined US/Canada certification indicators:
+  https://www.ul.com/thecodeauthority/knowledge/product-certification-marks-for-firestop-systems
+- Brother PL-FAX154 June 2008 model/region
+  and PSU assembly cross-reference:
+  https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf
+
 ## Rear rating-label frequency and power PCB variants (2026-11-21)
 
 **Updated physical-label observations (2026-11-21):** The user has
