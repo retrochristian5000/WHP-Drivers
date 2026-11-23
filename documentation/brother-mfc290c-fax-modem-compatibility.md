@@ -89,6 +89,37 @@ References:
 - [Brother PC-FAX (CUPS) quality documentation](https://support.brother.com/g/b/faqend.aspx?c=in&faqid=faq00100716_000&lang=en&prod=fax2820_us_as)
 - [Brother MFC-290C specifications](https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all)
 
+## Reported PDD InstalledMemory entry (2026-11-23)
+
+**User-reported exact line, from the same source they call PDD; filename and whole file not yet inspected:**
+
+```text
+*InstalledMemory Memory: "8,72,8"
+```
+
+**PPD-like syntax (grounded):** In Adobe PPD, `*InstalledMemory` is a standard keyword to represent an installed-memory *configuration*; its option name normally matches a `*VMOption` entry so the renderer can estimate free PostScript VM. Microsoft shows examples such as `*InstalledMemory 72Meg/72 MB Total RAM: ""` as distinct **choices**. Here the option token is literally `Memory` and the quoted **invocation** is literally `8,72,8`: it does **not** match those standard memory-choice examples. A PPD normally treats the quoted portion as an invocation string, not an automatically interpreted list of installed RAM values.
+
+**Open hypotheses, not evidence:**
+- A vendor-specific range format **might** represent minimum 8, maximum 72, increment 8, but **neither the units nor triplet semantics nor which host component reads it are established**.
+- If the hypothetical unit were MiB and the triplet were a range, 32 MiB is an allowed numeric point. This is a **numeric consistency check only**, not proof that the file encodes the 290C's true RAM, memory expansion, spool buffer size, fax-page quota, or SRAM/DRAM arrangement.
+- This might be a PDD-like vendor configuration keyword whose meanings differ from Adobe PPD conventions; preserve the exact extension and header before assigning any parser.
+
+**Independent hardware check:** Brother's model-specific [MFC-290C specification](https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all) explicitly gives **32 MB Memory Capacity**, while it documents PC-FAX **sending**. A separate fax-memory test-chart page rating should not be converted into raw uncompressed image storage. The source line does not contradict or replace the documented 32 MB hardware rating; how that RAM is partitioned among printing, scanning, modem and firmware remains unestablished.
+
+**Safe next checks:**
+
+1. Obtain the original `.pdd` or `.ppd` file with path, size, package version and checksum; inspect `*PPD-Adobe:` if present, and both adjacent settings `*Resolution 200dpi: ""` and `*InstalledMemory Memory: "8,72,8"` without silently normalizing the syntax.
+2. Find any `*OpenUI *InstalledMemory`, `*DefaultInstalledMemory`, `*VMOption`, `*FreeVM`, `*?InstalledMemory`, and `*OrderDependency` **when present**; absent entries remain absent.
+3. Identify the component that parses/consumes the triplet (PostScript renderer, CUPS/PPD consumer, Brother filter, spooler helper); the unusual payload must **not** be copied into a USB command or assumed to be a PostScript operation.
+4. Only after the format is verified, create read-only/offline parser fixtures with malformed data, no network or printer use. Keep memory configuration separate from fax encoding, on-device memory allocation, USB transfer limits and caller-confirmed transmission status.
+
+**Finding:** PPD-standard keyword semantics are verified, exact `8,72,8` interpretation is **unverified**. No firmware command, memory size or functional fax feature is inferred from this line.
+
+References:
+- [Microsoft, autoconfigure the printer's memory for PPD](https://learn.microsoft.com/en-us/windows-hardware/drivers/print/autoconfigure-the-printer-s-memory-for-ppd)
+- [Adobe PPD file format specification](https://web.mit.edu/PostScript/Adobe/Documents/5003.PPD_Spec_v4.3.pdf)
+- [Brother MFC-290C official specifications](https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all)
+
 ## Proposed components (strictly separate responsibilities)
 
 ```text
