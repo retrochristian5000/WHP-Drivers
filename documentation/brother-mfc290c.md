@@ -341,6 +341,49 @@ Primary documentation:
   (North American input range):
   https://www.brother-usa.com/-/media/brother/product-catalog-media/documents/2020/08/17/10/11/um_mfc_250c_290c_es_1772.pdf
 
+### Rear-port geography: AC inlet near LINE/EXT and MJ/PS shielding (2026-11-23)
+
+**New physical observation (user report):** The MFC-290C's rear **AC power cord/inlet is close to the two telephone connectors** `LINE` and `EXT.`. This external geography is a legitimate **board-location clue**, but proximity is **not** proof that AC mains flows through the fax/SDAA PCB or that the SDAA and power controller are a single IC.
+
+**Stronger original model-family evidence:** Brother's June 2008 `SM-FAX098` includes the MFC-290C and documents the following distinct components and paths, inside or around the **MJ/PS shield unit**:
+
+| Component or cable | Original-document locator | Supported path / role | Still unknown |
+| --- | --- | --- | --- |
+| **Power-supply PCB** | §3.3.1 and §6.1.12; Appendix 6 **100 V-series** schematic | AC power cord enters the **power-supply area**, with a dedicated **PS PCB insulator** and **power-supply shield** | Exact installed PSU assembly and components on this unit; actual secondary rail levels |
+| **Power-supply harness** | §6.1.11–12; **Routing I**, manual viewer pp. 238–242 and 284–286 | **Separate wiring to the main PCB** (model-group wiring: **5 conductors**) | Actual main-board downstream regulators, SDAA supply pins or power budget |
+| **MJ (modular-jack) PCB** | §6.1.12; Appendix 6 MJ diagrams for relevant region | `LINE` and `EXT.` jacks and line-side protection / relay / external-phone switching | SDAA actual package location and manufacturer; exact contacts and relay truth table |
+| **Main–MJ (LINE) harness** | §6.1.11–12, Routing I | Separate `LINE` cable, labeled **yellow** in the original diagram | Specific net-to-SDAA package pin linkage |
+| **Main–MJ (EXT.) harness** | §6.1.11–12, Routing I | Separate `EXT.` cable, labeled **black** in the original diagram | Exact regional pin count and switched/contact path |
+| **Shared MJ/PS shielding, cable guides, ferrite core, insulation** | §6.1.12 assembling notes, Routing I | Explains why **mains and telephone connectors are geographically adjacent** while being managed as distinct wiring systems | Exact electromagnetic coupling/clearances in this one serial-numbered machine; no passive or active chip identity |
+
+**Evidence-based routing hypothesis (topology only, not full netlist):**
+
+```text
+rear AC cord/inlet -> PS PCB [primary mains zone]
+                         |
+                       AC/DC conversion, isolation
+                         |
+                 separate PSU harness
+                         |
+                     main PCB -> regulated downstream supplies -> SDAA / MODEM
+                         |                                       (unmapped)
+rear LINE + EXT. -> MJ PCB [telephone-line zone] -> line harnesses
+                         |                                  |
+                         +-------------------------------> main PCB / SDAA
+                    shared mechanical shield assembly, distinct circuits
+```
+
+**Important correction:** The manual documents that **the AC power is routed to the power-supply PCB, not through the MJ telephone PCB as a required series stage**. The fax circuit does need operating power from the machine's converted supply, so regulated **DC** may later reach the modem/SDAA from the main PCB. Shared mechanical shielding, chassis references or noise-control components do **not** establish a direct mains power path through the fax PCB. Do not claim perfect galvanic separation at every node without inspecting the matching schematics.
+
+**Chip-filter implications:** This topology **does not eliminate any SDAA manufacturer solely by placement near AC**, and a candidate chip does **not** need to handle **100–120 VAC** directly. Instead check (1) which side of the MJ/PS shield the candidate package sits on, (2) whether it has documented line-side isolation and the correct signal/relay interface, (3) **actual secondary supply** and logic requirements versus an authenticated original-board schematic, and (4) physical board marking. The US/CAN **power-supply assembly candidate `LT0416001`**, **MJ board `B53K967`/`LT0405001`**, and **main board `B53K961`/`LT0288051` or early-US `LT0288052`** remain **different PCB/assembly identifiers**, not SDAA chip part numbers. The user has not yet physically authenticated any of these assembly labels.
+
+**High-value, low-cost next step:** Inspect **existing** service-manual viewer **pp. 238–242 and 283–286** (MJ/PS unit and harness routing), **p. 519** (MFC-290C/250C wiring) and **pp. 521 and 524** (US-region MJ and 100-V PSU schematics). Compare **unpowered archival board photographs** if available. Trace the AC cord to PS PCB and the two separate MJ harnesses to the main PCB, then seek an **SDAA package top marking**; record each circuit independently. Do **not** remove covers or measure a live or recently unplugged PSU merely to verify this: hazardous stored charge and telephone ring voltage can persist. No physical continuity test, powered measurement, device reset or USB fax traffic was performed.
+
+Sources:
+- [Brother SM-FAX098 service manual (MFC-290C included), §§3.3.1, 6.1.11–12, Routing I and Appendix 6](https://www.manualslib.com/manual/736209/Brother-Mfc990cw.html) — manual viewer pp. **122, 238–242, 283–286, 519, 521, 524**
+- [Brother PL-FAX154 MFC-290C parts-list PCB assemblies](https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf)
+- Cross-reference the existing **SDAA topology and LINE/EXT chip filters** in the [main-PCB research section](#modemsdaa-chip-identification-gates-2026-11-23) and the [power rail/ASIC filter](#asic-voltage-compatibility-mains-versus-downstream-dc-2026-11-21).
+
 ### ASIC voltage compatibility: mains versus downstream DC (2026-11-21)
 
 **User question:** Can the MFC-290C's observed
