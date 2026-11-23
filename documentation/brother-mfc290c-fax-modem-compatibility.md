@@ -120,6 +120,54 @@ References:
 - [Adobe PPD file format specification](https://web.mit.edu/PostScript/Adobe/Documents/5003.PPD_Spec_v4.3.pdf)
 - [Brother MFC-290C official specifications](https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all)
 
+## Reported PDD PrinterCaps entry (2026-11-23)
+
+**Exact user-reported line, from the same file called PDD; original file, format, package/version, and surrounding lines not yet recovered:**
+
+```text
+*PrinterCaps: "33292"
+```
+
+**What is established:** The record has PPD-like `*keyword: "value"` syntax. The value is the decimal digit string `33292`. Published CUPS PPD extensions and Microsoft PPD feature documentation inspected so far **do not establish a standard `PrinterCaps` mapping or define the bit meanings for this value**. It is a *candidate* vendor-specific capability or mode attribute, not authenticated proof that it describes fax feature flags, printer memory, modem speeds, model identity, color modes, installed options, or USB protocol.
+
+**Representation only, not semantic decoding:**
+
+```text
+decimal:      33292
+hexadecimal:  0x820C
+binary:       1000 0010 0000 1100
+set positions (if treated as an unsigned bitmask): 15, 9, 3, 2
+set masks:    0x8000 | 0x0200 | 0x0008 | 0x0004
+```
+
+These bit positions are arithmetically correct, but `PrinterCaps` may not be a bitmask at all. **Never interpret `0x820C` using Windows `PRINTER_ATTRIBUTE_*` values** just because the PC-FAX INF has `Class=Printer`. The Windows runtime `PRINTER_ATTRIBUTE_FAX` flag is a different, separately documented context; its presence or absence cannot be inferred from this arbitrary file value.
+
+**Context with the other exact user-reported lines (same file, not proof of shared semantics):**
+
+```text
+*Resolution 200dpi: ""
+*InstalledMemory Memory: "8,72,8"
+*PrinterCaps: "33292"
+```
+
+The first looks like a PPD resolution choice, the second uses a standard-like keyword with an unusual triplet invocation, and the third is an as-yet unidentified capability value. No one entry may be used to decode the others without evidence of the consuming driver/filter implementation. Keep the actual original record order when the file is acquired rather than assuming these snippets were adjacent.
+
+### Targeted next offline checks
+
+1. Acquire the unmodified original `.pdd` or `.ppd` (as actually named), preserve hash, file header and driver release, and locate `*PrinterCaps:` in context. Do not silently rename `PDD` to `PPD`.
+2. Search the **authentic driver package** and available source, symbols, imports, and config text for the literal `PrinterCaps` and numeric `33292` (decimal), `820C` (hex), or endianness-appropriate byte patterns **only when evidence suggests binary storage**. Keep false matches separate.
+3. Look for the same key across *verified* sibling model files: MFC-250C and MFC-290C first; compare fax-capable MFC-490CW against faxless DCP controls from the parent ledger. A differing numeric value is only a correlation until tied to a known feature or code path.
+4. If a real decoder/consumer is discovered, document numeric type, width, signedness, units or bit definitions, version applicability, and effect on *host rendering vs. fax transport*. Require independent validation before enabling any feature based on it.
+5. Only then build an **offline parser fixture** that preserves the exact numeric string, validates any allowed range and reports unresolved bits without silently enabling features. No CI dialing, phone-line use, unsolicited printer traffic, or speculative USB vendor commands.
+
+**Status:** Syntax and arithmetic recorded. No `PrinterCaps` semantics, modem compatibility, USB fax opcodes, or physical fax operation are established by this field.
+
+References:
+- [Microsoft PPD features](https://learn.microsoft.com/en-us/windows-hardware/drivers/print/ppd-features)
+- [CUPS PPD extensions](https://www.cups.org/doc/spec-ppd.html)
+- [Microsoft PRINTER_INFO_2 attributes (separate runtime concept)](https://learn.microsoft.com/en-us/windows/win32/printdocs/printer-info-2)
+- [Brother MFC-290C PC-FAX specifications](https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all)
+
 ## Proposed components (strictly separate responsibilities)
 
 ```text
