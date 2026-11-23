@@ -17,6 +17,47 @@ This is a focused continuation of [the MFC-290C protocol ledger](brother-mfc290c
 
 **Important distinction:** An analog fax signal can traverse compatible VoIP telephone equipment on the LINE side. This says nothing about whether the Brother's USB side exposes its modem as a general-purpose serial or data modem. Fax interoperability over Spectrum Voice likewise does not establish USB modem commands.
 
+## Windows PC-FAX Printer-class INF finding (2026-11-23)
+
+**Observation (user-reported, not independently recovered from the original installer):** A PC-FAX `.inf` reportedly has `[Version]` / `Class=Printer`. The exact INF filename, model entry, package version, OS target, and `ClassGuid` were **not provided**. Preserve this as a reported installation fact pending the authentic file; do **not** claim its full contents have been inspected.
+
+### Meaning and boundaries
+
+- `Class=Printer` selects the **Windows Printer device setup class**, not an assertion that paper is the final output. Microsoft's defined Printer class GUID is `{4D36E979-E325-11CE-BFC1-08002BE10318}`. A physically multifunction Brother can expose a **fax-as-print-queue** destination; Microsoft explicitly describes partner fax drivers appearing as print queues.
+- The INF setup class is **not USB `bInterfaceClass=07`**, not `Class=Modem`, and not evidence for USB CDC ACM, Hayes AT commands, a serial COM port, a Class 1 or Class 2 modem, PC-FAX reception, or direct access to the Brother's analog modulator.
+- Brother explicitly tells MFC-290C PC-FAX users to select **Brother PC-FAX as the printer** in the application's Print dialog, independently confirming a print-queue user workflow. A Windows print job may be rendered/processed and passed to vendor components; its actual Brother USB stream remains unauthenticated.
+- Microsoft's `PRINTER_ATTRIBUTE_FAX` is a **runtime print-queue attribute** supported since Windows XP, **not something proved present by `Class=Printer` in an INF**. Query it on a real installed printer before claiming the queue sets it. Never assume the same capability or APIs on Windows 95 or DOS.
+
+### Revised priority: spooler first, optional modem facade later
+
+```text
+Windows document -> Brother PC-FAX print queue -> spooler and Brother filter/
+driver -> verified outbound Brother PC-FAX USB job (still unknown)
+                                              -> fax engine -> LINE
+Other modem-only fax software -> optional virtual serial compatibility adapter
+                              -> same verified outbound job backend, if compatible
+```
+
+The **printer-class finding raises the priority of recovering the printer/spooler pipeline** over building a fake modem. A generic application able to Print to a fax queue may need no virtual COM port. Programs which only accept `AT+FCLASS` and direct modem control still need a carefully scoped emulation layer, and low-level Class 1 behavior might not map to a queued Brother job at all.
+
+### Non-invasive, specific next checks on the authentic INF/package
+
+1. Preserve **INF path, checksum, vendor signature, software package/version, target Windows release**, and whether the entry belongs specifically to **Brother PC-FAX** rather than the ordinary MFC-290C paper-printing driver.
+2. In `[Version]`, record `Class`, `ClassGuid`, `Signature`, `Provider`, `DriverVer`. Confirm that `ClassGuid` actually corresponds to `Printer`; do not fill absent keys by guesswork.
+3. Inspect `[Manufacturer]`, decorated model sections, exact model name, hardware/compatible ID and any **null hardware ID** for a virtual printer. A null ID is a supported virtual-printer INF pattern, not a claim that Brother uses one.
+4. Identify declared `Include=ntprint.inf`, `Needs`, `DriverFile`, `ConfigFile`, `DataFile`, `PrintProcessor`, `LanguageMonitor`, `CopyFiles`, `AddReg`, dependencies and port/monitor assignments **where present**; don't invent entries. Separate UI/rendering, queue management and hardware transport.
+5. For a verified installed queue, record sanitized queue name, port name, driver name, print processor, datatype, and (where supported) `PRINTER_ATTRIBUTE_FAX`. Distinguish **enqueue accepted**, **delivered to device**, **fax call completed**. No recipient telephone numbers or private document contents in logs.
+6. Analyze one **offline, non-transmitting** PC-FAX spool/raster output and compare it with a paper-print job. Do not infer which USB interface carries fax data from `Class=Printer`, nor submit a real dial, reset or proprietary USB transfer during discovery.
+
+**Evidence status:** Installation-class interpretation and Brother's print-dialog workflow are documented; user-observed original INF snippet remains unverified until supplied; USB fax job content and virtual-modem compatibility remain open.
+
+Sources:
+- Microsoft [system-defined setup classes](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-available-to-vendors)
+- Microsoft [device experience for fax print queues](https://learn.microsoft.com/en-us/windows-hardware/drivers/print/device-experience-scenarios-for-document-devices)
+- Microsoft [virtual printers in INF files](https://learn.microsoft.com/en-us/windows-hardware/drivers/print/virtual-printers-in-printer-inf-files)
+- Microsoft [PRINTER_INFO_2 and `PRINTER_ATTRIBUTE_FAX`](https://learn.microsoft.com/en-us/windows/win32/printdocs/printer-info-2)
+- Brother [MFC-290C: select Brother PC-FAX as a printer](https://support.brother.com/g/b/faqend.aspx?c=in&faqid=faq00002726_000&ftype3=2014&lang=en&prod=mfc290c_all)
+
 ## Proposed components (strictly separate responsibilities)
 
 ```text
