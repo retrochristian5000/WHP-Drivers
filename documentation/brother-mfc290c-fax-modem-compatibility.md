@@ -177,6 +177,37 @@ References:
 - Public archive listings for *other Brother models* show `BRHOOK.DLL` inside `StatusMonitor/Brmfcmon/` (e.g. DCP-8040, MFC-8440) and `StatusMon/brownie/` (e.g. HL-2140). Treat these as **cross-model provenance leads only**, not byte-identical modules or installation proof for MFC-290C. Avoid downloading or executing third-party 'DLL fix' downloads.
 - Windows supports printer status through spooler **language monitors** and **port monitors** (optional, separate abstractions); Microsoft documents interface names `InitializePrintMonitor2`, `OpenPortEx`, `ReadPort`, `WritePort`, `GetPrinterDataFromPort`, and `SendRecvBidiDataFromPort`. **Do not assert `BRHOOK.DLL` exports any of them** until the actual PE export table and driver package references establish it. The filename 'HOOK' may describe a different kind of software hook.
 
+### USER32 CallNextHookEx: Windows-only hook-chain evidence (2026-11-23)
+
+**New user-reported static-analysis observation:** `BRHOOK.DLL` references/calls `CallNextHookEx` from `USER32.DLL`. The exact PE file, import table, disassembly and caller offsets have not yet been supplied. Preserve **import** and **executed call site** as distinct evidence levels: an import establishes a dependency/reference; an observed call instruction establishes a code path; neither alone proves which hook type or product status message is processed.
+
+**Documented Windows semantics:** `CallNextHookEx` passes hook information to the next procedure in an already existing **Windows hook chain**; it can be called before or after the local hook procedure handles the event. It does **not** itself register a hook, poll a printer, read a USB endpoint, or call a fax modem. Windows installs hooks with `SetWindowsHookExA/W` (possibly in another DLL or process). Without the registration call or callback body, **do not** label it a keyboard hook, global hook, printer monitor, fax hook, or status transport.
+
+**Consequence for our investigation:** The `USER32` dependency strengthens a hypothesis of **Windows application/UI-side event processing** inside `BRHOOK.DLL`; it weakens the case for treating this specific function as the underlying Brother **USB communication protocol**. It does not rule out other hardware-related behavior elsewhere in this DLL or another module.
+
+**Read-only Windows follow-up:**
+1. Inspect the exact DLL's PE import table for `CallNextHookEx`, `SetWindowsHookExA/W`, `UnhookWindowsHookEx` and any callback registration or module loading. Preserve absence as an actual negative finding when checked.
+2. Identify references/call sites to `CallNextHookEx` and how their hook procedure handles `nCode`, `wParam`, `lParam` and return values; this distinguishes routine chain forwarding from actual status logic.
+3. Search installer files and sibling DLL imports for who registers/loads the hook, and trace **data source -> processing -> UI notification** only where verified. Cross-reference real printer/spooler and fax-status APIs rather than assuming they are implemented by this hook.
+4. Keep static analysis offline; no DLL execution/injection, `SetWindowsHookEx` experiment, device seizure, or real fax calls are needed.
+
+**macOS isolation/portability:**
+- **Do not port `CallNextHookEx` or `USER32.DLL` to macOS.** Keep it confined to an optional Windows UI compatibility component, if eventually necessary.
+- Implement status as a host-neutral event/status model **after authenticated status provenance**: `device_present`, `printer_ready`, `ink_or_paper_warning`, `fax_queued`, `fax_sent_to_device`, `fax_delivery_confirmed`, `unknown`. These are prospective software categories, not Brother device codes.
+- On macOS, use **IOKit device-matching/removal notifications** for USB presence, **CUPS/IPP queue and job status** for the print/fax spooler, and **native application notifications/IPC** to deliver state to a UI. These are separate from **Brother-specific device readback**, which remains unknown until actual status bytes are recovered.
+- Prefer a user-space observer/spooler integration when sufficient; do not introduce a kernel extension or DriverKit extension solely to replace a Windows message hook. If a native USB transport driver is later needed, evaluate macOS's supported interfaces/entitlements on that evidence, preserving the existing read-only probe boundary.
+- **Guard against false success:** printing/spooler job completion, USB connected state, or Windows UI callback activity must never be mapped to `fax_delivery_confirmed` without authenticated fax status.
+
+**Next discriminating evidence:** The function(s) in `BRHOOK.DLL` that **call** `CallNextHookEx`, plus the presence/absence and callers of `SetWindowsHookExA/W`, rather than more generic status-monitor filenames.
+
+References:
+- [Microsoft: CallNextHookEx](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-callnexthookex)
+- [Microsoft: SetWindowsHookExW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowshookexw)
+- [Microsoft: About hooks](https://learn.microsoft.com/en-us/windows/win32/winmsg/about-hooks)
+- [Apple: IONotificationPortCreate](https://developer.apple.com/documentation/iokit/1514480-ionotificationportcreate)
+- [CUPS: Filter and backend programming](https://apple.github.io/cups/doc/api-filter.html)
+- [CUPS: IPP and job-state interfaces](https://openprinting.github.io/cups/doc/cupspm.html)
+
 ### Evidence triangulation plan (read-only, no DLL execution)
 
 1. Preserve exact DLL path, file size, SHA-256, Microsoft PE machine type (x86/x64), timestamp, company/version resources, and Authenticode signature status where available. Do not copy untrusted DLLs to system directories or register/load them as a diagnostic.
