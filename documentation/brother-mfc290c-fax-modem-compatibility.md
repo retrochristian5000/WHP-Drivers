@@ -208,6 +208,29 @@ References:
 - [CUPS: Filter and backend programming](https://apple.github.io/cups/doc/api-filter.html)
 - [CUPS: IPP and job-state interfaces](https://openprinting.github.io/cups/doc/cupspm.html)
 
+### Brother export `SetBrHook` (2026-11-23)
+
+**New direct user observation:** The user's copy of `BRHOOK.DLL` exports a function with the exact name `SetBrHook`. This strengthens the case that the module deliberately exposes a **Brother-named Windows integration API**. It **does not** yet establish the DLL's precise model/package identity, the function prototype, whether it installs a Windows hook, or any fax/USB function. Its PE file, full export listing, ordinal, forwarding information, and function code have not yet been supplied or independently inspected.
+
+**Windows API interpretation:** An exported DLL function may be reached by a normal import or dynamically via `GetProcAddress`. Microsoft documents a common Windows-hooks design where a DLL exposes its own *installation function* to call `SetWindowsHookEx` internally. Therefore `SetBrHook` **could** be such a wrapper, particularly alongside the earlier `USER32!CallNextHookEx` import/call observation, but **the name alone is insufficient** to assert that it installs hooks; a callback itself, a helper, or even a forwarder are alternative cases to check.
+
+**Next read-only evidence pass, prioritized:**
+
+1. Preserve exact original DLL file path, SHA-256, package version/model association, bitness, and the export row **name, ordinal, RVA and forwarded/non-forwarded status**. Prefer `llvm-readobj --file-headers --coff-exports --coff-imports BRHOOK.DLL` or `llvm-objdump -p BRHOOK.DLL` without executing the DLL.
+2. Locate the export's RVA in disassembly (or inspect any export forwarder) and obtain a **real call graph** for `SetBrHook`: arguments, calling convention, return value, globals or stored `HHOOK` handle, references to `SetWindowsHookExA/W`, `UnhookWindowsHookEx`, `CallNextHookEx`, and window-message APIs. None of these symbols is asserted present except the user-reported export and earlier `CallNextHookEx` observation.
+3. Search original, authenticated companion EXE/DLL files and installation scripts for an import or `GetProcAddress("SetBrHook")`; determine **who calls it, when, and for what event**. A `SetBrHook` export in one DLL alone does not prove that the MFC-290C driver loads or uses that copy.
+4. Look for complementary Brother export names such as `ResetBrHook` or `BrHookproc` **as search candidates only**; avoid claiming they exist in the user's file until verified. If present, compare addresses and cross-references to reconstruct lifecycle while preserving negatives.
+5. Keep printer/ink/paper UI notifications separate from Windows spooler job states, device USB status, and **fax delivery acknowledgments**. A Windows event hook cannot be treated as a fax transport by name.
+
+**Cross-platform decision:** Retain `SetBrHook` as a **Windows-only optional UI/event adapter** until disassembly demonstrates actual portable business logic. A native macOS MFC-290C implementation should **not export a counterfeit `SetBrHook` or reproduce `USER32` hook chains** merely to be similar. Move any proven, OS-independent state interpretation into the shared status model; deliver it through macOS IOKit/CUPS and application-native notifications as appropriate. Continue to avoid a second status engine and never infer a delivered fax from a UI notification or print-queue completion.
+
+**Present status:** Export name **observed by user**, documented Win32 hook pattern **verified**, correspondence between the two **hypothetical**, driver-facing USB fax and readback commands **unknown**. This update changes no runtime code and requires no hardware I/O.
+
+References:
+- [Microsoft: GetProcAddress (resolve exported DLL functions)](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getprocaddress)
+- [Microsoft: Using Hooks (exported DLL installation-function pattern)](https://learn.microsoft.com/en-us/windows/win32/winmsg/using-hooks)
+- [Microsoft: CallNextHookEx](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-callnexthookex)
+
 ### Evidence triangulation plan (read-only, no DLL execution)
 
 1. Preserve exact DLL path, file size, SHA-256, Microsoft PE machine type (x86/x64), timestamp, company/version resources, and Authenticode signature status where available. Do not copy untrusted DLLs to system directories or register/load them as a diagnostic.
