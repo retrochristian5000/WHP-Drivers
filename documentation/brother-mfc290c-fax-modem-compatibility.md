@@ -251,6 +251,73 @@ References:
 - [Microsoft: Port monitors](https://learn.microsoft.com/en-us/windows-hardware/drivers/print/port-monitors)
 - [Microsoft: Installing a print monitor](https://learn.microsoft.com/en-us/windows-hardware/drivers/print/installing-a-print-monitor)
 
+## Microsoft Fax bridge feasibility (2026-11-23)
+
+**Scope:** Investigate a future interoperability bridge from Microsoft fax software to the **existing, still-unimplemented Brother MFC-290C monochrome PC-FAX send backend**. This is design/research only; no `faxdev.h` implementation, TAPI provider, virtual modem, fax registration, driver install or hardware test has been performed. Maintain the existing `main` branch and the model-specific USB/PC-FAX verification gates.
+
+### Two distinct Microsoft Fax generations
+
+| Platform | Native architecture | Candidate interoperability | Boundary |
+| --- | --- | --- | --- |
+| Windows 95 / 98 Microsoft Fax | Windows Messaging / Microsoft Exchange MAPI fax transport with locally configured fax modem and TAPI | Legacy MAPI fax transport integration or separately proven serial fax modem facade | **Do not reuse** Windows 2000+ Fax Service Provider API (FSP) as though it existed on Win95. The original MFC-290C Brother software did not target Win95. |
+| Windows 2000 / XP Windows Fax Service | System fax service, GDI/TIFF fax printer pipeline, `faxdev.h` FSP API, TAPI devices | **Prefer optional send-only FSP with a virtual fax device** attached to the same Brother PC-FAX backend | Fax Service is separate from Brother's printer queue; `Class=Printer` and selecting Brother PC-FAX do not register an FSP or modem |
+| Windows Vista / 7 / later Windows Fax and Scan | Windows fax-service infrastructure with fax-capable device/server requirements | Explore same FSP/virtual-device route only after OS/version and API availability tests | Do not claim every Windows SKU/version or CPU architecture supports custom providers; do not assume a regular USB all-in-one is a fax server |
+| macOS | No native Microsoft Fax Service / `faxdev.h` | Reuse **host-neutral** fax-job backend with a CUPS/native submission adapter | No reason to carry FSP, MAPI, TAPI, or Windows `BRHOOK.DLL` UI hooks into macOS |
+
+Historical Windows 95 Microsoft Fax setup requests a *fax device modem* through its Windows Messaging profile. The Microsoft Fax Service is documented for Windows 2000 onward. Microsoft and Brother both describe **print-to-fax** workflows but they are independently owned queues; printing a document through one does **not** register its destination as a device for the other.
+
+### Preferred Windows 2000+ architecture (FSP virtual fax device)
+
+```text
+Microsoft Fax / Windows Fax and Scan
+           |
+  Microsoft fax print/TIFF Class F job and fax service
+           |
+  WHP Windows FSP DLL (PROPOSED; NOT IMPLEMENTED)
+  - register service-provider DLL
+  - FaxDevInitialize + FaxDevVirtualDeviceCreation
+  - FaxDevStartJob + FaxDevSend + FaxDevReportStatus
+  - FaxDevAbortOperation / FaxDevEndJob / FaxDevShutdown
+  - receive entry (if required) must reject unsupported PC receive
+           |
+  single host-neutral, send-only fax job backend (NOT IMPLEMENTED)
+           |
+  authenticated Brother MFC-290C USB PC-FAX submission (NOT RECOVERED)
+           |
+  internal 14,400-bps fax modem -> LINE -> suitable analog telephone service
+```
+
+**Important TAPI exception:** Microsoft documents that an FSP exposing **virtual** fax devices through `FaxDevVirtualDeviceCreation` **does not need a separate Telephony Service Provider (TSP)**; a physical fax device exposed via TAPI normally does. A virtual device has no corresponding TAPI line on the Windows fax server, despite our back end eventually delivering the job to a real MFC-290C. Do not assume the lack of a separate TSP removes every FSP callback, line/event, or job-state requirement. Study the actual `faxdev.h` contract and Windows-version behavior before building.
+
+**Document transformation:** Microsoft Fax Service produces/accepts **TIFF Class F**; Microsoft documents acceptable fax TIFF properties: compression 1 or CCITT Group 4, **1728-pixel** width, X resolution at most 204 dpi, Y resolution at most 200 dpi and matching Y-resolution across pages. These constraints must be validated for the target Windows Fax Service path, not assumed to match the Brother's own raster/USB job protocol. The earlier user-reported `*Resolution 200dpi: ""` entry in the source called PDD is **consistent with** fax-friendly rendering but proves **nothing** about TIFF compatibility, encoding, Brother USB framing, or job completion. Record a clear conversion boundary.
+
+**Required FSP exports and statuses:** Microsoft's `faxdev.h` names `FaxDevInitialize`, `FaxDevStartJob`, `FaxDevSend`, `FaxDevReportStatus`, `FaxDevAbortOperation`, `FaxDevEndJob`, `FaxDevShutdown`, `FaxDevReceive`, with optional `FaxDevVirtualDeviceCreation` for virtual device presentation (mandatory when presenting virtual devices). An outbound-only implementation must explicitly reject or disable PC-FAX receive and still satisfy required API signatures. Do not silently promise inbound faxes just because the physical device can receive them and print them.
+
+**Transmission and reporting:** Microsoft's `FaxDevSend` contract requires actual call initiation/data transmission/termination and `FAX_SEND` receiver metadata; truthful success requires `FaxDevSend` and `FaxDevReportStatus` to reflect actual operation, not merely a successful spool submission. Assess required callbacks and virtual-device behavior from the SDK rather than fabricating TAPI call handles. Standard fax errors include no dial tone, busy, no answer, disconnected and failed negotiation, but **Brother-specific status codes are not yet known**. A spooler 'completed' event or `BRHOOK.DLL` UI hook is not evidence that remote fax receipt occurred.
+
+### Stage gates: bounded, offline-first
+
+1. **Source/protocol prerequisite (blocking):** inspect an authenticated Brother PC-FAX installer/filter and a sanitized, non-transmitting monochrome job; recover exact MFC-290C USB interface/endpoint, job envelope, destination settings and device-status/error readback. No made-up command bytes or hardware I/O.
+2. **Rendering contract:** validate an offline Microsoft-compatible TIFF Class F sample (width, compression, resolutions, multiple page consistency) and a separately verified Brother PC-FAX job encoding; reject unsupported color and malformed pages. Treat 200dpi PDD as descriptive until linked to a real converter.
+3. **OS-split prototype:** prove a Windows 2000/XP-targeted **virtual-device FSP** can enumerate and accept a fake outbound job through a mock backend in a disposable test environment, without calling a physical number. Inspect Microsoft `FaxRegisterServiceProvider` contract and ABI, but **do not register** the provider on a user's working machine during research. Investigate Vista/7/later support separately. Treat Win95 MAPI/modem integration as an independent later branch.
+4. **Failure/cancellation tests:** normalize `queued`, `submitted`, `accepted_by_device`, `dialing`, `negotiating`, `delivered`, `failed`, `cancelled`, `unknown` as proposed host states. Test timeout, busy/no dial tone, device removed, malformed job, interrupted transmission, retry duplication and cancellation without a line attached.
+5. **Controlled device test (later only):** with operator-approved test number, proper physical LINE connection and safeguarded isolated environment, verify the complete remote-page result on a real MFC-290C, including how actual failure status reaches the PC. A supported Spectrum Voice analog jack may carry fax signals; that does **not** expose any fax modem directly via USB.
+6. **Economic gate:** avoid buying a separate fax modem merely to test the Microsoft UI, if a verified native PC-FAX send path already exists. Compare saved hardware/service costs against the extensive complexity of FSP support, separate Win95 MAPI emulation, document conversion and maintaining two operating-system ABIs. No numerical savings are claimed without prices and measured engineering time.
+
+**Priority decision:** Recover **one native Brother PC-FAX send backend**, then validate the Microsoft **virtual FSP** in a mock environment. A virtual COM/fax-modem layer remains a distinct, optional fallback for programs that truly require low-level Class 1/2 AT commands; it is *not* mandatory for the Microsoft Fax Service bridge if FSP works. Keep the MFC-290C's **no PC-FAX receive** limitation unchanged.
+
+Primary references:
+- Microsoft, [Setting Up Microsoft Fax for the User (Windows 95)](https://techshelps.github.io/MSDN/DNWIN95/HTML/S66CE.HTM) (historical MSDN mirror)
+- Microsoft, [About the Fax Service](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/fax/-mfax-about-the-fax-service)
+- Microsoft, [Fax Service Provider API Requirements](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/fax/-mfax-fax-service-provider-api-requirements)
+- Microsoft, [Faxdev.h header](https://learn.microsoft.com/en-us/windows/win32/api/faxdev/)
+- Microsoft, [FaxDevVirtualDeviceCreation](https://learn.microsoft.com/en-us/windows/win32/api/faxdev/nf-faxdev-faxdevvirtualdevicecreation)
+- Microsoft, [FaxDevSend](https://learn.microsoft.com/en-us/windows/win32/api/faxdev/nf-faxdev-faxdevsend)
+- Microsoft, [About Sending a Fax (TIFF requirements)](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/fax/-mfax-about-sending-a-fax)
+- Microsoft, [FaxRegisterServiceProvider](https://learn.microsoft.com/en-us/windows/win32/api/winfax/nf-winfax-faxregisterserviceproviderw)
+- Brother, [MFC-290C specifications](https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all)
+- Brother, [PC-FAX Receive exclusions](https://support.brother.com/g/s/id/htmldoc/mfc/mfc-5895cw/gb/html/sug/chapter6_3.html)
+
 ## Proposed components (strictly separate responsibilities)
 
 ```text
