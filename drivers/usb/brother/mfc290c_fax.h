@@ -7,6 +7,22 @@
 #include <stdint.h>
 
 #define WHP_MFC290C_FAX_MODEM_MAX_BPS          14400u
+#define WHP_MFC290C_FAX_MODEM_BASIC_VOIP_BPS    9600u
+
+/* Operator-selected fax-line compatibility modes from the user guide.
+ * These are nominal machine settings, not a host-controlled USB modem,
+ * and do not describe the actual negotiated line rate.
+ */
+enum whp_mfc290c_fax_line_compatibility {
+    WHP_MFC290C_FAX_LINE_NORMAL = 1,
+    WHP_MFC290C_FAX_LINE_BASIC_VOIP
+};
+
+/* Read-only model metadata; returns 0 for invalid mode.
+ * No physical device read, setting change, fax dialing or USB I/O.
+ */
+uint32_t whp_mfc290c_fax_line_nominal_bps(
+    enum whp_mfc290c_fax_line_compatibility compatibility);
 #define WHP_MFC290C_FAX_CHART1_MEMORY_PAGES     170u
 #define WHP_MFC290C_FAX_BW_BROADCAST_LOCATIONS   90u
 
