@@ -50,6 +50,7 @@ in the linked technical documentation rather than expanding this overview.
 | Realtek RTL8111E | PCI identification and NDIS miniport scaffolds; no live DMA/network path | [RTL8111E research](documentation/readme-rtl8111e.md) |
 | Pavilion p6-2310 USB controllers, SATA, AMD PCIe | Hardware-class inventory, not proof of an attached USB device or active RAID | [Pavilion hardware](documentation/readme-pavilion-hardware.md) |
 | DOS `WHPPROBE.EXE` | Opt-in OpenWatcom MZ build and firmware/PCI diagnostics; not a USB device driver | [DOS probe and packaging](documentation/readme-dos-probe.md) |
+| Group 3 fax protocol standard (all vendors) | T.30 phases, signalling vocabulary, separation from T.4/T.6/V-series/T.38, future driver test gates | [ITU-T T.30 engineering reference](documentation/standards/itu-t-t30.md) |
 | Brother MFC-290C printer/scanner/fax | USB identity, CUPS/IOKit observation, fax policy and **offline** USB command classification only | [MFC-290C evidence and protocol ledger](documentation/brother-mfc290c.md); [fax-modem software compatibility study](documentation/brother-mfc290c-fax-modem-compatibility.md) |
 
 ### Targeted tests and probes
