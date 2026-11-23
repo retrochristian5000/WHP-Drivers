@@ -320,6 +320,61 @@ Primary references:
 - Brother, [MFC-290C specifications](https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all)
 - Brother, [PC-FAX Receive exclusions](https://support.brother.com/g/s/id/htmldoc/mfc/mfc-5895cw/gb/html/sug/chapter6_3.html)
 
+## Internal fax modem and line-control boundary (2026-11-23)
+
+**Why it matters:** Brother's MFC-290C is a standalone **Group 3 fax terminal** that can also accept **monochrome PC-FAX send jobs**, *not* an enumerated general-purpose computer serial modem. The machine's telephone `LINE` interface belongs to its fax control/modem side. The computer's `USB 04f9:01fd` interface is a **different** transport; the model-specific Brother PC-FAX job envelope, modem commands in device firmware, USB interface/endpoint used for PC-FAX, and USB readback remain unknown.
+
+### Source-backed hardware/software division
+
+- **Brother service manual SM-FAX098 ch. 3:** system overview identifies `Host -> USB interface` and, separately, `Line -> SDAA`, `MJ PCB` and fax-control blocks. The US/CAN MJ circuit drawing includes a line connection, SDAA interface, protection components, `A5X-G-24E-908` relay, and `1SS120` diode. These are **schematic identities**, not confirmed installed chip markings or a method for controlling the relay over USB.
+- **SM-FAX098 §2.3.3:** names `TX: PC-FAX Driver` for computer-based sending, while PC receive on lower models is unavailable. Do not confuse its advanced-model `RX: Class 2` with a serial Class 2 or CDC/ACM modem exposed by **MFC-290C**.
+- **Brother MFC-290C specifications:** `14,400 bps` maximum, Group 3 fax, mono MH/MR/MMR and standalone color JPEG fax, **32 MB** memory, PC-FAX **send**, no PC-FAX receive. No source identifies an internal modem IC or authenticated host-accessible AT interface.
+- **Generic protocol framing, not recovered device code:** ITU-T **T.30** defines call setup, handshake and training, image transfer, post-page confirmation, and disconnect. Typical 14.4-kbit/s G3 implementations may use V.17 and V.21 control channels; we **have not identified this unit's exact modem PHY/IC, T.30 firmware routines, USB opcodes, or negotiated speeds in a captured call**. Do not implement T.30 DSP/modulation in the host merely because the hardware uses G3 fax.
+
+### Two documented panel compatibility settings
+
+The **MFC-290C original user guide**, Telephone Line Interference (§12, p. 100), reports:
+
+| Operator-selected setting | Documented nominal modem rate | ECM note | Driver capability |
+| --- | --- | --- | --- |
+| `Normal` (default) | **14,400 bps** | Do not infer actual ECM negotiation for a call | Reportable documented metadata; **not** an authenticated PC-to-USB setting command |
+| `Basic(for VoIP)` | **9,600 bps** | ECM remains available **only for standalone color fax sending** under this profile | May be operator-selected at the machine; no authenticated host USB configuration control |
+
+This is a **maximum or nominal configured line rate**, not the rate a remote fax actually negotiates. The PC-FAX sending path is monochrome only. The device's low-speed setting can improve some VoIP circumstances but also increases ideal raw data transmission time by **50%** for identical payloads (14,400/9,600 = 1.5), before handshake, compression and retries. Disabling ECM for monochrome can remove one error-recovery mechanism; it does not establish an actual failure rate.
+
+**Implemented minimal metadata helper:** `drivers/usb/brother/mfc290c_fax.{h,c}` now declares `WHP_MFC290C_FAX_LINE_NORMAL` and `WHP_MFC290C_FAX_LINE_BASIC_VOIP`, and `whp_mfc290c_fax_line_nominal_bps()`. It returns **14400**, **9600** or **0 on invalid mode**, never reads or writes physical settings, and makes no claims that the actual unit is currently in either mode. Host-only regression tests cover both documented profiles and invalid mode input. **This is not a functioning modem driver.**
+
+### Where delivery status actually belongs
+
+Brother's **original user guide**, fax Reports and Troubleshooting, documents that the machine can print a **Transmission Verification Report** with `OK` or `NG`; the troubleshooting section explicitly warns that **PC-FAX `Result:NG` can mean insufficient machine memory**, separately from telephone-line interference. The machine can queue standalone fax pages in its memory and schedule fax transmission, but **neither feature establishes a host USB status query**.
+
+The eventual host state flow must therefore distinguish:
+
+```text
+PC app document -> driver/rendering -> USB job accepted -> machine memory/job
+                    (authentic Brother PC-FAX bytes NOT YET RECOVERED)
+   -> local firmware fax call/negotiation/T.30 exchange
+   -> firmware transmission result -> on-device report (documented)
+   -> host-readable report/USB status (?) NOT YET VERIFIED
+```
+
+For Microsoft Fax FSP, CUPS/IPP FaxOut and optional virtual COM integration, **never report successful delivery** merely because the queue drained or a USB write returned. If actual device-side delivery status cannot be read, report **unknown/pending confirmation** rather than fake `FaxDevSend` or IPP delivery success. Also do not assume a standalone received fax can be exported digitally to the PC; model-specific PC-FAX receive is unsupported.
+
+### Bounded follow-up (offline first, no unsolicited dialing)
+
+1. Acquire exact model/version of authentic Brother **PC-FAX Windows INF, DLLs/print processor and Mac CUPS/PPD-like file/filter**; isolate a sanitized **non-dialing** outbound job's format. `Class=Printer`, `Resolution`, `InstalledMemory`, `PrinterCaps` and `BRHOOK.DLL` are **host-side leads** and do not establish the modem's USB command interface.
+2. Identify which component passes the fax **destination number**, page image, transmission options and job handle; compare against ordinary print jobs to isolate fax-specific payload framing without attaching a call-capable line.
+3. Preserve read-only full USB descriptors and then map **authentic** endpoint/transfer traces under an authorized, isolated capture. Do not infer a fax endpoint from vendor `FF/FF/FF` alone or mistake mass-storage `08/06/50` for a serial modem.
+4. Examine documented on-device **Transmission Verification Reports** and error categories as a **non-USB** status oracle, with telephone numbers/documents redacted. The final device-to-host status path is unresolved; protocol recovery must establish it before a Microsoft FSP or macOS fax service claims confirmed delivery.
+5. Keep `Normal`/`Basic(for VoIP)` **panel-owned** until authenticated USB evidence says otherwise; tests may use mock configuration without modifying the real machine. Do not run telephone calls, analog line electrical measurements, firmware changes or relay activation just to discover the protocol.
+
+References:
+- [Brother MFC-290C original User Guide (Fax reports, telephone interference, troubleshooting)](https://manualzz.com/doc/1596870/brother-mfc-290c-all-in-one-printer-user-s-guide)
+- [Brother MFC-290C official specifications](https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all)
+- [Brother 2008 SM-FAX098 service manual, §§2.3 and 3.1; Appendix 6](https://manualmachine.com/brother/dcp145c/18240960-service-manual/)
+- [ITU-T T.30 facsimile transmission procedures](https://www.itu.int/rec/T-REC-T.30)
+- [Cisco Group 3 fax / T.30 overview](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/voice/fax/configuration/15-mt/vf-15-mt-book/Fax_and_Modem_Services_over_IP_Overview.html)
+
 ## Proposed components (strictly separate responsibilities)
 
 ```text
