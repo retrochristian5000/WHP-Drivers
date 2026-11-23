@@ -57,6 +57,67 @@ The Printer Working Group has standardized **IPP FaxOut (PWG 5100.15)**. OpenPri
 
 Preserve **one device-facing Brother outbound backend** and expose the smallest necessary host adapter. Priority: (1) authentic PC-FAX job format, (2) offline CUPS/fax job conversion and status model, (3) mock local IPP FaxOut discovery/job test if macOS supports the target workflow, (4) optional legacy CUPS fax queue adapter only if needed. Do not write two separate fax engines.
 
+## macOS installation and distribution plan (2026-11-23)
+
+**Present boundary:** The repository currently contains a read-only native `mfc290c-probe`, USB identity/classification code, synthetic fax-policy checks and documentation. It **does not have an installable, functioning MFC-290C print/scan/fax transport**. This section is a reproducible **future installation contract**, not instructions to install nonexistent drivers. No INF can register a printer on macOS: Windows `Class=Printer` in an INF is installation metadata for the Windows setup/spooler; the user-supplied PDD-like file is separate printer-description/configuration evidence, **not a Mac installer manifest**.
+
+### Installation choice and rationale
+
+| Path | What is installed / registered | When to use | Costs / limits |
+| --- | --- | --- | --- |
+| **Preferred: native macOS app + user-space helper** | Signed `.app` containing UI, host-neutral backend, optional local IPP print/fax service, read-only diagnostics, and a controlled setup/uninstall action. Optional `SMAppService` agent/daemon in macOS 13+ for **user-approved** background processing. | Modern macOS, after backend exists. System Settings may add a discoverable local IPP queue after client compatibility is proven. | No mandatory kernel extension or INF. Must independently verify macOS FaxOut discovery and USB interface ownership/permission; service must not accept unauthenticated remote telephone-number jobs. |
+| Legacy CUPS driver bundle / `.pkg` | User-domain/system-local PPD where appropriate, CUPS filter and backend compiled for host architecture, package receipts and explicitly created queue | Historical Brother macOS environments or measured compatibility need only, after original filter/protocol verification | Legacy PPD/rendering/UI plug-ins and sandbox constraints. Installing a PPD **alone** does not create a functional fax service. Apple's older instructions place third-party descriptions under `/Library/Printers/PPDs/Contents/Resources/`, **not `/System/Library/Printers`**. |
+| DriverKit / USBDriverKit system extension | Signed app containing `.dext` under `Contents/Library/SystemExtensions`, `Info.plist` `IOKitPersonalities` device/interface match criteria, entitlements and System Extensions activation request | **Fallback** only if research establishes that supported user-space USB integration cannot safely access the needed interface | Entitlement approvals, per-OS signing/activation requirements, conflict risk with the printer and mass-storage interfaces. Do not attach to entire `04f9:01fd` device or seize `07/01/02` and `08/06/50` interfaces merely because the MFC includes a vendor-specific interface. |
+
+**Info.plist vs INF vs PDD/PPD:** macOS `Info.plist` is used to describe an **app bundle**, and a DriverKit extension's `Info.plist` additionally defines optional matching personalities. A *PPD* describes print capabilities for a legacy CUPS driver. Neither the user's original Windows INF nor the PDD-like lines (`Resolution`, `InstalledMemory`, `PrinterCaps`) are a substitute for an app, service, validated device protocol, or installer.
+
+### Planned app layout (not created)
+
+```text
+/Applications/WHP MFC-290C.app/
+  Contents/
+    Info.plist                # app identity, minimum OS, bundle executable
+    MacOS/                    # signed universal or architecture-specific binaries
+      WHP MFC-290C
+    Library/                  # only if required by selected supported APIs
+      LaunchServices/         # optional, app-specific support
+      LaunchAgents/           # optional registered through SMAppService
+      SystemExtensions/       # no .dext unless USBDriverKit fallback proven
+    Resources/                # versioned configuration, not device commands
+```
+
+The actual `SMAppService` app-bundle layout must follow current Apple templates for agent/daemon/login-item type; the lines above are **illustrative**, not a finished file manifest. Use a bundle ID owned by the project only after checking namespace availability. Do not install anything into Apple's sealed `/System` volume or overwrite original Brother files.
+
+### Safe deployment sequence — each stage has a fail-closed gate
+
+1. **Today: read-only inventory** on a target Mac: `uname -m`, `sw_vers -productVersion`, `pkgutil --pkgs | grep -i brother`, `lpstat -v`, `lpstat -p`, and the existing `./build.sh probe-brother-mfc290c-macos`. These determine OS/architecture, existing queues/packages, and OS-visible USB identity; they **do not** show USB fax opcodes. Preserve existing queue names, ownership and negative observations.
+2. **Offline simulated install:** construct a **mock-only** signed/unsigned development app bundle with a local, non-dialing status/job service and no USB OUT commands. Verify app metadata, architectures (`file`/`lipo -info`), deterministic build/fixtures, no login item installed by default, and a clean uninstall in an isolated test account. Do not register a fax queue until supported destination/job/status behavior is testable.
+3. **Local IPP discovery contract:** bind to `127.0.0.1` by default, use authentication, no live fax submit capability; test real target-macOS client discovery and recipient handling. IPP FaxOut standard compliance **alone** does not guarantee Apple's Print dialog will expose the service as a working fax destination. If a local print queue is used, register it only through a deliberate user-controlled setup step after tests.
+4. **USB integration gate:** only after authenticated MFC-290C fax job/endpoint/status protocol and safe interface ownership, connect the mock job service to the verified Brother send-only backend. Record errors distinctly: queue accepted, device accepted, dialing, negotiated, final remote receipt unknown/delivered/failed. Keep Mac app, CUPS adapter and any DriverKit extension separate from shared model protocol.
+5. **Distribution:** for end-user deployment outside the Mac App Store, sign executable code with a suitable **Developer ID Application** identity, package as an app-in-DMG/ZIP or an optional `.pkg` signed with **Developer ID Installer** when an installer is justified; submit to Apple's **notarization** service and test with Gatekeeper enabled. If a package is needed, build from a checked **staged root** with `pkgbuild`/`productbuild` and audit exact paths, modes and scripts. Do not assume a locally compiled unsigned development binary can be distributed or loaded as a DriverKit system extension. macOS 13+ helpers should use `SMAppService` when appropriate and remain user-controlled; older macOS versions require a separately validated support strategy.
+6. **Uninstall / repair:** suspend jobs, stop/deregister only the WHP-owned service, remove only the WHP-created queue after explicit choice, preserve Brother's original queues and system drivers, remove project-owned app/data and receipts as applicable, retain user documents unless separately requested, and verify no orphan startup tasks. A reinstall must not duplicate services or change phone settings or active device bindings.
+
+**Suggested smoke-test gates (not yet implemented):** package inventory before/after is identical in no-install mode; no root requirement for read-only diagnostics; no `lpadmin`, `installer`, `systemextensionsctl`, `launchctl bootstrap`, network listener, printer reset, USB OUT, or dial on a dry run; architecture and minimum-OS validation; successful intentional install of mock-only app in a disposable environment; uninstall returns to initial state. Future CI tests can validate signed staging manifests off-device, but **a Linux CI job cannot establish successful macOS installation, signing, entitlements or actual hardware operation**.
+
+### Monetary and operational overhead
+
+- Apple lists Developer Program membership at **USD $99 per year** (local currency or fee waiver may vary). Budget it **only for a distribution workflow requiring Developer ID credentials**; ordinary source review and preliminary local compilation are not evidence that membership has already been purchased or is necessary at this stage.
+- A `.pkg` can reduce repeated manual installation but adds maintenance of package metadata, signing, notarization and uninstall behavior. A self-contained app can avoid unnecessary system-wide writes if it meets service and device-access needs.
+- DriverKit approval/entitlement work is additional cost and potential breakage; do not undertake it without a verified interface ownership/access blocker.
+- Count support cost for legacy CUPS/PPD changes, Apple Silicon/intel compatibility, macOS version gates, privacy of recipients, failure/retry charges and user time.
+
+Primary installation references:
+- Apple, [Add and manage printers](https://support.apple.com/guide/mac-help/add-and-manage-printers-mh14004/mac)
+- Apple, [Installing system extensions and drivers](https://developer.apple.com/documentation/systemextensions/installing-system-extensions-and-drivers/)
+- Apple, [DriverKit and USBDriverKit](https://developer.apple.com/documentation/usbdriverkit)
+- Apple, [Creating a driver / `IOKitPersonalities`](https://developer.apple.com/documentation/driverkit/creating-a-driver-using-the-driverkit-sdk)
+- Apple, [SMAppService](https://developer.apple.com/documentation/servicemanagement/smappservice)
+- Apple, [PPD placement (historical)](https://developer.apple.com/library/archive/documentation/Printing/Conceptual/UsingPPDFiles/ppd_tasks/ppd_tasks.html)
+- Apple, [Packaging Mac software](https://developer.apple.com/documentation/xcode/packaging-mac-software-for-distribution)
+- Apple, [Notarizing macOS software](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
+- Apple, [Developer Program membership cost](https://developer.apple.com/help/account/membership/program-enrollment)
+- OpenPrinting, [Printer Applications replacing legacy PPD drivers](https://openprinting.github.io/cups/drivers.html)
+
 ## Status accuracy and privacy
 
 Keep at least these distinct conceptual states: `queued`, `rendered`, `submitted_to_backend`, `accepted_by_device`, `dialing`, `negotiating`, `delivered`, `failed`, `cancelled`, `unknown`. These are **project-side conceptual states**, not authenticated Brother codes. A successfully completed CUPS/IPP queue operation **cannot alone** certify that a remote fax machine received a complete document. A legitimate `delivered` event requires actual device-side session/result evidence.
