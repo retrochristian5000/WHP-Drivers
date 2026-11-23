@@ -2,6 +2,19 @@
 
 #include <stddef.h>
 
+uint32_t whp_mfc290c_fax_line_nominal_bps(
+    enum whp_mfc290c_fax_line_compatibility compatibility)
+{
+    switch (compatibility) {
+    case WHP_MFC290C_FAX_LINE_NORMAL:
+        return WHP_MFC290C_FAX_MODEM_MAX_BPS;
+    case WHP_MFC290C_FAX_LINE_BASIC_VOIP:
+        return WHP_MFC290C_FAX_MODEM_BASIC_VOIP_BPS;
+    default:
+        return 0u;
+    }
+}
+
 enum whp_mfc290c_fax_support whp_mfc290c_fax_mode_support(
     enum whp_mfc290c_fax_mode mode)
 {
