@@ -2,7 +2,9 @@
 
 **Status (2026-11-23): design and evidence only; no virtual fax modem, USB fax transfer, telephone dialing, or physical-line test has been implemented.**
 
-This is a focused continuation of [the MFC-290C protocol ledger](brother-mfc290c.md), not a new driver or a reset of its USB discovery work. Its goal is to determine whether **existing programs which require a serial Class 1/Class 2 fax modem** can submit **outbound** faxes through the Brother MFC-290C's documented PC-FAX-send function.
+This is a focused continuation of [the MFC-290C protocol ledger](brother-mfc290c.md), not a new driver or a reset of its USB discovery work.
+
+For macOS-specific fax queue, CUPS, and modern IPP FaxOut feasibility, see the [separate macOS fax integration study](brother-mfc290c-macos-fax.md); keep the shared device-facing PC-FAX backend here as the authority for cross-platform transport constraints. Its goal is to determine whether **existing programs which require a serial Class 1/Class 2 fax modem** can submit **outbound** faxes through the Brother MFC-290C's documented PC-FAX-send function.
 
 ## Evidence and scope
 
