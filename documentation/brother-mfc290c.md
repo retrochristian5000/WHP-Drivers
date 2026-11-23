@@ -384,6 +384,36 @@ Sources:
 - [Brother PL-FAX154 MFC-290C parts-list PCB assemblies](https://documents.cdn.ifixit.com/ViQd2JUqMFeULuyJ.pdf)
 - Cross-reference the existing **SDAA topology and LINE/EXT chip filters** in the [main-PCB research section](#modemsdaa-chip-identification-gates-2026-11-23) and the [power rail/ASIC filter](#asic-voltage-compatibility-mains-versus-downstream-dc-2026-11-21).
 
+### MFC-290C cavity/opening map and SDAA enclosure (2026-11-23)
+
+**Question:** Can known cavities, cutouts, hollow shields, unoccupied board positions, and separations isolate electrically unconnected components or determine current paths? **Sometimes, but only after distinguishing physical geometry from circuit continuity.** No full MFC-290C 3D cavity map or authenticated board-level netlist has been established. The term *cavity* is not used as a formal component name in the extracted June 2008 SM-FAX098 manual; it uses **enclosure**, **cutout**, **hole**, **slit**, **channel**, **shield**, and **insulator**. Keep these original terms in the ledger rather than falsely reporting an unpopulated electrical compartment.
+
+**New key discovery in the original model-family manual:** **SM-FAX098 §6.1.11, pp. 6-51–6-53**, explicitly labels a **removable `SDAA enclosure` on the main PCB**, present for MFC models. The main–MJ `LINE` (yellow) and `EXT.` (black) harnesses are routed through/along this enclosure. The service manual says the enclosure can be released from the main PCB and identifies the **`LINE` main-board connector as a 2-wire yellow harness**. Thus the enclosure is a **model-relevant SDAA search landmark**, *not* an assumed empty cavity or proof of the SDAA's exact chip position/pinout. It may hide or protect several components; the book does not disclose a readable IC top marking beneath it in this source passage. Do **not** perform disassembly just to inspect it; existing non-energized board photos or a sufficiently detailed drawing are preferable.
+
+| Documented geometric feature | Original manual (2008), model-family locator | Evidence about connectivity | What remains unresolved |
+| --- | --- | --- | --- |
+| **Removable SDAA enclosure on main PCB** | §6.1.11, diagrams `6_46`, `6_47`, `6_48`, pp. **6-51–6-53**; additional `6_52`, p. **6-55** | The `LINE`/`EXT.` harness routing deliberately reaches the enclosure area; it is **not an unused detached module** | Actual IC(s), isolation topology, mounting/ground bond, the circuit underneath |
+| **U-shaped cutout in lower MJ/PS shield** | §6.1.12 diagram `6_49`, p. **6-54** | **Power-supply harness passes through it**; this opening is positively **occupied as a cable route** | Specific harness currents/voltage rails |
+| **Routing channel in lower cover** | §6.1.12 diagram `6_52`, p. **6-55** | Routes **power harness**, while `LINE`/`EXT.` travel along left side; this is *organization*, not a verified disconnected boundary | Potential shared return/ground/EMI paths |
+| **Two square holes in lower MJ/PS shield** | §6.1.12 diagrams `6_50_1_100V`, `6_50_2_100V`, pp. **6-56–6-57** | Accept **power-supply shield supports**; not empty component sockets, missing ICs or open circuit nodes | Whether metal shield parts provide a chassis/earth bond |
+| **Shield slit + locking tab** | §6.1.12, pp. **6-56–6-57** | Mechanical engagement of the shield, **not** proven electrical open/closed contact | Electrical continuity through screws/shielding |
+| **MJ PCB insulator and cable guide** | §6.1.12, pp. **6-56–6-58** | Supports the MJ telephone board and separates it mechanically; guides `LINE`/`EXT.` harnesses | Galvanic barrier components and actual creepage/clearance |
+| **PS PCB insulator and power-supply shield** | §6.1.12, pp. **6-56–6-58** (100 V variant) | Separate protective structure around the **mains PSU**; proximity to MJ PCB does not put mains current through telephone wiring | Exact primary/secondary circuits, grounding and isolation safety certification |
+| **Unused part cavity / unpopulated header / no-connect pin** | No **MFC-290C-specific** occupied/unoccupied evidence found in these diagrams | **Unverified**; cannot be used to prune SDAA candidates or declare a dead path | Need regional BOM/schematic, fitted-board photo or explicit PCB `NC` net labels |
+
+**Three levels of evidence, which must never be merged:**
+
+1. **Mechanical separation**: hole, slot, air gap, molded cavity, shield, enclosure, insulator. An opening may be a wire passage, a mounting point or intentional spacing. **It does not prove zero current through nearby circuits**.
+2. **Connection topology**: connector pins, wire colors, PCB traces, cable continuity, grounding, capacitance/transformer/optocoupler/isolation barrier, and shields. A shield can be grounded through fasteners even when a plastic insulator supports another board. No claim of full galvanic isolation without a schematic.
+3. **Electrical participation**: verified current path/return, DC supply domain, mains primary versus secondary, telephone-line loop/ring signals, PCB `NC` pin or depopulated footprint, and switch/relay state. **Only this level (or verified equivalent schematic/board evidence) supports declaring a node unconnected**. Even nominally isolated circuits may exchange AC signals through capacitive coupling; a gap is not a zero-coupling guarantee.
+
+**Best bounded next step:** Reuse the original `SM-FAX098` **§6.1.11 pp. 6-51–6-53** to locate the SDAA enclosure on the correct **MFC-290C `B53K961`** main-board variant; compare the `LINE`/ `EXT.` harness termination and the **§6.1.12 pp. 6-54–6-58** 100 V MJ/PS shield geometry. If any archival *unpowered* board photograph shows the region, annotate **occupied**, **mechanical opening**, **true unpopulated footprint**, or **unknown**. Only disqualify a specific SDAA IC when a legible chip mark or exact connection/pin/voltage mismatch is established. Do not attempt live continuity testing, PSU opening, telephone ring measurement or touching stored-charge circuitry. **No USB/fax driver code is changed by mechanical observations**.
+
+Sources:
+- [Original Brother June 2008 SM-FAX098 service manual, §§6.1.11–6.1.12](https://device.report/m/c3cad35b9030f141dce394f89ecb8b13f556c5b14102394ef510afea58e731ac) — page labels **6-51–6-58**, including diagrams `6_47`, `6_49`, `6_50_1_100V`, and `6_52`
+- [Brother SM-FAX098 alternate original PDF](https://www.laserexpressinc.com/manuals/Brother/brother-dcp-145c-165c-185c-385c-585c-mfc-0250c-290c-490cw-790cw-990cw-service-manual.pdf), same manual (MFC-290C included)
+- [Existing rear-port topology evidence](#rear-port-geography-ac-inlet-near-lineext-and-mjps-shielding-2026-11-23) and [SDAA chip identification gates](#modemsdaa-chip-identification-gates-2026-11-23)
+
 ### ASIC voltage compatibility: mains versus downstream DC (2026-11-21)
 
 **User question:** Can the MFC-290C's observed
