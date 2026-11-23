@@ -58,6 +58,37 @@ Sources:
 - Microsoft [PRINTER_INFO_2 and `PRINTER_ATTRIBUTE_FAX`](https://learn.microsoft.com/en-us/windows/win32/printdocs/printer-info-2)
 - Brother [MFC-290C: select Brother PC-FAX as a printer](https://support.brother.com/g/b/faqend.aspx?c=in&faqid=faq00002726_000&ftype3=2014&lang=en&prod=mfc290c_all)
 
+## Reported PDD resolution entry (2026-11-23)
+
+**Reported verbatim by user from a file identified as PDD** (original filename, extension, header, software package and surrounding records not yet supplied):
+
+```text
+*Resolution 200dpi: ""
+```
+
+**Interpretation if this file follows Adobe PPD syntax:** `*Resolution` is the main option keyword; `200dpi` is a choice identifier indicating nominal symmetrical 200 dpi raster/rendering resolution; the quoted empty string is an **empty feature invocation value**, meaning **no extra PostScript command text is supplied for this particular choice**. It does **not** signify zero resolution, disabled output, a missing data stream, or proof that resolution is always the default. PPD and CUPS drivers can consume resolution as metadata to drive document rendering or select a later raster filter.
+
+**Filename guard:** The user said **PDD**, not **PPD**; do **not** silently rename the source or assert the file is a standards-conforming PPD. The leading asterisk, keyword/choice/colon and quoted value closely resemble PPD records. Inspect the actual extension and magic/header (`*PPD-Adobe:`), encoding, product metadata, and neighboring keys to establish whether it is a PPD-format file, vendor variant, or a separately defined PDD format.
+
+**Fax-quality association is a candidate only:** Brother's Linux PC-FAX documentation discusses `Standard` as nominal 200×100 dpi and `Fine` as nominal 200×200 dpi on supported fax models, including MFC-290C in the supported-model list. Thus `200dpi` is consistent with a nominal 200×200 **rendering choice**, but does not independently authenticate which fax transmission mode, scanning resolution, physical receiver negotiation, bit depth, encoding (MH/MR/MMR), firmware command, or USB endpoint was selected. Brother's MFC-290C product spec separately confirms PC-FAX **sending**, not PC-based receiving.
+
+### Minimal offline follow-up on the actual original file
+
+1. Preserve exact filename **including `.pdd` vs `.ppd`**, package/OS version, checksum, surrounding records, and original text without converting formats. Scrub any recipient numbers and personal filenames.
+2. Examine `*PPD-Adobe:`, `*OpenUI *Resolution`, `*DefaultResolution`, the complete `*Resolution` choices, `*CloseUI`, `*cupsFilter`/`*cupsFilter2`, `*cupsModelNumber`, and model or product markers **only where they occur**. Compare any `200x100dpi` choice with `200dpi` rather than guessing that both exist.
+3. Identify the *consumer*: renderer, CUPS filter, spooler back-end, or Brother-specific job converter. `""` does not itself issue any command to the MFC-290C. Do not send it directly as a USB payload.
+4. Add an **offline parser fixture** once the file format is authenticated: parse the line exactly, distinguish `200dpi` from an empty invocation, preserve defaults, reject malformed values, and confirm parsing has no dialing/USB side effects.
+5. Trace a **non-transmitting** PC-FAX job's selected resolution to its produced raster metadata; do not promote a resolution label to a verified on-wire Brother fax opcode.
+
+**Evidence boundary:** User's exact line is an observation; its PPD-style meaning is standards-supported; the file type and device-side usage remain unverified. No new fax protocol or functional driver is claimed.
+
+References:
+- [Apple PPD Concepts](https://developer.apple.com/library/archive/documentation/Printing/Conceptual/UsingPPDFiles/ppd_concepts/ppd_concepts.html)
+- [CUPS PPD Extensions](https://www.cups.org/doc/spec-ppd.html)
+- [CUPS PPD compiler Resolution syntax](https://www.cups.org/doc/ref-ppdcfile.html#Resolution)
+- [Brother PC-FAX (CUPS) quality documentation](https://support.brother.com/g/b/faqend.aspx?c=in&faqid=faq00100716_000&lang=en&prod=fax2820_us_as)
+- [Brother MFC-290C specifications](https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all)
+
 ## Proposed components (strictly separate responsibilities)
 
 ```text
