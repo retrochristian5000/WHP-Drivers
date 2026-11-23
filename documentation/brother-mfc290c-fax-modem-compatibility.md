@@ -168,6 +168,35 @@ References:
 - [Microsoft PRINTER_INFO_2 attributes (separate runtime concept)](https://learn.microsoft.com/en-us/windows/win32/printdocs/printer-info-2)
 - [Brother MFC-290C PC-FAX specifications](https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all)
 
+## Reported BRHOOK.DLL status-monitor component (2026-11-23)
+
+**User observation:** `BRHOOK.DLL` was found in the software package the user is investigating for Brother MFC-290C PC-FAX. No binary, directory path, file version, PE exports/imports, digital signature or hash has been provided. The DLL is **not yet authenticated as MFC-290C-specific, a fax component, a USB driver, a port/language monitor, or a modem API**.
+
+**Corroborated context:**
+- Brother's model-targeted Status Monitor documentation includes MFC-290C and describes indications such as **offline, paper empty, paper jam and ink empty**. Brother separately documents checking **ink status** via the Status Monitor (installed with MFL-Pro Suite). This establishes the software feature for this model, **not which DLL implements it**.
+- Public archive listings for *other Brother models* show `BRHOOK.DLL` inside `StatusMonitor/Brmfcmon/` (e.g. DCP-8040, MFC-8440) and `StatusMon/brownie/` (e.g. HL-2140). Treat these as **cross-model provenance leads only**, not byte-identical modules or installation proof for MFC-290C. Avoid downloading or executing third-party 'DLL fix' downloads.
+- Windows supports printer status through spooler **language monitors** and **port monitors** (optional, separate abstractions); Microsoft documents interface names `InitializePrintMonitor2`, `OpenPortEx`, `ReadPort`, `WritePort`, `GetPrinterDataFromPort`, and `SendRecvBidiDataFromPort`. **Do not assert `BRHOOK.DLL` exports any of them** until the actual PE export table and driver package references establish it. The filename 'HOOK' may describe a different kind of software hook.
+
+### Evidence triangulation plan (read-only, no DLL execution)
+
+1. Preserve exact DLL path, file size, SHA-256, Microsoft PE machine type (x86/x64), timestamp, company/version resources, and Authenticode signature status where available. Do not copy untrusted DLLs to system directories or register/load them as a diagnostic.
+2. Inspect the *original associated* installation INF/CAB/script/registry materials for exact literal `BRHOOK.DLL`, `Brmfcmon`, `StatusMon`, `LanguageMonitor`, `PortMonitorDll`, `AddMonitor`, service/program names and install sections. A `Class=Printer` line in the fax INF does not imply this DLL is a spooler monitor. Preserve file-to-package-to-model mappings.
+3. Perform **static** PE import/export, resource and string analysis only on a trustworthy copy, without running code: `llvm-readobj --file-headers --coff-exports --coff-imports BRHOOK.DLL`, `llvm-objdump -p BRHOOK.DLL`, or equivalent host tools. Check for spooler interfaces, GDI/USER32 window hooks, notification/event APIs, USB/Win32 device interfaces, and IPC. These are *candidate categories*, not known behavior. Avoid interpreting one import as an implemented feature.
+4. Build an evidence-backed dependency map: who loads BRHOOK, which process invokes it, whether it receives status via another Brother module, and whether it belongs to **printer status** versus **PC-FAX job state**. Separate ink/paper/online data from fax dialing/negotiation/delivery receipts.
+5. If a confirmed status-message format emerges, add **offline** parse tests for unknown/malformed status and truthfully maintain distinct lifecycle states: `queued`, `accepted_by_driver`, `sent_to_device`, `dialing`, `negotiating`, `delivered`, `failed`, and `unknown`. These are proposed software status names, not asserted Brother status codes. **Never turn a spooler completion into a confirmed delivered fax** or enable PC-FAX receive based on monitor presence.
+6. Compare the authenticated module version and behavior with Brother MFC-250C (nearest fax cohort), MFC-490CW (higher-fax features), and faxless DCP controls, preserving differences and negative findings. The same DLL filename across products does not mean identical firmware commands.
+
+**Unresolved now:** user file's origin/contents, exported functions, dependencies, readback path, fax-status visibility, concrete Brother USB status protocol. No runnable driver/virtual modem capability is inferred.
+
+References:
+- [Brother MFC-290C status monitor/offline guide](https://support.brother.com/g/b/sp/faqend.aspx?c=us_ot&faqid=faq00003032_001&lang=en&prod=mfc290c_all)
+- [Brother MFC-290C ink/status monitor](https://support.brother.com/g/b/faqend.aspx?c=eu_ot&faqid=faq00000253_018&ftype3=2043&lang=en&prod=mfc290c_all)
+- [Third-party archive listing: DCP-8040 driver package contents, cross-model only](https://www.driverguide.com/driver/detail.php?driverid=1336653)
+- [Third-party archive listing: HL-2140 driver package contents, cross-model only](https://www.driverguide.com/driver/detail.php?driverid=1337612)
+- [Microsoft: Language monitors](https://learn.microsoft.com/en-us/windows-hardware/drivers/print/language-monitors)
+- [Microsoft: Port monitors](https://learn.microsoft.com/en-us/windows-hardware/drivers/print/port-monitors)
+- [Microsoft: Installing a print monitor](https://learn.microsoft.com/en-us/windows-hardware/drivers/print/installing-a-print-monitor)
+
 ## Proposed components (strictly separate responsibilities)
 
 ```text
