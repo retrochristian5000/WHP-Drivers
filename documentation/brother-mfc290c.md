@@ -1767,6 +1767,43 @@ References for this filter correction:
 - [Silicon Laboratories, Si3050 + Si3018/Si3019 datasheet, Rev. 1.01 (2005)](https://media.digikey.com/pdf/Data%20Sheets/Silicon%20Laboratories%20PDFs/SI3050_3018_3019_Rev_1.01.pdf)
 - [Brother WSW50 SDAA settings reference (different Brother models; **not MFC-290C-specific**)](https://www.brother-usa.com/-/media/brother/product-catalog-media/documents/2023/05/18/15/50/wsw_e_ver28.pdf)
 
+#### Two telephone jacks: one shared line, not two DAA channels (2026-11-23)
+
+**New physical observation incorporated into the SDAA filter:** The MFC-290C has two labeled telephone connectors, `LINE` and `EXT.`. Brother's [MFC-290C-supported external answering-device FAQ](https://support.brother.com/g/b/faqend.aspx?c=us&faqid=faq00002454_000&lang=en&pfs=1&prod=mfc290c_all) explicitly says to connect `LINE` to the wall and an external telephone answering device to `EXT.` **or to another socket on the same telephone line**. Brother explains that the machine listens for fax tones and takes over the call if appropriate. Thus these jacks do **not** establish two independent subscriber lines, two concurrent fax channels, two separate modems, or a DAA silicon with two analog channel inputs.
+
+**Real board evidence:** Brother's [SM-FAX098 Appendix 6 MJ PCB circuit](https://www.manualslib.com/manual/736209/Brother-Mfc990cw.html?page=521) for the regional model group includes `Line`, `MAIN`, `SDAA`, telephone-jack connectors, a relay identified as `A5X-G-24E-908` and a `1SS120` diode. This supports a **separate analog-line steering/protection/switching subsystem**; it does **not** prove exact relay contact states, default pass-through, direct DAA pin assignments, or a second line-side chip. Regional main/MJ PCB revisions remain distinct from the chip identifier.
+
+```text
+             Shared analog telephone line
+                         |
+                       LINE
+                         |
+           protection / relay switching
+                   /            \
+          MODEM + SDAA        EXT. telephone
+          via main PCB        or answering device
+              |
+       internal fax firmware
+
+Functional wiring only; not a netlist, relay truth table or
+claim of two physically independent telephone channels.
+```
+
+**Corrected candidate test:**
+
+| Candidate characteristic | Evidence-based decision |
+| --- | --- |
+| One telephone-line analog interface plus supported external switching/relay circuitry | **Keep**: fully compatible *in principle* with `LINE` + `EXT.` |
+| Two independent telephone-line DAAs | **Not required**: dual-channel capacity is no stronger evidence for this machine; extra features could remain unused |
+| Integrates line isolation, ring detection and hook control but has no separate `EXT.` pins | **Keep**: `EXT.` switching may occur on the MJ/main-board external circuit |
+| A proposed *complete circuit design* cannot provide the documented line-sharing, answering-device handover or required relay control **even with external components** | **Exclude that complete circuit**, but **do not automatically exclude a standalone SDAA IC** |
+| Package/voltage/pinout contradict a confirmed MFC-290C board location, or part postdates original 2008 design | **Exclude exact SKU or original-board fit** after model/region documentation; preserve reason |
+| Unmarked component or uncertain switching wiring | **Unknown**: collect real marking and nets before ruling anything out |
+
+**High-value follow-up:** Trace `LINE` and `EXT.` jack contact nets to the relay, main-board connector, and SDAA line interface using the **correct MFC-290C regional schematic or an unpowered board photo**. Determine the relay's contact count and control signal and whether switching is external to the DAA die. This yields a verifiable **one-line plus extension-switching requirement**, not a fictional dual-line chip requirement. A powered ring-voltage or off-hook test is unnecessary and unsafe for preliminary identification. Once the circuit is mapped, compare package marking, isolation topology, ring-detect path, voltage and pinout against dated chip datasheets.
+
+**Driver consequence:** `EXT.` telephone integration is **on-device analog line management**; it does not create another USB function or AT-controlled serial modem. Keep the host PC-FAX submission transport, actual device modem status readback, and on-device extension-phone line control as separate unresolved interfaces.
+
 **Safest high-value verification path:** First compare an existing **unpowered, authenticated MFC-290C `B53K961` main-board photo** against the service manual control-electronics map. Read package markings of the separate **SDAA**, possible `MODEM` package and main ASIC without opening powered equipment. Record board revision/region and the IC silkscreen location; then check the exact manufacturer's original datasheet for 2008 availability, supply voltage, footprint, and 14.4-kbps Group 3 modem compatibility. If a component marking is illegible, record **unknown**, not an inferred vendor. Cross-model MFC-250C and MFC-490CW photos are secondary controls only and cannot identify fitted MFC-290C silicon on their own.
 
 **Safety and driver boundary:** Do not measure ring voltage, probe powered telephone-line circuits, open up a powered PSU/PCB, actuate a relay, change EEPROM, or send speculative USB modem opcodes. A real candidate IC has to be reconciled with both the board and T.30/V-series capabilities. Even after IC identification, the PC-FAX USB job protocol, Windows Fax integration and macOS CUPS/IPP backend remain **separate unsolved tasks**. See the [shared T.30 reference](standards/itu-t-t30.md) and [fax-modem software compatibility study](brother-mfc290c-fax-modem-compatibility.md).
