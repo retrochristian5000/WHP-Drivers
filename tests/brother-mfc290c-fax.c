@@ -19,6 +19,15 @@ int main(void)
     unsigned int features = whp_mfc290c_documented_features();
 
     CHECK(WHP_MFC290C_FAX_MODEM_MAX_BPS == 14400u);
+    CHECK(WHP_MFC290C_FAX_MODEM_BASIC_VOIP_BPS == 9600u);
+    CHECK(whp_mfc290c_fax_line_nominal_bps(
+          WHP_MFC290C_FAX_LINE_NORMAL) == 14400u);
+    CHECK(whp_mfc290c_fax_line_nominal_bps(
+          WHP_MFC290C_FAX_LINE_BASIC_VOIP) == 9600u);
+    CHECK(whp_mfc290c_fax_line_nominal_bps(
+          (enum whp_mfc290c_fax_line_compatibility)0) == 0u);
+    CHECK(whp_mfc290c_fax_line_nominal_bps(
+          (enum whp_mfc290c_fax_line_compatibility)99) == 0u);
     CHECK(WHP_MFC290C_FAX_CHART1_MEMORY_PAGES == 170u);
     CHECK(WHP_MFC290C_FAX_BW_BROADCAST_LOCATIONS == 90u);
 
