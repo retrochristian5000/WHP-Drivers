@@ -1720,6 +1720,35 @@ PCB/assembly codes, **not ASIC chip part numbers** or interchangeable
 firmware versions. Related higher-tier MFC-490CW has main PCB **B53K960**;
 its silicon/protocol must not be presumed identical.
 
+### Modem/SDAA chip identification gates (2026-11-23)
+
+**Question:** Does the MFC-290C's **ITU-T Group 3 / T.30** fax behavior identify a particular modem chip? **No.** T.30 specifies fax-session procedures and does not name a silicon supplier, processor ISA, SDAA vendor, USB endpoint or host software interface. Many compatible modem implementations can perform the same T.30 functions.
+
+**New model-family source cross-check (Brother June 2008 `SM-FAX098`):**
+
+- **§3.3.1, control-electronics diagram (p. 3-45)** depicts separate **functional blocks** labeled `Main ASIC`, `SDRAM`, `ROM`, `MODEM`, `EEPROM`, `SDAA`, and the telephone-line **MJ PCB**. The diagram supports a modem-to-line-interface investigation but **does not prove that every labeled function occupies a separate packaged IC** or identify any package top marking. It shows `MODEM` and `SDAA` as **distinct functional blocks**, not an ordinary host COM port.
+- **§4.1, machine error diagnostics (around p. 4-27)** lists error codes **`DF` and `E0` as `Modem error`**, with suspected **SDAA chip** or **main PCB** failure. This strongly supports the presence of SDAA semiconductor hardware. It does **not** prove a specific SDAA model, modem IC number, which die executes T.30, or that the chip resides on the MJ board.
+- **§2.3, model-group fax specifications** differentiates the **MFC-250C/MFC-290C `14,400 bps` G3 group** from higher-tier **MFC-490CW/790CW/990CW `33,600 bps` Super G3**. A candidate needing 33.6-kbps V.34 operation cannot be **required** solely to explain the MFC-290C's documented 14.4-kbps ceiling. Conversely, a faster-rated chip could be used at a lower cap: do not rule it out without part/firmware evidence.
+- **Brother PL-FAX154, List 8 (PCB)** assigns MFC-290C main-board family **`B53K961`**, including `LT0288051` (wide region group) and `LT0288052` (early US production), plus `LT0288055` (China). MJ board family **`B53K967`**, US/CAN candidate `LT0405001`, is separate. The MFC-490CW main PCB is family `B53K960`. **These are assembly/board identifiers, not semiconductor part numbers**; see the original main-PCB table above for the established variants.
+
+**Bounded chip candidate categories, no invented SKU or vendor assignment:**
+
+| Rank for inspection | Functional silicon target | Evidence state | Required identifier |
+| --- | --- | --- | --- |
+| **1** | **SDAA semiconductor** (telephone-line interface, isolation, line-status path) | Confirmed as a troubleshooting component and functional block; **manufacturer/part number unknown** | Physical package marking, exact PCB silkscreen reference, authenticated circuit connection or service-manual component-number list |
+| **2** | **Fax modem/baseband function** (V-series modulation/demodulation, control data toward the main ASIC) | `MODEM` block documented; standalone IC versus ASIC-integrated function **unresolved** | Original board photo with readable marks; or verified board netlist/schematic/firmware reference associating a part with MODEM |
+| **3** | **Main RISC ASIC** (128 MHz tier, overall firmware and USB job coordination) | Main ASIC and clock class documented; **core family and exact part unknown** | ASIC top marking and model-specific firmware/board evidence; do not substitute unrelated Brother CPU SKUs |
+| **Not a modem chip** | **MJ telephone-jack PCB, relay and protection network** | Original `B53K967` board and regional relay circuitry documented | Useful to trace LINE/EXT and SDAA electrical separation, not proof of modulation DSP silicon |
+
+**Safest high-value verification path:** First compare an existing **unpowered, authenticated MFC-290C `B53K961` main-board photo** against the service manual control-electronics map. Read package markings of the separate **SDAA**, possible `MODEM` package and main ASIC without opening powered equipment. Record board revision/region and the IC silkscreen location; then check the exact manufacturer's original datasheet for 2008 availability, supply voltage, footprint, and 14.4-kbps Group 3 modem compatibility. If a component marking is illegible, record **unknown**, not an inferred vendor. Cross-model MFC-250C and MFC-490CW photos are secondary controls only and cannot identify fitted MFC-290C silicon on their own.
+
+**Safety and driver boundary:** Do not measure ring voltage, probe powered telephone-line circuits, open up a powered PSU/PCB, actuate a relay, change EEPROM, or send speculative USB modem opcodes. A real candidate IC has to be reconciled with both the board and T.30/V-series capabilities. Even after IC identification, the PC-FAX USB job protocol, Windows Fax integration and macOS CUPS/IPP backend remain **separate unsolved tasks**. See the [shared T.30 reference](standards/itu-t-t30.md) and [fax-modem software compatibility study](brother-mfc290c-fax-modem-compatibility.md).
+
+Sources:
+- Brother original June 2008 [SM-FAX098 service manual](https://www.laserexpressinc.com/manuals/Brother/brother-dcp-145c-165c-185c-385c-585c-mfc-0250c-290c-490cw-790cw-990cw-service-manual.pdf), §§2.3, 3.3.1, 4.1, model family MFC-250C/290C
+- Brother [PL-FAX154 parts list, PCB List 8](https://www.laserexpressinc.com/manuals/Brother/brother-dcp-145c-163c-165c-167c-185c-383c-385c-387c-585cw-mfc-250c-250cz-290c-290cz-297c-297cz-490cw-790cw-990cw-parts-manual.pdf)
+- Brother [MFC-290C official specifications](https://support.brother.com/g/b/spec.aspx?c=us&lang=en&prod=mfc290c_all)
+
 ### Main ASIC instruction-set chronology: original 2008 cutoff (2026-11-21)
 
 **Question:** Can we narrow Brother's unnamed
