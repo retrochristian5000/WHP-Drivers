@@ -322,6 +322,9 @@ Primary references:
 
 ## Internal fax modem and line-control boundary (2026-11-23)
 
+**Shared protocol reference:** [ITU-T T.30 Group 3 fax session procedures](standards/itu-t-t30.md) is the OS- and vendor-neutral reference for phase definitions, common signal names, ECM/negotiation boundaries, offline tests and provenance; retain Brother MFC-290C-specific modem rates, USB discovery and reports in this file.
+
+
 **Why it matters:** Brother's MFC-290C is a standalone **Group 3 fax terminal** that can also accept **monochrome PC-FAX send jobs**, *not* an enumerated general-purpose computer serial modem. The machine's telephone `LINE` interface belongs to its fax control/modem side. The computer's `USB 04f9:01fd` interface is a **different** transport; the model-specific Brother PC-FAX job envelope, modem commands in device firmware, USB interface/endpoint used for PC-FAX, and USB readback remain unknown.
 
 ### Source-backed hardware/software division
